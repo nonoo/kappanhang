@@ -7,12 +7,10 @@ import (
 )
 
 var connectAddress string
-var connectPort uint16
 
 func parseArgs() {
 	h := getopt.BoolLong("help", 'h', "display help")
 	a := getopt.StringLong("address", 'a', "IC-705", "Connect to address")
-	p := getopt.Uint16Long("port", 'p', 50001, "Connect to UDP port")
 
 	getopt.Parse()
 
@@ -22,5 +20,4 @@ func parseArgs() {
 	}
 
 	connectAddress = *a
-	connectPort = *p
 }
