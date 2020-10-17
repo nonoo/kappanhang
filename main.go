@@ -8,8 +8,10 @@ import (
 	"github.com/nonoo/kappanhang/log"
 )
 
-var portControl PortControl
-var portAudio PortAudio
+var ports struct {
+	control portControl
+	audio   portAudio
+}
 
 func setupCloseHandler() {
 	c := make(chan os.Signal)
@@ -17,7 +19,7 @@ func setupCloseHandler() {
 	go func() {
 		<-c
 		log.Print("disconnecting")
-		portControl.SendDisconnect()
+		ports.control.SendDisconnect()
 		os.Exit(0)
 	}()
 }
@@ -27,5 +29,5 @@ func main() {
 	parseArgs()
 	setupCloseHandler()
 
-	portControl.StartStream()
+	ports.control.StartStream()
 }

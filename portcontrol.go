@@ -4,19 +4,14 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/binary"
-	"fmt"
-	"net"
 	"os"
 	"time"
 
 	"github.com/nonoo/kappanhang/log"
 )
 
-type PortControl struct {
-	conn                  *net.UDPConn
-	localSID              uint32
-	remoteSID             uint32
-	sendSeq               uint16
+type portControl struct {
+	port                  portCommon
 	authSendSeq           uint16
 	authInnerSendSeq      uint16
 	authID                [6]byte
@@ -25,43 +20,7 @@ type PortControl struct {
 	lastReauthAt          time.Time
 }
 
-func (p *PortControl) send(d []byte) {
-	_, err := p.conn.Write(d)
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-
-func (p *PortControl) read() ([]byte, error) {
-	err := p.conn.SetReadDeadline(time.Now().Add(time.Second))
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	b := make([]byte, 1500)
-	n, _, err := p.conn.ReadFromUDP(b)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return b[:n], err
-}
-
-func (p *PortControl) expect(packetLength int, b []byte) []byte {
-	var r []byte
-	expectStart := time.Now()
-	for {
-		r, _ = p.read()
-		if len(r) == packetLength && bytes.Equal(r[:len(b)], b) {
-			break
-		}
-		if time.Since(expectStart) > time.Second {
-			log.Fatal("expect timeout")
-		}
-	}
-	return r
-}
-
-func (p *PortControl) sendPkt7(replyID []byte, seq uint16) {
+func (p *portControl) sendPkt7(replyID []byte, seq uint16) {
 	// Example request from PC:  0x15, 0x00, 0x00, 0x00, 0x07, 0x00, 0x09, 0x00, 0xbe, 0xd9, 0xf2, 0x63, 0xe4, 0x35, 0xdd, 0x72, 0x00, 0x78, 0x40, 0xf6, 0x02
 	// Example reply from radio: 0x00, 0x00, 0x00, 0x00, 0x07, 0x00, 0x09, 0x00, 0xe4, 0x35, 0xdd, 0x72, 0xbe, 0xd9, 0xf2, 0x63, 0x01, 0x78, 0x40, 0xf6, 0x02
 	var replyFlag byte
@@ -80,36 +39,24 @@ func (p *PortControl) sendPkt7(replyID []byte, seq uint16) {
 		replyFlag = 0x01
 	}
 
-	p.expectedPkt7ReplySeq = p.sendSeq
+	p.expectedPkt7ReplySeq = p.port.sendSeq
 
-	p.send([]byte{0x15, 0x00, 0x00, 0x00, 0x07, 0x00, byte(seq), byte(seq >> 8),
-		byte(p.localSID >> 24), byte(p.localSID >> 16), byte(p.localSID >> 8), byte(p.localSID),
-		byte(p.remoteSID >> 24), byte(p.remoteSID >> 16), byte(p.remoteSID >> 8), byte(p.remoteSID),
+	p.port.send([]byte{0x15, 0x00, 0x00, 0x00, 0x07, 0x00, byte(seq), byte(seq >> 8),
+		byte(p.port.localSID >> 24), byte(p.port.localSID >> 16), byte(p.port.localSID >> 8), byte(p.port.localSID),
+		byte(p.port.remoteSID >> 24), byte(p.port.remoteSID >> 16), byte(p.port.remoteSID >> 8), byte(p.port.remoteSID),
 		replyFlag, replyID[0], replyID[1], replyID[2], replyID[3]})
 }
 
-func (p *PortControl) sendPkt3() {
-	p.send([]byte{0x10, 0x00, 0x00, 0x00, 0x03, 0x00, byte(p.sendSeq), byte(p.sendSeq >> 8),
-		byte(p.localSID >> 24), byte(p.localSID >> 16), byte(p.localSID >> 8), byte(p.localSID),
-		byte(p.remoteSID >> 24), byte(p.remoteSID >> 16), byte(p.remoteSID >> 8), byte(p.remoteSID)})
-}
-
-func (p *PortControl) sendPkt6() {
-	p.send([]byte{0x10, 0x00, 0x00, 0x00, 0x06, 0x00, 0x01, 0x00,
-		byte(p.localSID >> 24), byte(p.localSID >> 16), byte(p.localSID >> 8), byte(p.localSID),
-		byte(p.remoteSID >> 24), byte(p.remoteSID >> 16), byte(p.remoteSID >> 8), byte(p.remoteSID)})
-}
-
-func (p *PortControl) sendPktLogin() {
+func (p *portControl) sendPktLogin() {
 	// The reply to the login packet will contain a 6 bytes long auth ID with the first 2 bytes set to our randID.
 	var randID [2]byte
 	_, err := rand.Read(randID[:])
 	if err != nil {
 		log.Fatal(err)
 	}
-	p.send([]byte{0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00,
-		byte(p.localSID >> 24), byte(p.localSID >> 16), byte(p.localSID >> 8), byte(p.localSID),
-		byte(p.remoteSID >> 24), byte(p.remoteSID >> 16), byte(p.remoteSID >> 8), byte(p.remoteSID),
+	p.port.send([]byte{0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00,
+		byte(p.port.localSID >> 24), byte(p.port.localSID >> 16), byte(p.port.localSID >> 8), byte(p.port.localSID),
+		byte(p.port.remoteSID >> 24), byte(p.port.remoteSID >> 16), byte(p.port.remoteSID >> 8), byte(p.port.remoteSID),
 		0x00, 0x00, 0x00, 0x70, 0x01, 0x00, 0x00, byte(p.authInnerSendSeq),
 		byte(p.authInnerSendSeq >> 8), 0x00, randID[0], randID[1], 0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -128,7 +75,7 @@ func (p *PortControl) sendPktLogin() {
 	p.authInnerSendSeq++
 }
 
-func (p *PortControl) sendPktReauth(firstReauthSend bool) {
+func (p *portControl) sendPktReauth(firstReauthSend bool) {
 	var magic byte
 
 	if firstReauthSend {
@@ -153,9 +100,9 @@ func (p *PortControl) sendPktReauth(firstReauthSend bool) {
 	//                           0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	//                           0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	//                           0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-	p.send([]byte{0x40, 0x00, 0x00, 0x00, 0x00, 0x00, byte(p.authSendSeq), byte(p.authSendSeq >> 8),
-		byte(p.localSID >> 24), byte(p.localSID >> 16), byte(p.localSID >> 8), byte(p.localSID),
-		byte(p.remoteSID >> 24), byte(p.remoteSID >> 16), byte(p.remoteSID >> 8), byte(p.remoteSID),
+	p.port.send([]byte{0x40, 0x00, 0x00, 0x00, 0x00, 0x00, byte(p.authSendSeq), byte(p.authSendSeq >> 8),
+		byte(p.port.localSID >> 24), byte(p.port.localSID >> 16), byte(p.port.localSID >> 8), byte(p.port.localSID),
+		byte(p.port.remoteSID >> 24), byte(p.port.remoteSID >> 16), byte(p.port.remoteSID >> 8), byte(p.port.remoteSID),
 		0x00, 0x00, 0x00, 0x30, 0x01, magic, 0x00, byte(p.authInnerSendSeq),
 		byte(p.authInnerSendSeq >> 8), 0x00, p.authID[0], p.authID[1], p.authID[2], p.authID[3], p.authID[4], p.authID[5],
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -167,25 +114,26 @@ func (p *PortControl) sendPktReauth(firstReauthSend bool) {
 	p.lastReauthAt = time.Now()
 }
 
-func (p *PortControl) SendDisconnect() {
-	p.send([]byte{0x40, 0x00, 0x00, 0x00, 0x00, 0x00, byte(p.sendSeq), byte(p.sendSeq >> 8),
-		byte(p.localSID >> 24), byte(p.localSID >> 16), byte(p.localSID >> 8), byte(p.localSID),
-		byte(p.remoteSID >> 24), byte(p.remoteSID >> 16), byte(p.remoteSID >> 8), byte(p.remoteSID),
+func (p *portControl) SendDisconnect() {
+	p.port.send([]byte{0x40, 0x00, 0x00, 0x00, 0x00, 0x00, byte(p.port.sendSeq), byte(p.port.sendSeq >> 8),
+		byte(p.port.localSID >> 24), byte(p.port.localSID >> 16), byte(p.port.localSID >> 8), byte(p.port.localSID),
+		byte(p.port.remoteSID >> 24), byte(p.port.remoteSID >> 16), byte(p.port.remoteSID >> 8), byte(p.port.remoteSID),
 		0x00, 0x00, 0x00, 0x30, 0x01, 0x01, 0x00, byte(p.authInnerSendSeq),
 		byte(p.authInnerSendSeq >> 8), 0x00, p.authID[0], p.authID[1], p.authID[2], p.authID[3], p.authID[4], p.authID[5],
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00})
-	p.send([]byte{0x10, 0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00,
-		byte(p.localSID >> 24), byte(p.localSID >> 16), byte(p.localSID >> 8), byte(p.localSID),
-		byte(p.remoteSID >> 24), byte(p.remoteSID >> 16), byte(p.remoteSID >> 8), byte(p.remoteSID)})
+	p.port.send([]byte{0x10, 0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00,
+		byte(p.port.localSID >> 24), byte(p.port.localSID >> 16), byte(p.port.localSID >> 8), byte(p.port.localSID),
+		byte(p.port.remoteSID >> 24), byte(p.port.remoteSID >> 16), byte(p.port.remoteSID >> 8), byte(p.port.remoteSID)})
 }
 
-func (p *PortControl) sendRequestSerialAndAudio() {
+func (p *portControl) sendRequestSerialAndAudio() {
 	log.Print("requesting serial and audio stream")
-	p.send([]byte{0x90, 0x00, 0x00, 0x00, 0x00, 0x00, byte(p.authSendSeq), byte(p.authSendSeq >> 8),
-		byte(p.localSID >> 24), byte(p.localSID >> 16), byte(p.localSID >> 8), byte(p.localSID), byte(p.remoteSID >> 24), byte(p.remoteSID >> 16), byte(p.remoteSID >> 8), byte(p.remoteSID),
+	p.port.send([]byte{0x90, 0x00, 0x00, 0x00, 0x00, 0x00, byte(p.authSendSeq), byte(p.authSendSeq >> 8),
+		byte(p.port.localSID >> 24), byte(p.port.localSID >> 16), byte(p.port.localSID >> 8), byte(p.port.localSID),
+		byte(p.port.remoteSID >> 24), byte(p.port.remoteSID >> 16), byte(p.port.remoteSID >> 8), byte(p.port.remoteSID),
 		0x00, 0x00, 0x00, 0x80, 0x01, 0x03, 0x00, byte(p.authInnerSendSeq),
 		byte(p.authInnerSendSeq >> 8), 0x00, p.authID[0], p.authID[1], p.authID[2], p.authID[3], p.authID[4], p.authID[5],
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10,
@@ -206,47 +154,32 @@ func (p *PortControl) sendRequestSerialAndAudio() {
 	p.authInnerSendSeq++
 }
 
-func (p *PortControl) StartStream() {
-	hostPort := fmt.Sprint(connectAddress, ":50001")
-	log.Print("connecting to ", hostPort)
-	raddr, err := net.ResolveUDPAddr("udp", hostPort)
-	if err != nil {
-		log.Fatal(err)
-	}
-	laddr := net.UDPAddr{
-		Port: 50001,
-	}
-	p.conn, err = net.DialUDP("udp", &laddr, raddr)
-	if err != nil {
-		log.Fatal(err)
-	}
+func (p *portControl) StartStream() {
+	p.port.open(50001)
 
-	p.localSID = uint32(time.Now().Unix())
-	log.Debugf("using session id %.8x", p.localSID)
-
-	p.sendPkt3()
-	p.sendSeq = 1
-	p.sendPkt7(nil, p.sendSeq)
-	p.sendSeq = 0
-	p.sendPkt3()
+	p.port.sendPkt3()
+	p.port.sendSeq = 1
+	p.sendPkt7(nil, p.port.sendSeq)
+	p.port.sendSeq = 0
+	p.port.sendPkt3()
 
 	// Expecting a Pkt4 answer.
 	// Example answer from radio: 0x10, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x8c, 0x7d, 0x45, 0x7a, 0x1d, 0xf6, 0xe9, 0x0b
-	r := p.expect(16, []byte{0x10, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00})
-	p.remoteSID = binary.BigEndian.Uint32(r[8:12])
+	r := p.port.expect(16, []byte{0x10, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00})
+	p.port.remoteSID = binary.BigEndian.Uint32(r[8:12])
 
-	log.Debugf("got remote session id %.8x", p.remoteSID)
+	log.Debugf("got remote session id %.8x", p.port.remoteSID)
 
 	p.authSendSeq = 1
 	p.authInnerSendSeq = 0x50
-	p.sendPkt6()
+	p.port.sendPkt6()
 
 	// Expecting a Pkt6 answer.
-	r = p.expect(16, []byte{0x10, 0x00, 0x00, 0x00, 0x06, 0x00, 0x01, 0x00})
-	p.remoteSID = binary.BigEndian.Uint32(r[8:12]) // TODO
+	r = p.port.expect(16, []byte{0x10, 0x00, 0x00, 0x00, 0x06, 0x00, 0x01, 0x00})
+	p.port.remoteSID = binary.BigEndian.Uint32(r[8:12]) // TODO
 
 	p.sendPktLogin()
-	p.sendSeq = 5
+	p.port.sendSeq = 5
 
 	// Example success auth packet: 0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00,
 	//                              0xe6, 0xb2, 0x7b, 0x7b, 0xbb, 0x41, 0x3f, 0x2b,
@@ -260,7 +193,7 @@ func (p *PortControl) StartStream() {
 	//                              0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	//                              0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	//                              0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-	r = p.expect(96, []byte{0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00})
+	r = p.port.expect(96, []byte{0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00})
 	if bytes.Equal(r[48:52], []byte{0xff, 0xff, 0xff, 0xfe}) {
 		log.Fatal("invalid user/password")
 	}
@@ -274,13 +207,13 @@ func (p *PortControl) StartStream() {
 	var lastStatusLog time.Time
 	var errCount int
 
-	_, err = rand.Read(p.randIDByteForPktSeven[:])
+	_, err := rand.Read(p.randIDByteForPktSeven[:])
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	for {
-		r, err := p.read()
+		r, err := p.port.read()
 		if err != nil {
 			errCount++
 			if errCount > 5 {
@@ -316,9 +249,9 @@ func (p *PortControl) StartStream() {
 			// Example request from radio: 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x13, 0x00, 0xe4, 0x35, 0xdd, 0x72, 0xbe, 0xd9, 0xf2, 0x63
 			// Example answer from PC:     0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x13, 0x00, 0xbe, 0xd9, 0xf2, 0x63, 0xe4, 0x35, 0xdd, 0x72
 			gotSeq := binary.LittleEndian.Uint16(r[6:8])
-			p.send([]byte{0x10, 0x00, 0x00, 0x00, 0x00, 0x00, byte(gotSeq), byte(gotSeq >> 8),
-				byte(p.localSID >> 24), byte(p.localSID >> 16), byte(p.localSID >> 8), byte(p.localSID),
-				byte(p.remoteSID >> 24), byte(p.remoteSID >> 16), byte(p.remoteSID >> 8), byte(p.remoteSID)})
+			p.port.send([]byte{0x10, 0x00, 0x00, 0x00, 0x00, 0x00, byte(gotSeq), byte(gotSeq >> 8),
+				byte(p.port.localSID >> 24), byte(p.port.localSID >> 16), byte(p.port.localSID >> 8), byte(p.port.localSID),
+				byte(p.port.remoteSID >> 24), byte(p.port.remoteSID >> 16), byte(p.port.remoteSID >> 8), byte(p.port.remoteSID)})
 		}
 		if len(r) == 80 && bytes.Equal(r[:6], []byte{0x50, 0x00, 0x00, 0x00, 0x00, 0x00}) && bytes.Equal(r[48:51], []byte{0xff, 0xff, 0xff}) {
 			// Example answer from radio: 0x50, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00,
@@ -357,13 +290,13 @@ func (p *PortControl) StartStream() {
 			// 0x00, 0x00, 0x00, 0x00, 0xc0, 0xa8, 0x03, 0x03,
 			// 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 			log.Print("serial and audio request success")
-			go portAudio.StartStream()
+			go ports.audio.StartStream()
 		}
 
 		if time.Since(lastPingAt) >= 100*time.Millisecond {
-			p.sendPkt7(nil, p.sendSeq)
-			p.sendPkt3()
-			p.sendSeq++
+			p.sendPkt7(nil, p.port.sendSeq)
+			p.port.sendPkt3()
+			p.port.sendSeq++
 			lastPingAt = time.Now()
 
 			if time.Since(p.lastReauthAt) >= 60*time.Second {
