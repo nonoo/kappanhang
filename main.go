@@ -57,7 +57,7 @@ func setupCloseHandler() {
 	}()
 }
 
-func sendPkt7(replyID []byte) {
+func sendPkt7(replyID []byte, seq uint16) {
 	// Example request from PC:  0x15, 0x00, 0x00, 0x00, 0x07, 0x00, 0x09, 0x00, 0xbe, 0xd9, 0xf2, 0x63, 0xe4, 0x35, 0xdd, 0x72, 0x00, 0x78, 0x40, 0xf6, 0x02
 	// Example reply from radio: 0x00, 0x00, 0x00, 0x00, 0x07, 0x00, 0x09, 0x00, 0xe4, 0x35, 0xdd, 0x72, 0xbe, 0xd9, 0xf2, 0x63, 0x01, 0x78, 0x40, 0xf6, 0x02
 	var replyFlag byte
@@ -78,7 +78,7 @@ func sendPkt7(replyID []byte) {
 
 	expectedPkt7ReplySeq = sendSeq
 
-	send([]byte{0x15, 0x00, 0x00, 0x00, 0x07, 0x00, byte(sendSeq), byte(sendSeq >> 8),
+	send([]byte{0x15, 0x00, 0x00, 0x00, 0x07, 0x00, byte(seq), byte(seq >> 8),
 		byte(localSID >> 24), byte(localSID >> 16), byte(localSID >> 8), byte(localSID),
 		byte(remoteSID >> 24), byte(remoteSID >> 16), byte(remoteSID >> 8), byte(remoteSID),
 		replyFlag, replyID[0], replyID[1], replyID[2], replyID[3]})
@@ -187,7 +187,7 @@ func main() {
 
 	sendPkt3()
 	sendSeq = 1
-	sendPkt7(nil)
+	sendPkt7(nil, sendSeq)
 	sendSeq = 0
 	sendPkt3()
 
@@ -251,13 +251,13 @@ func main() {
 			}
 		}
 		if len(r) == 21 && bytes.Equal(r[1:6], []byte{0x00, 0x00, 0x00, 0x07, 0x00}) {
+			gotSeq := binary.LittleEndian.Uint16(r[6:8])
 			if r[16] == 0x00 { // This is a pkt7 request from the radio.
 				// Replying to the radio.
 				// Example request from radio: 0x00, 0x00, 0x00, 0x00, 0x07, 0x00, 0x1c, 0x0e, 0xe4, 0x35, 0xdd, 0x72, 0xbe, 0xd9, 0xf2, 0x63, 0x00, 0x57, 0x2b, 0x12, 0x00
 				// Example answer from PC:     0x15, 0x00, 0x00, 0x00, 0x07, 0x00, 0x1c, 0x0e, 0xbe, 0xd9, 0xf2, 0x63, 0xe4, 0x35, 0xdd, 0x72, 0x01, 0x57, 0x2b, 0x12, 0x00
-				sendPkt7(r[17:21])
+				sendPkt7(r[17:21], gotSeq)
 			} else {
-				gotSeq := binary.LittleEndian.Uint16(r[6:8])
 				if expectedPkt7ReplySeq != gotSeq {
 					var missingPkts int
 					if gotSeq > expectedPkt7ReplySeq {
@@ -280,7 +280,7 @@ func main() {
 		}
 
 		if time.Since(lastPingAt) >= 100*time.Millisecond {
-			sendPkt7(nil)
+			sendPkt7(nil, sendSeq)
 			sendPkt3()
 			sendSeq++
 			lastPingAt = time.Now()
