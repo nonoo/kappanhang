@@ -214,7 +214,7 @@ func (s *controlStream) start() {
 	s.common.waitForPkt6Answer()
 
 	s.authSendSeq = 1
-	s.authInnerSendSeq = 0x1234
+	s.authInnerSendSeq = 1
 	s.sendPktAuth()
 
 	log.Debug("expecting auth answer")
