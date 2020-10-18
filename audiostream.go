@@ -50,15 +50,17 @@ func (s *audioStream) handleRead(r []byte) {
 	}
 }
 
-func (s *audioStream) start() {
+func (s *audioStream) init() {
 	s.common.open("audio", 50003)
+}
 
+func (s *audioStream) start() {
 	s.common.sendPkt3()
 	s.common.waitForPkt4Answer()
 	s.common.sendPkt6()
 	s.common.waitForPkt6Answer()
 
-	log.Print("stream opened")
+	log.Print("stream started")
 
 	s.timeoutTimer = time.NewTimer(audioTimeoutDuration)
 

@@ -48,5 +48,8 @@ func main() {
 	parseArgs()
 	setupCloseHandler()
 
+	streams.audio.init()
+	streams.control.init()
+
 	streams.control.start()
 }

@@ -198,8 +198,12 @@ func (s *controlStream) handleRead(r []byte) {
 	}
 }
 
-func (s *controlStream) start() {
+func (s *controlStream) init() {
 	s.common.open("control", 50001)
+}
+
+func (s *controlStream) start() {
+	startTime := time.Now()
 
 	s.common.sendPkt3()
 	s.common.pkt7.sendSeq = 1
@@ -253,7 +257,7 @@ func (s *controlStream) start() {
 		case <-reauthTicker.C:
 			s.sendPktReauth(false)
 		case <-statusLogTicker.C:
-			log.Print("roundtrip latency ", s.common.pkt7.latency)
+			log.Print("running for ", time.Since(startTime), " roundtrip latency ", s.common.pkt7.latency)
 		}
 	}
 }
