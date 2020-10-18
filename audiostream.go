@@ -10,7 +10,7 @@ type audioStream struct {
 	common streamCommon
 }
 
-func (s *audioStream) Start() {
+func (s *audioStream) start() {
 	s.common.open("audio", 50003)
 
 	s.common.sendPkt3()

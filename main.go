@@ -14,7 +14,8 @@ var streams struct {
 }
 
 func exit(err error) {
-	streams.control.SendDisconnect()
+	log.Print("disconnecting")
+	streams.control.sendDisconnect()
 	if err == nil {
 		os.Exit(0)
 	} else {
@@ -28,7 +29,6 @@ func setupCloseHandler() {
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-c
-		log.Print("disconnecting")
 		exit(nil)
 	}()
 }
@@ -38,5 +38,5 @@ func main() {
 	parseArgs()
 	setupCloseHandler()
 
-	streams.control.Start()
+	streams.control.start()
 }

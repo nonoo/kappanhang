@@ -15,36 +15,9 @@ type controlStream struct {
 	authSendSeq                  uint16
 	authInnerSendSeq             uint16
 	authID                       [6]byte
-	randIDByteForPktSeven        [1]byte
 	expectedPkt7ReplySeq         uint16
+	serialAndAudioStreamOpened   bool
 	requestSerialAndAudioTimeout *time.Timer
-}
-
-func (s *controlStream) sendPkt7(replyID []byte, seq uint16) {
-	// Example request from PC:  0x15, 0x00, 0x00, 0x00, 0x07, 0x00, 0x09, 0x00, 0xbe, 0xd9, 0xf2, 0x63, 0xe4, 0x35, 0xdd, 0x72, 0x00, 0x78, 0x40, 0xf6, 0x02
-	// Example reply from radio: 0x00, 0x00, 0x00, 0x00, 0x07, 0x00, 0x09, 0x00, 0xe4, 0x35, 0xdd, 0x72, 0xbe, 0xd9, 0xf2, 0x63, 0x01, 0x78, 0x40, 0xf6, 0x02
-	var replyFlag byte
-	if replyID == nil {
-		replyID = make([]byte, 4)
-		var randID [2]byte
-		_, err := rand.Read(randID[:])
-		if err != nil {
-			log.Fatal(err)
-		}
-		replyID[0] = randID[0]
-		replyID[1] = randID[1]
-		replyID[2] = s.randIDByteForPktSeven[0]
-		replyID[3] = 0x03
-
-		s.expectedPkt7ReplySeq = s.common.sendSeq
-	} else {
-		replyFlag = 0x01
-	}
-
-	s.common.send([]byte{0x15, 0x00, 0x00, 0x00, 0x07, 0x00, byte(seq), byte(seq >> 8),
-		byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
-		byte(s.common.remoteSID >> 24), byte(s.common.remoteSID >> 16), byte(s.common.remoteSID >> 8), byte(s.common.remoteSID),
-		replyFlag, replyID[0], replyID[1], replyID[2], replyID[3]})
 }
 
 func (s *controlStream) sendPktLogin() {
@@ -54,7 +27,7 @@ func (s *controlStream) sendPktLogin() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	s.common.send([]byte{0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00,
+	s.common.send([]byte{0x80, 0x00, 0x00, 0x00, 0x00, 0x00, byte(s.authSendSeq), byte(s.authSendSeq >> 8),
 		byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
 		byte(s.common.remoteSID >> 24), byte(s.common.remoteSID >> 16), byte(s.common.remoteSID >> 8), byte(s.common.remoteSID),
 		0x00, 0x00, 0x00, 0x70, 0x01, 0x00, 0x00, byte(s.authInnerSendSeq),
@@ -71,6 +44,7 @@ func (s *controlStream) sendPktLogin() {
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00})
+
 	s.authSendSeq++
 	s.authInnerSendSeq++
 }
@@ -109,12 +83,13 @@ func (s *controlStream) sendPktReauth(firstReauthSend bool) {
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00})
+
 	s.authSendSeq++
 	s.authInnerSendSeq++
 }
 
-func (s *controlStream) SendDisconnect() {
-	s.common.send([]byte{0x40, 0x00, 0x00, 0x00, 0x00, 0x00, byte(s.common.sendSeq), byte(s.common.sendSeq >> 8),
+func (s *controlStream) sendDisconnect() {
+	s.common.send([]byte{0x40, 0x00, 0x00, 0x00, 0x00, 0x00, byte(s.authSendSeq), byte(s.authSendSeq >> 8),
 		byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
 		byte(s.common.remoteSID >> 24), byte(s.common.remoteSID >> 16), byte(s.common.remoteSID >> 8), byte(s.common.remoteSID),
 		0x00, 0x00, 0x00, 0x30, 0x01, 0x01, 0x00, byte(s.authInnerSendSeq),
@@ -126,6 +101,14 @@ func (s *controlStream) SendDisconnect() {
 	s.common.send([]byte{0x10, 0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00,
 		byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
 		byte(s.common.remoteSID >> 24), byte(s.common.remoteSID >> 16), byte(s.common.remoteSID >> 8), byte(s.common.remoteSID)})
+}
+
+func (s *controlStream) sendPkt0() {
+	s.common.send([]byte{0x10, 0x00, 0x00, 0x00, 0x00, 0x00, byte(s.authSendSeq), byte(s.authSendSeq >> 8),
+		byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
+		byte(s.common.remoteSID >> 24), byte(s.common.remoteSID >> 16), byte(s.common.remoteSID >> 8), byte(s.common.remoteSID)})
+
+	s.authSendSeq++
 }
 
 func (s *controlStream) sendRequestSerialAndAudio() {
@@ -149,6 +132,7 @@ func (s *controlStream) sendRequestSerialAndAudio() {
 		0x00, 0x00, 0xbb, 0x80, 0x00, 0x00, 0xc3, 0x52,
 		0x00, 0x00, 0xc3, 0x53, 0x00, 0x00, 0x00, 0x64,
 		0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00})
+
 	s.authSendSeq++
 	s.authInnerSendSeq++
 
@@ -166,7 +150,7 @@ func (s *controlStream) handleRead(r []byte) {
 				// Replying to the radio.
 				// Example request from radio: 0x00, 0x00, 0x00, 0x00, 0x07, 0x00, 0x1c, 0x0e, 0xe4, 0x35, 0xdd, 0x72, 0xbe, 0xd9, 0xf2, 0x63, 0x00, 0x57, 0x2b, 0x12, 0x00
 				// Example answer from PC:     0x15, 0x00, 0x00, 0x00, 0x07, 0x00, 0x1c, 0x0e, 0xbe, 0xd9, 0xf2, 0x63, 0xe4, 0x35, 0xdd, 0x72, 0x01, 0x57, 0x2b, 0x12, 0x00
-				s.sendPkt7(r[17:21], gotSeq)
+				s.common.sendPkt7Reply(r[17:21], gotSeq)
 			} else { // This is a pkt7 reply to our request.
 				if s.expectedPkt7ReplySeq != gotSeq {
 					var missingPkts int
@@ -207,7 +191,7 @@ func (s *controlStream) handleRead(r []byte) {
 			exit(errors.New("reauth failed"))
 		}
 	case 144:
-		if bytes.Equal(r[:6], []byte{0x90, 0x00, 0x00, 0x00, 0x00, 0x00}) && r[96] == 1 {
+		if !s.serialAndAudioStreamOpened && bytes.Equal(r[:6], []byte{0x90, 0x00, 0x00, 0x00, 0x00, 0x00}) && r[96] == 1 {
 			// Example answer:
 			// 0x90, 0x00, 0x00, 0x00, 0x00, 0x00, 0x19, 0x00,
 			// 0xc6, 0x5f, 0x6f, 0x0c, 0x5f, 0x8b, 0x1e, 0x89,
@@ -228,39 +212,42 @@ func (s *controlStream) handleRead(r []byte) {
 			// 0x00, 0x00, 0x00, 0x00, 0xc0, 0xa8, 0x03, 0x03,
 			// 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 			log.Print("serial and audio request success")
-			s.requestSerialAndAudioTimeout.Stop()
-			s.requestSerialAndAudioTimeout = nil
-			go streams.audio.Start()
+			if s.requestSerialAndAudioTimeout != nil {
+				s.requestSerialAndAudioTimeout.Stop()
+				s.requestSerialAndAudioTimeout = nil
+			}
+			go streams.audio.start()
+			s.serialAndAudioStreamOpened = true
 		}
 	}
 }
 
-func (s *controlStream) Start() {
+func (s *controlStream) start() {
 	s.common.open("control", 50001)
 
 	s.common.sendPkt3()
-	s.common.sendSeq = 1
-	s.sendPkt7(nil, s.common.sendSeq)
-	s.common.sendSeq = 0
+	s.common.pkt7.sendSeq = 1
+	s.common.sendPkt7()
 	s.common.sendPkt3()
 
-	// Expecting a Pkt4 answer.
+	log.Debug("expecting a pkt4 answer")
 	// Example answer from radio: 0x10, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x8c, 0x7d, 0x45, 0x7a, 0x1d, 0xf6, 0xe9, 0x0b
 	r := s.common.expect(16, []byte{0x10, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00})
 	s.common.remoteSID = binary.BigEndian.Uint32(r[8:12])
 
 	log.Debugf("got remote session id %.8x", s.common.remoteSID)
 
-	s.authSendSeq = 1
-	s.authInnerSendSeq = 0x50
 	s.common.sendPkt6()
 
-	// Expecting a Pkt6 answer.
+	log.Debug("expecting pkt6 answer")
 	r = s.common.expect(16, []byte{0x10, 0x00, 0x00, 0x00, 0x06, 0x00, 0x01, 0x00})
-	s.common.remoteSID = binary.BigEndian.Uint32(r[8:12]) // TODO
+	// Example answer from radio: 0x10, 0x00, 0x00, 0x00, 0x06, 0x00, 0x01, 0x00, 0xe8, 0xd0, 0x44, 0x50, 0xa0, 0x61, 0x39, 0xbe
+	s.common.remoteSID = binary.BigEndian.Uint32(r[8:12])
 
+	s.authSendSeq = 1
+	s.authInnerSendSeq = 0x50
 	s.sendPktLogin()
-	s.common.sendSeq = 5
+	s.common.pkt7.sendSeq = 5
 
 	// Example success auth packet: 0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00,
 	//                              0xe6, 0xb2, 0x7b, 0x7b, 0xbb, 0x41, 0x3f, 0x2b,
@@ -282,11 +269,8 @@ func (s *controlStream) Start() {
 	copy(s.authID[:], r[26:32])
 	log.Print("auth ok")
 	s.sendPktReauth(true)
-
-	_, err := rand.Read(s.randIDByteForPktSeven[:])
-	if err != nil {
-		log.Fatal(err)
-	}
+	s.sendPkt0()
+	s.sendRequestSerialAndAudio()
 
 	readChan := make(chan []byte)
 	go s.common.reader(readChan)
@@ -295,16 +279,14 @@ func (s *controlStream) Start() {
 	reauthTicker := time.NewTicker(60 * time.Second)
 	statusLogTicker := time.NewTicker(10 * time.Second)
 
-	time.AfterFunc(time.Second*2, s.sendRequestSerialAndAudio)
-
 	for {
 		select {
 		case r = <-readChan:
 			s.handleRead(r)
 		case <-pingTicker.C:
-			s.sendPkt7(nil, s.common.sendSeq)
-			s.common.sendPkt3()
-			s.common.sendSeq++
+			s.expectedPkt7ReplySeq = s.common.pkt7.sendSeq
+			s.common.sendPkt7()
+			s.sendPkt0()
 		case <-reauthTicker.C:
 			s.sendPktReauth(false)
 		case <-statusLogTicker.C:
