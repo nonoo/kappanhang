@@ -10,6 +10,10 @@ type audioStream struct {
 	common streamCommon
 }
 
+func (s *audioStream) sendDisconnect() {
+	s.common.sendDisconnect()
+}
+
 func (s *audioStream) start() {
 	s.common.open("audio", 50003)
 

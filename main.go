@@ -14,12 +14,21 @@ var streams struct {
 }
 
 func exit(err error) {
+	if err != nil {
+		log.Error(err.Error())
+	}
 	log.Print("disconnecting")
-	streams.control.sendDisconnect()
+
+	if streams.audio.common.conn != nil {
+		streams.audio.sendDisconnect()
+	}
+	if streams.control.common.conn != nil {
+		streams.control.sendDisconnect()
+	}
+
 	if err == nil {
 		os.Exit(0)
 	} else {
-		log.Error(err.Error())
 		os.Exit(1)
 	}
 }

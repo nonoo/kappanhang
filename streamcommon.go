@@ -149,3 +149,9 @@ func (s *streamCommon) sendPkt7() {
 func (s *streamCommon) sendPkt7Reply(replyID []byte, seq uint16) {
 	s.sendPkt7Do(replyID, seq)
 }
+
+func (s *streamCommon) sendDisconnect() {
+	s.send([]byte{0x10, 0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00,
+		byte(s.localSID >> 24), byte(s.localSID >> 16), byte(s.localSID >> 8), byte(s.localSID),
+		byte(s.remoteSID >> 24), byte(s.remoteSID >> 16), byte(s.remoteSID >> 8), byte(s.remoteSID)})
+}
