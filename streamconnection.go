@@ -9,21 +9,21 @@ import (
 	"github.com/nonoo/kappanhang/log"
 )
 
-type portCommon struct {
+type streamConnection struct {
 	conn      *net.UDPConn
 	localSID  uint32
 	remoteSID uint32
 	sendSeq   uint16
 }
 
-func (p *portCommon) send(d []byte) {
+func (p *streamConnection) send(d []byte) {
 	_, err := p.conn.Write(d)
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
-func (p *portCommon) read() ([]byte, error) {
+func (p *streamConnection) read() ([]byte, error) {
 	err := p.conn.SetReadDeadline(time.Now().Add(time.Second))
 	if err != nil {
 		log.Fatal(err)
@@ -37,7 +37,7 @@ func (p *portCommon) read() ([]byte, error) {
 	return b[:n], err
 }
 
-func (p *portCommon) expect(packetLength int, b []byte) []byte {
+func (p *streamConnection) expect(packetLength int, b []byte) []byte {
 	var r []byte
 	expectStart := time.Now()
 	for {
@@ -52,7 +52,7 @@ func (p *portCommon) expect(packetLength int, b []byte) []byte {
 	return r
 }
 
-func (p *portCommon) open(portNumber int) {
+func (p *streamConnection) open(portNumber int) {
 	hostPort := fmt.Sprint(connectAddress, ":", portNumber)
 	log.Print("connecting to ", hostPort)
 	raddr, err := net.ResolveUDPAddr("udp", hostPort)
@@ -71,13 +71,13 @@ func (p *portCommon) open(portNumber int) {
 	log.Debugf("using session id %.8x", p.localSID)
 }
 
-func (p *portCommon) sendPkt3() {
+func (p *streamConnection) sendPkt3() {
 	p.send([]byte{0x10, 0x00, 0x00, 0x00, 0x03, 0x00, byte(p.sendSeq), byte(p.sendSeq >> 8),
 		byte(p.localSID >> 24), byte(p.localSID >> 16), byte(p.localSID >> 8), byte(p.localSID),
 		byte(p.remoteSID >> 24), byte(p.remoteSID >> 16), byte(p.remoteSID >> 8), byte(p.remoteSID)})
 }
 
-func (p *portCommon) sendPkt6() {
+func (p *streamConnection) sendPkt6() {
 	p.send([]byte{0x10, 0x00, 0x00, 0x00, 0x06, 0x00, 0x01, 0x00,
 		byte(p.localSID >> 24), byte(p.localSID >> 16), byte(p.localSID >> 8), byte(p.localSID),
 		byte(p.remoteSID >> 24), byte(p.remoteSID >> 16), byte(p.remoteSID >> 8), byte(p.remoteSID)})
