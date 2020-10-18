@@ -11,7 +11,7 @@ type audioStream struct {
 }
 
 func (s *audioStream) Start() {
-	s.common.open(50003)
+	s.common.open("audio", 50003)
 
 	s.common.sendPkt3()
 

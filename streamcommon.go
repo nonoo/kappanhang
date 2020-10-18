@@ -10,6 +10,7 @@ import (
 )
 
 type streamCommon struct {
+	name      string
 	conn      *net.UDPConn
 	localSID  uint32
 	remoteSID uint32
@@ -46,9 +47,9 @@ func (s *streamCommon) reader(c chan []byte) {
 		} else {
 			errCount++
 			if errCount > 5 {
-				log.Fatal("timeout")
+				log.Fatal(s.name + "/timeout")
 			}
-			log.Error("stream break detected")
+			log.Error(s.name + "/stream break detected")
 		}
 		errCount = 0
 	}
@@ -69,9 +70,10 @@ func (s *streamCommon) expect(packetLength int, b []byte) []byte {
 	return r
 }
 
-func (s *streamCommon) open(portNumber int) {
+func (s *streamCommon) open(name string, portNumber int) {
+	s.name = name
 	hostPort := fmt.Sprint(connectAddress, ":", portNumber)
-	log.Print("connecting to ", hostPort)
+	log.Print(s.name+"/connecting to ", hostPort)
 	raddr, err := net.ResolveUDPAddr("udp", hostPort)
 	if err != nil {
 		log.Fatal(err)
@@ -85,7 +87,7 @@ func (s *streamCommon) open(portNumber int) {
 	}
 
 	s.localSID = uint32(time.Now().Unix())
-	log.Debugf("using session id %.8x", s.localSID)
+	log.Debugf(s.name+"/using session id %.8x", s.localSID)
 }
 
 func (p *streamCommon) sendPkt3() {

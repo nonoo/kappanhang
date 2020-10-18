@@ -236,7 +236,7 @@ func (s *controlStream) handleRead(r []byte) {
 }
 
 func (s *controlStream) Start() {
-	s.common.open(50001)
+	s.common.open("control", 50001)
 
 	s.common.sendPkt3()
 	s.common.sendSeq = 1
