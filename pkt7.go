@@ -9,6 +9,8 @@ import (
 	"github.com/nonoo/kappanhang/log"
 )
 
+const pkt7TimeoutDuration = 3 * time.Second
+
 type pkt7Type struct {
 	sendSeq          uint16
 	randIDByte       [1]byte
@@ -49,7 +51,7 @@ func (p *pkt7Type) handle(s *streamCommon, r []byte) {
 			} else {
 				missingPkts = int(gotSeq) + 65536 - int(expectedSeq)
 			}
-			log.Error(s.name+"/lost ", missingPkts, " packets ")
+			log.Error(s.name+"/lost ", missingPkts, " packets")
 		}
 		p.lastConfirmedSeq = gotSeq
 	}
@@ -102,7 +104,7 @@ func (p *pkt7Type) startPeriodicSend(s *streamCommon) {
 			case <-p.sendTicker.C:
 				p.send(s)
 			case <-p.timeoutTimer.C:
-				log.Fatal(s.name + "ping timeout")
+				log.Fatal(s.name + "/ping timeout")
 			}
 		}
 	}()

@@ -11,8 +11,6 @@ import (
 	"github.com/nonoo/kappanhang/log"
 )
 
-const pkt7TimeoutDuration = 3 * time.Second
-
 type streamCommon struct {
 	name      string
 	conn      *net.UDPConn
