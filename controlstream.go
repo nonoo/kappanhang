@@ -10,6 +10,8 @@ import (
 	"github.com/nonoo/kappanhang/log"
 )
 
+const pkt7TimeoutDuration = 3 * time.Second
+
 type controlStream struct {
 	common           streamCommon
 	authSendSeq      uint16
@@ -19,9 +21,9 @@ type controlStream struct {
 	serialAndAudioStreamOpened   bool
 	requestSerialAndAudioTimeout *time.Timer
 
-	pkt7Latency          time.Duration
-	lastPkt7SendAt       time.Time
-	expectedPkt7ReplySeq uint16
+	pkt7TimeoutTimer *time.Timer
+	pkt7Latency      time.Duration
+	lastPkt7SendAt   time.Time
 }
 
 func (s *controlStream) sendPktAuth() {
@@ -154,20 +156,23 @@ func (s *controlStream) handleRead(r []byte) {
 				// Example answer from PC:     0x15, 0x00, 0x00, 0x00, 0x07, 0x00, 0x1c, 0x0e, 0xbe, 0xd9, 0xf2, 0x63, 0xe4, 0x35, 0xdd, 0x72, 0x01, 0x57, 0x2b, 0x12, 0x00
 				s.common.sendPkt7Reply(r[17:21], gotSeq)
 			} else { // This is a pkt7 reply to our request.
+				s.pkt7TimeoutTimer.Stop()
+				s.pkt7TimeoutTimer.Reset(pkt7TimeoutDuration)
+
 				s.pkt7Latency += time.Since(s.lastPkt7SendAt)
 				s.pkt7Latency /= 2
 
-				if s.expectedPkt7ReplySeq != gotSeq {
+				expectedSeq := s.common.pkt7.lastConfirmedSeq + 1
+				if expectedSeq != gotSeq {
 					var missingPkts int
-					if gotSeq > s.expectedPkt7ReplySeq {
-						missingPkts = int(gotSeq) - int(s.expectedPkt7ReplySeq)
+					if gotSeq > expectedSeq {
+						missingPkts = int(gotSeq) - int(expectedSeq)
 					} else {
-						missingPkts = int(gotSeq) + 65536 - int(s.expectedPkt7ReplySeq)
+						missingPkts = int(gotSeq) + 65536 - int(expectedSeq)
 					}
-					if missingPkts < 1000 {
-						log.Error("lost ", missingPkts, " packets ", gotSeq, " ", s.expectedPkt7ReplySeq)
-					}
+					log.Error("lost ", missingPkts, " packets ")
 				}
+				s.common.pkt7.lastConfirmedSeq = gotSeq
 			}
 		}
 	case 16:
@@ -193,7 +198,7 @@ func (s *controlStream) handleRead(r []byte) {
 			//							  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 			//							  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 
-			exit(errors.New("reauth failed"))
+			exit(errors.New("reauth failed, try again after about 1 minute"))
 		}
 	case 144:
 		if !s.serialAndAudioStreamOpened && bytes.Equal(r[:6], []byte{0x90, 0x00, 0x00, 0x00, 0x00, 0x00}) && r[96] == 1 {
@@ -234,24 +239,15 @@ func (s *controlStream) start() {
 	s.common.pkt7.sendSeq = 1
 	s.common.sendPkt7()
 	s.common.sendPkt3()
-
-	log.Debug("expecting a pkt4 answer")
-	// Example answer from radio: 0x10, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x8c, 0x7d, 0x45, 0x7a, 0x1d, 0xf6, 0xe9, 0x0b
-	r := s.common.expect(16, []byte{0x10, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00})
-	s.common.remoteSID = binary.BigEndian.Uint32(r[8:12])
-
-	log.Debugf("got remote session id %.8x", s.common.remoteSID)
-
+	s.common.waitForPkt4Answer()
 	s.common.sendPkt6()
-
-	log.Debug("expecting pkt6 answer")
-	// Example answer from radio: 0x10, 0x00, 0x00, 0x00, 0x06, 0x00, 0x01, 0x00, 0xe8, 0xd0, 0x44, 0x50, 0xa0, 0x61, 0x39, 0xbe
-	s.common.expect(16, []byte{0x10, 0x00, 0x00, 0x00, 0x06, 0x00, 0x01, 0x00})
+	s.common.waitForPkt6Answer()
 
 	s.authSendSeq = 1
 	s.authInnerSendSeq = 0x1234
 	s.sendPktAuth()
 	s.common.pkt7.sendSeq = 5
+	s.common.pkt7.lastConfirmedSeq = s.common.pkt7.sendSeq - 1
 
 	log.Debug("expecting auth answer")
 	// Example success auth packet: 0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00,
@@ -266,7 +262,7 @@ func (s *controlStream) start() {
 	//                              0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	//                              0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	//                              0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-	r = s.common.expect(96, []byte{0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00})
+	r := s.common.expect(96, []byte{0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00})
 	if bytes.Equal(r[48:52], []byte{0xff, 0xff, 0xff, 0xfe}) {
 		log.Fatal("invalid user/password")
 	}
@@ -277,7 +273,8 @@ func (s *controlStream) start() {
 	s.sendPkt0()
 	s.sendRequestSerialAndAudio()
 
-	pingTicker := time.NewTicker(100 * time.Millisecond)
+	pkt7SendTicker := time.NewTicker(100 * time.Millisecond)
+	s.pkt7TimeoutTimer = time.NewTimer(pkt7TimeoutDuration)
 	reauthTicker := time.NewTicker(60 * time.Second)
 	statusLogTicker := time.NewTicker(3 * time.Second)
 
@@ -285,11 +282,12 @@ func (s *controlStream) start() {
 		select {
 		case r = <-s.common.readChan:
 			s.handleRead(r)
-		case <-pingTicker.C:
-			s.expectedPkt7ReplySeq = s.common.pkt7.sendSeq
+		case <-pkt7SendTicker.C:
 			s.lastPkt7SendAt = time.Now()
 			s.common.sendPkt7()
 			s.sendPkt0()
+		case <-s.pkt7TimeoutTimer.C:
+			log.Fatal("ping timeout")
 		case <-reauthTicker.C:
 			s.sendPktReauth(false)
 		case <-statusLogTicker.C:

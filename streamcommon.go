@@ -19,8 +19,9 @@ type streamCommon struct {
 	readChan  chan []byte
 
 	pkt7 struct {
-		sendSeq    uint16
-		randIDByte [1]byte
+		sendSeq          uint16
+		randIDByte       [1]byte
+		lastConfirmedSeq uint16
 	}
 }
 
@@ -110,10 +111,25 @@ func (s *streamCommon) sendPkt3() {
 		byte(s.remoteSID >> 24), byte(s.remoteSID >> 16), byte(s.remoteSID >> 8), byte(s.remoteSID)})
 }
 
+func (s *streamCommon) waitForPkt4Answer() {
+	log.Debug(s.name + "/expecting a pkt4 answer")
+	// Example answer from radio: 0x10, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x8c, 0x7d, 0x45, 0x7a, 0x1d, 0xf6, 0xe9, 0x0b
+	r := s.expect(16, []byte{0x10, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00})
+	s.remoteSID = binary.BigEndian.Uint32(r[8:12])
+
+	log.Debugf(s.name+"/got remote session id %.8x", s.remoteSID)
+}
+
 func (s *streamCommon) sendPkt6() {
 	s.send([]byte{0x10, 0x00, 0x00, 0x00, 0x06, 0x00, 0x01, 0x00,
 		byte(s.localSID >> 24), byte(s.localSID >> 16), byte(s.localSID >> 8), byte(s.localSID),
 		byte(s.remoteSID >> 24), byte(s.remoteSID >> 16), byte(s.remoteSID >> 8), byte(s.remoteSID)})
+}
+
+func (s *streamCommon) waitForPkt6Answer() {
+	log.Debug("expecting pkt6 answer")
+	// Example answer from radio: 0x10, 0x00, 0x00, 0x00, 0x06, 0x00, 0x01, 0x00, 0xe8, 0xd0, 0x44, 0x50, 0xa0, 0x61, 0x39, 0xbe
+	s.expect(16, []byte{0x10, 0x00, 0x00, 0x00, 0x06, 0x00, 0x01, 0x00})
 }
 
 func (s *streamCommon) sendPkt7Do(replyID []byte, seq uint16) {
