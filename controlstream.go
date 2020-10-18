@@ -11,13 +11,17 @@ import (
 )
 
 type controlStream struct {
-	common                       streamCommon
-	authSendSeq                  uint16
-	authInnerSendSeq             uint16
-	authID                       [6]byte
-	expectedPkt7ReplySeq         uint16
+	common           streamCommon
+	authSendSeq      uint16
+	authInnerSendSeq uint16
+	authID           [6]byte
+
 	serialAndAudioStreamOpened   bool
 	requestSerialAndAudioTimeout *time.Timer
+
+	pkt7Latency          time.Duration
+	lastPkt7SendAt       time.Time
+	expectedPkt7ReplySeq uint16
 }
 
 func (s *controlStream) sendPktLogin() {
@@ -152,6 +156,9 @@ func (s *controlStream) handleRead(r []byte) {
 				// Example answer from PC:     0x15, 0x00, 0x00, 0x00, 0x07, 0x00, 0x1c, 0x0e, 0xbe, 0xd9, 0xf2, 0x63, 0xe4, 0x35, 0xdd, 0x72, 0x01, 0x57, 0x2b, 0x12, 0x00
 				s.common.sendPkt7Reply(r[17:21], gotSeq)
 			} else { // This is a pkt7 reply to our request.
+				s.pkt7Latency += time.Since(s.lastPkt7SendAt)
+				s.pkt7Latency /= 2
+
 				if s.expectedPkt7ReplySeq != gotSeq {
 					var missingPkts int
 					if gotSeq > s.expectedPkt7ReplySeq {
@@ -245,7 +252,7 @@ func (s *controlStream) start() {
 	s.common.remoteSID = binary.BigEndian.Uint32(r[8:12])
 
 	s.authSendSeq = 1
-	s.authInnerSendSeq = 0x50
+	s.authInnerSendSeq = 0x1234
 	s.sendPktLogin()
 	s.common.pkt7.sendSeq = 5
 
@@ -272,25 +279,23 @@ func (s *controlStream) start() {
 	s.sendPkt0()
 	s.sendRequestSerialAndAudio()
 
-	readChan := make(chan []byte)
-	go s.common.reader(readChan)
-
 	pingTicker := time.NewTicker(100 * time.Millisecond)
 	reauthTicker := time.NewTicker(60 * time.Second)
-	statusLogTicker := time.NewTicker(10 * time.Second)
+	statusLogTicker := time.NewTicker(3 * time.Second)
 
 	for {
 		select {
-		case r = <-readChan:
+		case r = <-s.common.readChan:
 			s.handleRead(r)
 		case <-pingTicker.C:
 			s.expectedPkt7ReplySeq = s.common.pkt7.sendSeq
+			s.lastPkt7SendAt = time.Now()
 			s.common.sendPkt7()
 			s.sendPkt0()
 		case <-reauthTicker.C:
 			s.sendPktReauth(false)
 		case <-statusLogTicker.C:
-			log.Print("still connected")
+			log.Print("latency ", s.pkt7Latency)
 		}
 	}
 }

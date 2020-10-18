@@ -35,6 +35,7 @@ func setupCloseHandler() {
 
 func main() {
 	log.Init()
+	log.Print("kappanhang by Norbert Varga HA2NON https://github.com/nonoo/kappanhang")
 	parseArgs()
 	setupCloseHandler()
 

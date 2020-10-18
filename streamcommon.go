@@ -16,6 +16,7 @@ type streamCommon struct {
 	conn      *net.UDPConn
 	localSID  uint32
 	remoteSID uint32
+	readChan  chan []byte
 
 	pkt7 struct {
 		sendSeq    uint16
@@ -44,12 +45,12 @@ func (s *streamCommon) read() ([]byte, error) {
 	return b[:n], err
 }
 
-func (s *streamCommon) reader(c chan []byte) {
+func (s *streamCommon) reader() {
 	var errCount int
 	for {
 		r, err := s.read()
 		if err == nil {
-			c <- r
+			s.readChan <- r
 		} else {
 			errCount++
 			if errCount > 5 {
@@ -65,7 +66,7 @@ func (s *streamCommon) expect(packetLength int, b []byte) []byte {
 	var r []byte
 	expectStart := time.Now()
 	for {
-		r, _ = s.read()
+		r = <-s.readChan
 		if len(r) == packetLength && bytes.Equal(r[:len(b)], b) {
 			break
 		}
@@ -98,6 +99,9 @@ func (s *streamCommon) open(name string, portNumber int) {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	s.readChan = make(chan []byte)
+	go s.reader()
 }
 
 func (s *streamCommon) sendPkt3() {
