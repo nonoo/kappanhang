@@ -16,6 +16,8 @@ type audioStream struct {
 	timeoutTimer         *time.Timer
 	receivedAudio        bool
 	lastReceivedAudioSeq uint16
+
+	audioSendSeq uint16
 }
 
 func (s *audioStream) sendDisconnect() {
@@ -53,6 +55,26 @@ func (s *audioStream) handleRead(r []byte) {
 	}
 }
 
+// sendPart1 expects 1364 bytes of PCM data.
+func (s *audioStream) sendPart1(pcmData []byte) {
+	s.common.send(append([]byte{0x6c, 0x05, 0x00, 0x00, 0x00, 0x00, byte(s.audioSendSeq), byte(s.audioSendSeq >> 8),
+		byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
+		byte(s.common.remoteSID >> 24), byte(s.common.remoteSID >> 16), byte(s.common.remoteSID >> 8), byte(s.common.remoteSID),
+		0x80, 0x00, byte((s.audioSendSeq - 1) >> 8), byte(s.audioSendSeq - 1), 0x00, 0x00, byte(len(pcmData) >> 8), byte(len(pcmData))},
+		pcmData...))
+	s.audioSendSeq++
+}
+
+// sendPart2 expects 556 bytes of PCM data.
+func (s *audioStream) sendPart2(pcmData []byte) {
+	s.common.send(append([]byte{0x44, 0x02, 0x00, 0x00, 0x00, 0x00, byte(s.audioSendSeq), byte(s.audioSendSeq >> 8),
+		byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
+		byte(s.common.remoteSID >> 24), byte(s.common.remoteSID >> 16), byte(s.common.remoteSID >> 8), byte(s.common.remoteSID),
+		0x80, 0x00, byte((s.audioSendSeq - 1) >> 8), byte(s.audioSendSeq - 1), 0x00, 0x00, byte(len(pcmData) >> 8), byte(len(pcmData))},
+		pcmData...))
+	s.audioSendSeq++
+}
+
 func (s *audioStream) init() {
 	s.common.open("audio", 50003)
 }
@@ -70,6 +92,10 @@ func (s *audioStream) start() {
 	s.common.pkt7.sendSeq = 1
 	s.common.pkt7.startPeriodicSend(&s.common)
 
+	s.audioSendSeq = 1
+
+	testSendTicker := time.NewTicker(80 * time.Millisecond) // TODO: remove
+
 	var r []byte
 	for {
 		select {
@@ -77,6 +103,11 @@ func (s *audioStream) start() {
 			s.handleRead(r)
 		case <-s.timeoutTimer.C:
 			log.Fatal("timeout")
+		case <-testSendTicker.C: // TODO: remove
+			b1 := make([]byte, 1364)
+			s.sendPart1(b1)
+			b2 := make([]byte, 556)
+			s.sendPart2(b2)
 		}
 	}
 }
