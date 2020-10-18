@@ -241,8 +241,7 @@ func (s *controlStream) start() {
 	s.sendPkt0()
 	s.sendRequestSerialAndAudio()
 
-	s.common.pkt7.sendSeq = 5
-	s.common.pkt7.startPeriodicSend(&s.common)
+	s.common.pkt7.startPeriodicSend(&s.common, 5)
 
 	pkt0SendTicker := time.NewTicker(100 * time.Millisecond)
 	reauthTicker := time.NewTicker(60 * time.Second)

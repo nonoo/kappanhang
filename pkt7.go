@@ -98,7 +98,8 @@ func (p *pkt7Type) sendReply(s *streamCommon, replyID []byte, seq uint16) {
 	p.sendDo(s, replyID, seq)
 }
 
-func (p *pkt7Type) startPeriodicSend(s *streamCommon) {
+func (p *pkt7Type) startPeriodicSend(s *streamCommon, firstSeqNo uint16) {
+	p.sendSeq = firstSeqNo
 	p.lastConfirmedSeq = p.sendSeq - 1
 
 	p.sendTicker = time.NewTicker(100 * time.Millisecond)

@@ -89,8 +89,7 @@ func (s *audioStream) start() {
 
 	s.timeoutTimer = time.NewTimer(audioTimeoutDuration)
 
-	s.common.pkt7.sendSeq = 1
-	s.common.pkt7.startPeriodicSend(&s.common)
+	s.common.pkt7.startPeriodicSend(&s.common, 1)
 
 	s.audioSendSeq = 1
 
