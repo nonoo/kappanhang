@@ -24,8 +24,8 @@ type controlStream struct {
 	expectedPkt7ReplySeq uint16
 }
 
-func (s *controlStream) sendPktLogin() {
-	// The reply to the login packet will contain a 6 bytes long auth ID with the first 2 bytes set to our randID.
+func (s *controlStream) sendPktAuth() {
+	// The reply to the auth packet will contain a 6 bytes long auth ID with the first 2 bytes set to our randID.
 	var randID [2]byte
 	_, err := rand.Read(randID[:])
 	if err != nil {
@@ -252,9 +252,10 @@ func (s *controlStream) start() {
 
 	s.authSendSeq = 1
 	s.authInnerSendSeq = 0x1234
-	s.sendPktLogin()
+	s.sendPktAuth()
 	s.common.pkt7.sendSeq = 5
 
+	log.Debug("expecting auth answer")
 	// Example success auth packet: 0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00,
 	//                              0xe6, 0xb2, 0x7b, 0x7b, 0xbb, 0x41, 0x3f, 0x2b,
 	//                              0x00, 0x00, 0x00, 0x50, 0x02, 0x00, 0x00, 0x00,
@@ -294,7 +295,7 @@ func (s *controlStream) start() {
 		case <-reauthTicker.C:
 			s.sendPktReauth(false)
 		case <-statusLogTicker.C:
-			log.Print("latency ", s.pkt7Latency)
+			log.Print("roundtrip latency ", s.pkt7Latency)
 		}
 	}
 }
