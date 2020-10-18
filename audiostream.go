@@ -14,6 +14,7 @@ type audioStream struct {
 	common streamCommon
 
 	timeoutTimer         *time.Timer
+	receivedAudio        bool
 	lastReceivedAudioSeq uint16
 }
 
@@ -22,24 +23,26 @@ func (s *audioStream) sendDisconnect() {
 }
 
 func (s *audioStream) handleAudioPacket(r []byte) {
-	gotSeq := binary.LittleEndian.Uint16(r[6:8])
-
 	if s.timeoutTimer != nil {
 		s.timeoutTimer.Stop()
 		s.timeoutTimer.Reset(audioTimeoutDuration)
 	}
 
-	expectedSeq := s.lastReceivedAudioSeq + 1
-	if expectedSeq != gotSeq {
-		var missingPkts int
-		if gotSeq > expectedSeq {
-			missingPkts = int(gotSeq) - int(expectedSeq)
-		} else {
-			missingPkts = int(gotSeq) + 65536 - int(expectedSeq)
+	gotSeq := binary.LittleEndian.Uint16(r[6:8])
+	if s.receivedAudio {
+		expectedSeq := s.lastReceivedAudioSeq + 1
+		if expectedSeq != gotSeq {
+			var missingPkts int
+			if gotSeq > expectedSeq {
+				missingPkts = int(gotSeq) - int(expectedSeq)
+			} else {
+				missingPkts = int(gotSeq) + 65536 - int(expectedSeq)
+			}
+			log.Error("lost ", missingPkts, " audio packets")
 		}
-		log.Error("lost ", missingPkts, " audio packets")
 	}
 	s.lastReceivedAudioSeq = gotSeq
+	s.receivedAudio = true
 
 	// log.Print("got audio packet ", len(r[24:]), " bytes")
 }
