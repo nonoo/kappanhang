@@ -37,6 +37,23 @@ func (p *streamConnection) read() ([]byte, error) {
 	return b[:n], err
 }
 
+func (p *streamConnection) reader(c chan []byte) {
+	var errCount int
+	for {
+		r, err := p.read()
+		if err == nil {
+			c <- r
+		} else {
+			errCount++
+			if errCount > 5 {
+				log.Fatal("timeout")
+			}
+			log.Error("stream break detected")
+		}
+		errCount = 0
+	}
+}
+
 func (p *streamConnection) expect(packetLength int, b []byte) []byte {
 	var r []byte
 	expectStart := time.Now()
