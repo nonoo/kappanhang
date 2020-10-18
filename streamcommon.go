@@ -11,6 +11,8 @@ import (
 	"github.com/nonoo/kappanhang/log"
 )
 
+const pkt7TimeoutDuration = 3 * time.Second
+
 type streamCommon struct {
 	name      string
 	conn      *net.UDPConn
@@ -18,11 +20,7 @@ type streamCommon struct {
 	remoteSID uint32
 	readChan  chan []byte
 
-	pkt7 struct {
-		sendSeq          uint16
-		randIDByte       [1]byte
-		lastConfirmedSeq uint16
-	}
+	pkt7 pkt7Type
 }
 
 func (s *streamCommon) send(d []byte) {
@@ -51,6 +49,10 @@ func (s *streamCommon) reader() {
 	for {
 		r, err := s.read()
 		if err == nil {
+			if s.pkt7.isPkt7(r) {
+				s.pkt7.handle(s, r)
+			}
+
 			s.readChan <- r
 		} else {
 			errCount++
@@ -127,43 +129,9 @@ func (s *streamCommon) sendPkt6() {
 }
 
 func (s *streamCommon) waitForPkt6Answer() {
-	log.Debug("expecting pkt6 answer")
+	log.Debug(s.name + "/expecting pkt6 answer")
 	// Example answer from radio: 0x10, 0x00, 0x00, 0x00, 0x06, 0x00, 0x01, 0x00, 0xe8, 0xd0, 0x44, 0x50, 0xa0, 0x61, 0x39, 0xbe
 	s.expect(16, []byte{0x10, 0x00, 0x00, 0x00, 0x06, 0x00, 0x01, 0x00})
-}
-
-func (s *streamCommon) sendPkt7Do(replyID []byte, seq uint16) {
-	// Example request from PC:  0x15, 0x00, 0x00, 0x00, 0x07, 0x00, 0x09, 0x00, 0xbe, 0xd9, 0xf2, 0x63, 0xe4, 0x35, 0xdd, 0x72, 0x00, 0x78, 0x40, 0xf6, 0x02
-	// Example reply from radio: 0x00, 0x00, 0x00, 0x00, 0x07, 0x00, 0x09, 0x00, 0xe4, 0x35, 0xdd, 0x72, 0xbe, 0xd9, 0xf2, 0x63, 0x01, 0x78, 0x40, 0xf6, 0x02
-	var replyFlag byte
-	if replyID == nil {
-		replyID = make([]byte, 4)
-		var randID [2]byte
-		_, err := rand.Read(randID[:])
-		if err != nil {
-			log.Fatal(err)
-		}
-		replyID[0] = randID[0]
-		replyID[1] = randID[1]
-		replyID[2] = s.pkt7.randIDByte[0]
-		replyID[3] = 0x03
-	} else {
-		replyFlag = 0x01
-	}
-
-	s.send([]byte{0x15, 0x00, 0x00, 0x00, 0x07, 0x00, byte(seq), byte(seq >> 8),
-		byte(s.localSID >> 24), byte(s.localSID >> 16), byte(s.localSID >> 8), byte(s.localSID),
-		byte(s.remoteSID >> 24), byte(s.remoteSID >> 16), byte(s.remoteSID >> 8), byte(s.remoteSID),
-		replyFlag, replyID[0], replyID[1], replyID[2], replyID[3]})
-}
-
-func (s *streamCommon) sendPkt7() {
-	s.sendPkt7Do(nil, s.pkt7.sendSeq)
-	s.pkt7.sendSeq++
-}
-
-func (s *streamCommon) sendPkt7Reply(replyID []byte, seq uint16) {
-	s.sendPkt7Do(replyID, seq)
 }
 
 func (s *streamCommon) sendDisconnect() {
