@@ -86,7 +86,12 @@ func (s *streamCommon) open(name string, portNumber int) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	s.conn, err = net.DialUDP("udp", nil, raddr)
+
+	// Use the same local and remote port. The radio does not handle different ports well.
+	l := net.UDPAddr{
+		Port: portNumber,
+	}
+	s.conn, err = net.DialUDP("udp", &l, raddr)
 	if err != nil {
 		log.Fatal(err)
 	}
