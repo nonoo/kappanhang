@@ -13,14 +13,23 @@ var streams struct {
 	audio   audioStream
 }
 
+func exit(err error) {
+	streams.control.SendDisconnect()
+	if err == nil {
+		os.Exit(0)
+	} else {
+		log.Error(err.Error())
+		os.Exit(1)
+	}
+}
+
 func setupCloseHandler() {
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-c
 		log.Print("disconnecting")
-		streams.control.SendDisconnect()
-		os.Exit(0)
+		exit(nil)
 	}()
 }
 

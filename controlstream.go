@@ -4,19 +4,20 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/binary"
-	"os"
+	"errors"
 	"time"
 
 	"github.com/nonoo/kappanhang/log"
 )
 
 type controlStream struct {
-	common                streamCommon
-	authSendSeq           uint16
-	authInnerSendSeq      uint16
-	authID                [6]byte
-	randIDByteForPktSeven [1]byte
-	expectedPkt7ReplySeq  uint16
+	common                       streamCommon
+	authSendSeq                  uint16
+	authInnerSendSeq             uint16
+	authID                       [6]byte
+	randIDByteForPktSeven        [1]byte
+	expectedPkt7ReplySeq         uint16
+	requestSerialAndAudioTimeout *time.Timer
 }
 
 func (s *controlStream) sendPkt7(replyID []byte, seq uint16) {
@@ -150,6 +151,10 @@ func (s *controlStream) sendRequestSerialAndAudio() {
 		0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00})
 	s.authSendSeq++
 	s.authInnerSendSeq++
+
+	s.requestSerialAndAudioTimeout = time.AfterFunc(3*time.Second, func() {
+		exit(errors.New("serial and audio request timeout"))
+	})
 }
 
 func (s *controlStream) handleRead(r []byte) {
@@ -199,9 +204,7 @@ func (s *controlStream) handleRead(r []byte) {
 			//							  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 			//							  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 
-			log.Error("reauth failed")
-			s.SendDisconnect()
-			os.Exit(1)
+			exit(errors.New("reauth failed"))
 		}
 	case 144:
 		if bytes.Equal(r[:6], []byte{0x90, 0x00, 0x00, 0x00, 0x00, 0x00}) && r[96] == 1 {
@@ -225,6 +228,8 @@ func (s *controlStream) handleRead(r []byte) {
 			// 0x00, 0x00, 0x00, 0x00, 0xc0, 0xa8, 0x03, 0x03,
 			// 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 			log.Print("serial and audio request success")
+			s.requestSerialAndAudioTimeout.Stop()
+			s.requestSerialAndAudioTimeout = nil
 			go streams.audio.Start()
 		}
 	}
@@ -277,7 +282,6 @@ func (s *controlStream) Start() {
 	copy(s.authID[:], r[26:32])
 	log.Print("auth ok")
 	s.sendPktReauth(true)
-	time.AfterFunc(time.Second*2, s.sendRequestSerialAndAudio)
 
 	_, err := rand.Read(s.randIDByteForPktSeven[:])
 	if err != nil {
@@ -290,6 +294,8 @@ func (s *controlStream) Start() {
 	pingTicker := time.NewTicker(100 * time.Millisecond)
 	reauthTicker := time.NewTicker(60 * time.Second)
 	statusLogTicker := time.NewTicker(10 * time.Second)
+
+	time.AfterFunc(time.Second*2, s.sendRequestSerialAndAudio)
 
 	for {
 		select {
