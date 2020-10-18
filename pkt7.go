@@ -13,7 +13,7 @@ const pkt7TimeoutDuration = 3 * time.Second
 
 type pkt7Type struct {
 	sendSeq          uint16
-	randIDByte       [1]byte
+	randIDBytes      [2]byte
 	lastConfirmedSeq uint16
 
 	sendTicker   *time.Ticker
@@ -76,8 +76,8 @@ func (p *pkt7Type) sendDo(s *streamCommon, replyID []byte, seq uint16) {
 		}
 		replyID[0] = randID[0]
 		replyID[1] = randID[1]
-		replyID[2] = p.randIDByte[0]
-		replyID[3] = 0x03
+		replyID[2] = p.randIDBytes[0]
+		replyID[3] = p.randIDBytes[1]
 	} else {
 		replyFlag = 0x01
 	}

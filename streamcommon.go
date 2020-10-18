@@ -111,7 +111,7 @@ func (s *streamCommon) open(name string, portNumber int) {
 	s.localSID = binary.BigEndian.Uint32(laddr.IP[len(laddr.IP)-4:])<<16 | uint32(laddr.Port&0xffff)
 	log.Debugf(s.name+"/using session id %.8x", s.localSID)
 
-	_, err = rand.Read(s.pkt7.randIDByte[:])
+	_, err = rand.Read(s.pkt7.randIDBytes[:])
 	if err != nil {
 		log.Fatal(err)
 	}
