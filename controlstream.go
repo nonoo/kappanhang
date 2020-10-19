@@ -25,7 +25,7 @@ func (s *controlStream) sendPktAuth() {
 	var randID [2]byte
 	_, err := rand.Read(randID[:])
 	if err != nil {
-		log.Fatal(err)
+		exit(err)
 	}
 	s.common.send([]byte{0x80, 0x00, 0x00, 0x00, 0x00, 0x00, byte(s.authSendSeq), byte(s.authSendSeq >> 8),
 		byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
@@ -232,11 +232,11 @@ func (s *controlStream) start() {
 	//                              0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 	r := s.common.expect(96, []byte{0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00})
 	if bytes.Equal(r[48:52], []byte{0xff, 0xff, 0xff, 0xfe}) {
-		log.Fatal("invalid user/password")
+		exit(errors.New("invalid user/password"))
 	}
 
 	copy(s.authID[:], r[26:32])
-	log.Print("auth ok")
+	log.Print("auth ok, waiting a bit")
 	s.sendPktReauth(true)
 
 	time.AfterFunc(time.Second, func() {

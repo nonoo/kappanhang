@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"time"
 
 	"github.com/nonoo/kappanhang/log"
@@ -101,7 +102,7 @@ func (s *audioStream) start() {
 		case r = <-s.common.readChan:
 			s.handleRead(r)
 		case <-s.timeoutTimer.C:
-			log.Fatal("timeout")
+			exit(errors.New("timeout"))
 		case <-testSendTicker.C: // TODO: remove
 			b1 := make([]byte, 1364)
 			s.sendPart1(b1)

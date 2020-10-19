@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/binary"
+	"errors"
 	"time"
 
 	"github.com/nonoo/kappanhang/log"
@@ -72,7 +73,7 @@ func (p *pkt7Type) sendDo(s *streamCommon, replyID []byte, seq uint16) {
 		var randID [2]byte
 		_, err := rand.Read(randID[:])
 		if err != nil {
-			log.Fatal(err)
+			exit(err)
 		}
 		replyID[0] = randID[0]
 		replyID[1] = randID[1]
@@ -111,7 +112,7 @@ func (p *pkt7Type) startPeriodicSend(s *streamCommon, firstSeqNo uint16) {
 			case <-p.sendTicker.C:
 				p.send(s)
 			case <-p.timeoutTimer.C:
-				log.Fatal(s.name + "/ping timeout")
+				exit(errors.New(s.name + "/ping timeout"))
 			}
 		}
 	}()

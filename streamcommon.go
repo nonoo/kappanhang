@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"net"
 	"time"
@@ -28,7 +29,7 @@ type streamCommon struct {
 func (s *streamCommon) send(d []byte) {
 	_, err := s.conn.Write(d)
 	if err != nil {
-		log.Fatal(err)
+		exit(err)
 	}
 }
 
@@ -73,7 +74,7 @@ func (s *streamCommon) tryReceivePacket(timeout time.Duration, packetLength, mat
 func (s *streamCommon) expect(packetLength int, b []byte) []byte {
 	r := s.tryReceivePacket(expectTimeoutDuration, packetLength, 0, b)
 	if r == nil {
-		log.Fatal(s.name + "/expect timeout")
+		exit(errors.New(s.name + "/expect timeout"))
 	}
 	return r
 }
@@ -84,7 +85,7 @@ func (s *streamCommon) open(name string, portNumber int) {
 	log.Print(s.name+"/connecting to ", hostPort)
 	raddr, err := net.ResolveUDPAddr("udp", hostPort)
 	if err != nil {
-		log.Fatal(err)
+		exit(err)
 	}
 
 	// Use the same local and remote port. The radio does not handle different ports well.
@@ -93,17 +94,16 @@ func (s *streamCommon) open(name string, portNumber int) {
 	}
 	s.conn, err = net.DialUDP("udp", &l, raddr)
 	if err != nil {
-		log.Fatal(err)
+		exit(err)
 	}
 
 	// Constructing the local session ID by combining the local IP address and port.
 	laddr := s.conn.LocalAddr().(*net.UDPAddr)
 	s.localSID = binary.BigEndian.Uint32(laddr.IP[len(laddr.IP)-4:])<<16 | uint32(laddr.Port&0xffff)
-	log.Debugf(s.name+"/using session id %.8x", s.localSID)
 
 	_, err = rand.Read(s.pkt7.randIDBytes[:])
 	if err != nil {
-		log.Fatal(err)
+		exit(err)
 	}
 
 	s.readChan = make(chan []byte)
@@ -155,8 +155,6 @@ func (s *streamCommon) waitForPkt4Answer() {
 	r := s.expect(16, []byte{0x10, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00})
 	s.remoteSID = binary.BigEndian.Uint32(r[8:12])
 	s.gotRemoteSID = true
-
-	log.Debugf(s.name+"/got remote session id %.8x", s.remoteSID)
 }
 
 func (s *streamCommon) sendPkt6() {
