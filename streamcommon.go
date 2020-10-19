@@ -170,10 +170,11 @@ func (s *streamCommon) waitForPkt6Answer() {
 }
 
 func (s *streamCommon) sendDisconnect() {
-	if !s.gotRemoteSID {
+	if !s.gotRemoteSID || s.conn == nil {
 		return
 	}
 
+	log.Print(s.name + "/disconnecting")
 	s.send([]byte{0x10, 0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00,
 		byte(s.localSID >> 24), byte(s.localSID >> 16), byte(s.localSID >> 8), byte(s.localSID),
 		byte(s.remoteSID >> 24), byte(s.remoteSID >> 16), byte(s.remoteSID >> 8), byte(s.remoteSID)})

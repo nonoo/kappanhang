@@ -17,15 +17,11 @@ func exit(err error) {
 	if err != nil {
 		log.Error(err.Error())
 	}
-	log.Print("disconnecting")
 
-	if streams.audio.common.conn != nil {
-		streams.audio.sendDisconnect()
-	}
-	if streams.control.common.conn != nil {
-		streams.control.sendDisconnect()
-	}
+	streams.audio.sendDisconnect()
+	streams.control.sendDisconnect()
 
+	log.Print("exiting")
 	if err == nil {
 		os.Exit(0)
 	} else {
