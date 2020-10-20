@@ -101,7 +101,7 @@ func (a *audioStruct) init() {
 	a.source.Rate = 48000
 	a.source.Format = "s16le"
 	a.source.Channels = 1
-	a.source.SetProperty("device.buffering.buffer_size", 1920*5)
+	a.source.SetProperty("device.buffering.buffer_size", (48000*16)/10) // 100 ms
 	a.source.SetProperty("device.description", "kappanhang input")
 
 	a.sink.Name = "kappanhang"
@@ -109,7 +109,7 @@ func (a *audioStruct) init() {
 	a.sink.Rate = 48000
 	a.sink.Format = "s16le"
 	a.sink.Channels = 1
-	a.sink.SetProperty("device.buffering.buffer_size", 1920*5)
+	a.sink.SetProperty("device.buffering.buffer_size", (48000*16)/10)
 	a.sink.SetProperty("device.description", "kappanhang output")
 
 	if err := a.source.Open(); err != nil {
