@@ -89,6 +89,9 @@ func (s *controlStream) sendPktReauth(firstReauthSend bool) {
 }
 
 func (s *controlStream) sendDisconnect() {
+	if s.common.conn == nil {
+		return
+	}
 	s.common.send([]byte{0x40, 0x00, 0x00, 0x00, 0x00, 0x00, byte(s.authSendSeq), byte(s.authSendSeq >> 8),
 		byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
 		byte(s.common.remoteSID >> 24), byte(s.common.remoteSID >> 16), byte(s.common.remoteSID >> 8), byte(s.common.remoteSID),
