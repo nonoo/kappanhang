@@ -222,7 +222,10 @@ func (s *seqBuf) watcher() {
 
 	for {
 		retry := true
+
 		for retry {
+			retry = false
+
 			t, err := s.getNextDataAvailableRemainingTime()
 			if err == nil {
 				if t == 0 { // Do we have an entry available right now?
@@ -234,14 +237,14 @@ func (s *seqBuf) watcher() {
 					} else {
 						log.Error(err)
 					}
+
+					// We may have further available entries.
+					retry = true
 				} else if !entryAvailableTimerRunning {
 					// An entry will be available later, waiting for it.
 					entryAvailableTimer.Reset(t)
 					entryAvailableTimerRunning = true
 				}
-				retry = true
-			} else {
-				retry = false
 			}
 		}
 
