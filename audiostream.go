@@ -25,6 +25,32 @@ func (s *audioStream) sendDisconnect() {
 	s.common.sendDisconnect()
 }
 
+func (s *audioStream) sendRetransmitRequest(seqNum uint16) {
+	p := []byte{0x10, 0x00, 0x00, 0x00, 0x01, 0x00, byte(seqNum), byte(seqNum >> 8),
+		byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
+		byte(s.common.remoteSID >> 24), byte(s.common.remoteSID >> 16), byte(s.common.remoteSID >> 8), byte(s.common.remoteSID)}
+	s.common.send(p)
+	s.common.send(p)
+}
+
+type seqNumRange [2]uint16
+
+func (s *audioStream) sendRetransmitRequestForRanges(seqNumRanges []seqNumRange) {
+	seqNumBytes := make([]byte, len(seqNumRanges)*4)
+	for i := 0; i < len(seqNumRanges); i++ {
+		seqNumBytes[i*2] = byte(seqNumRanges[i][0])
+		seqNumBytes[i*2+1] = byte(seqNumRanges[i][0] >> 8)
+		seqNumBytes[i*2+2] = byte(seqNumRanges[i][1])
+		seqNumBytes[i*2+3] = byte(seqNumRanges[i][1] >> 8)
+	}
+	p := append([]byte{0x18, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
+		byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
+		byte(s.common.remoteSID >> 24), byte(s.common.remoteSID >> 16), byte(s.common.remoteSID >> 8), byte(s.common.remoteSID)},
+		seqNumBytes...)
+	s.common.send(p)
+	s.common.send(p)
+}
+
 func (s *audioStream) handleAudioPacket(r []byte) {
 	if s.timeoutTimer != nil {
 		s.timeoutTimer.Stop()
@@ -47,7 +73,7 @@ func (s *audioStream) handleAudioPacket(r []byte) {
 	s.lastReceivedAudioSeq = gotSeq
 	s.receivedAudio = true
 
-	// log.Print("got audio packet ", len(r[24:]), " bytes")
+	// log.Print("got audio packet ", len(r[24:]), " bytes seq ", gotSeq)
 
 	// TODO: audioPipes.source.Write()
 }
