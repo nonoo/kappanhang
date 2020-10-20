@@ -43,7 +43,7 @@ func setupCloseHandler() {
 
 func main() {
 	log.Init()
-	log.Print("kappanhang by Norbert Varga HA2NON https://github.com/nonoo/kappanhang")
+	log.Print("kappanhang by Norbert Varga HA2NON and Akos Marton ES1AKOS https://github.com/nonoo/kappanhang")
 	parseArgs()
 
 	audio.init()
