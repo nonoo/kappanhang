@@ -24,13 +24,8 @@ func exit(err error) {
 		log.Error(err.Error())
 	}
 
-	if streams.audio.common.conn != nil {
-		streams.audio.sendDisconnect()
-	}
-
-	if streams.control.common.conn != nil {
-		streams.control.sendDisconnect()
-	}
+	streams.audio.sendDisconnect()
+	streams.control.sendDisconnect()
 
 	if audioPipes.source.IsOpen() {
 		if err := audioPipes.source.Close(); err != nil {
