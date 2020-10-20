@@ -221,21 +221,27 @@ func (s *seqBuf) watcher() {
 	var entryAvailableTimerRunning bool
 
 	for {
-		t, err := s.getNextDataAvailableRemainingTime()
-		if err == nil {
-			if t == 0 { // Do we have an entry available right now?
-				e, err := s.get()
-				if err == nil {
-					if s.entryChan != nil {
-						s.entryChan <- e
+		retry := true
+		for retry {
+			t, err := s.getNextDataAvailableRemainingTime()
+			if err == nil {
+				if t == 0 { // Do we have an entry available right now?
+					e, err := s.get()
+					if err == nil {
+						if s.entryChan != nil {
+							s.entryChan <- e
+						}
+					} else {
+						log.Error(err)
 					}
-				} else {
-					log.Error(err)
+				} else if !entryAvailableTimerRunning {
+					// An entry will be available later, waiting for it.
+					entryAvailableTimer.Reset(t)
+					entryAvailableTimerRunning = true
 				}
-			} else if !entryAvailableTimerRunning {
-				// An entry will be available later, waiting for it.
-				entryAvailableTimer.Reset(t)
-				entryAvailableTimerRunning = true
+				retry = true
+			} else {
+				retry = false
 			}
 		}
 
