@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"errors"
+	"os"
 
 	"github.com/akosmarton/papipes"
 	"github.com/nonoo/kappanhang/log"
@@ -25,39 +27,70 @@ func (a *audioStruct) playLoop() {
 	for {
 		<-a.canPlay
 
+		// Trying to read the whole buffer.
 		d := make([]byte, a.playBuf.Len())
 		bytesToWrite, err := a.playBuf.Read(d)
-		if err == nil {
-			for {
-				written, err := a.source.Write(d)
-				if err != nil {
-					log.Error(err)
-					break
-				}
-				bytesToWrite -= written
-				if bytesToWrite == 0 {
-					break
-				}
-				d = d[written:]
-			}
-		} else {
+		if err != nil {
 			log.Error(err)
+			continue
+		}
+
+		for {
+			written, err := a.source.Write(d)
+			if err != nil {
+				if _, ok := err.(*os.PathError); !ok {
+					log.Error(err)
+				}
+				return
+			}
+			bytesToWrite -= written
+			if bytesToWrite == 0 {
+				break
+			}
+			d = d[written:]
+		}
+	}
+}
+
+func (a *audioStruct) recLoop() {
+	frameBuf := make([]byte, 1920)
+	buf := bytes.NewBuffer([]byte{})
+
+	for {
+		n, err := a.sink.Read(frameBuf)
+		if err != nil {
+			if _, ok := err.(*os.PathError); !ok {
+				log.Error(err)
+			}
+			return
+		}
+
+		buf.Write(frameBuf[:n])
+
+		for buf.Len() >= len(frameBuf) {
+			n, err = buf.Read(frameBuf)
+			if err != nil {
+				exit(err)
+			}
+			if n != len(frameBuf) {
+				exit(errors.New("buffer read error"))
+			}
+			a.rec <- frameBuf
 		}
 	}
 }
 
 func (a *audioStruct) loop() {
 	go a.playLoop()
+	go a.recLoop()
 
 	for {
-		select {
-		case d := <-a.play:
-			a.playBuf.Write(d)
+		d := <-a.play
+		a.playBuf.Write(d)
 
-			select {
-			case a.canPlay <- true:
-			default:
-			}
+		select {
+		case a.canPlay <- true:
+		default:
 		}
 	}
 }
@@ -97,13 +130,17 @@ func (a *audioStruct) init() {
 func (a *audioStruct) deinit() {
 	if a.source.IsOpen() {
 		if err := a.source.Close(); err != nil {
-			log.Error(err)
+			if _, ok := err.(*os.PathError); !ok {
+				log.Error(err)
+			}
 		}
 	}
 
 	if a.sink.IsOpen() {
 		if err := a.sink.Close(); err != nil {
-			log.Error(err)
+			if _, ok := err.(*os.PathError); !ok {
+				log.Error(err)
+			}
 		}
 	}
 }

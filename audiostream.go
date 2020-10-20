@@ -107,8 +107,6 @@ func (s *audioStream) handleAudioPacket(r []byte) {
 	}
 }
 
-// TODO: audioPipes.sink.Read() + sendPart1(); sendPart2()
-
 func (s *audioStream) handleRead(r []byte) {
 	if len(r) >= 580 && (bytes.Equal(r[:6], []byte{0x6c, 0x05, 0x00, 0x00, 0x00, 0x00}) || bytes.Equal(r[:6], []byte{0x44, 0x02, 0x00, 0x00, 0x00, 0x00})) {
 		s.handleAudioPacket(r)
@@ -135,8 +133,6 @@ func (s *audioStream) start() {
 
 	s.audioSendSeq = 1
 
-	testSendTicker := time.NewTicker(80 * time.Millisecond) // TODO: remove
-
 	for {
 		select {
 		case r := <-s.common.readChan:
@@ -145,11 +141,9 @@ func (s *audioStream) start() {
 			exit(errors.New("timeout"))
 		case e := <-s.rxSeqBufEntryChan:
 			s.handleRxSeqBufEntry(e)
-		case <-testSendTicker.C: // TODO: remove
-			b1 := make([]byte, 1364)
-			s.sendPart1(b1)
-			b2 := make([]byte, 556)
-			s.sendPart2(b2)
+		case d := <-audio.rec:
+			s.sendPart1(d[:1364])
+			s.sendPart2(d[1364:1920])
 		}
 	}
 }
