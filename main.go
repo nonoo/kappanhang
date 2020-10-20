@@ -10,6 +10,7 @@ import (
 
 var streams struct {
 	control controlStream
+	serial  serialStream
 	audio   audioStream
 }
 
@@ -19,6 +20,7 @@ func exit(err error) {
 	}
 
 	streams.audio.sendDisconnect()
+	streams.serial.deinit()
 	streams.control.sendDisconnect()
 	audio.deinit()
 
@@ -46,6 +48,7 @@ func main() {
 
 	audio.init()
 	streams.audio.init()
+	streams.serial.init()
 	streams.control.init()
 
 	setupCloseHandler()

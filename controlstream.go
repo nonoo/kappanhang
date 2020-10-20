@@ -195,6 +195,7 @@ func (s *controlStream) handleRead(r []byte) {
 				s.requestSerialAndAudioTimeout.Stop()
 				s.requestSerialAndAudioTimeout = nil
 			}
+			go streams.serial.start()
 			go streams.audio.start()
 			s.serialAndAudioStreamOpened = true
 		}
