@@ -237,9 +237,9 @@ func (s *controlStream) start() {
 
 	copy(s.authID[:], r[26:32])
 	log.Print("auth ok, waiting a bit")
-	s.sendPktReauth(true)
 
 	time.AfterFunc(time.Second, func() {
+		s.sendPktReauth(true)
 		s.sendPktReauth(false)
 		time.AfterFunc(time.Second, func() {
 			s.sendRequestSerialAndAudio()
