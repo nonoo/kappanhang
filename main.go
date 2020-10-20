@@ -24,8 +24,13 @@ func exit(err error) {
 		log.Error(err.Error())
 	}
 
-	streams.audio.sendDisconnect()
-	streams.control.sendDisconnect()
+	if streams.audio.common.conn != nil {
+		streams.audio.sendDisconnect()
+	}
+
+	if streams.control.common.conn != nil {
+		streams.control.sendDisconnect()
+	}
 
 	if audioPipes.source.IsOpen() {
 		if err := audioPipes.source.Close(); err != nil {
@@ -85,10 +90,10 @@ func main() {
 		exit(err)
 	}
 
-	setupCloseHandler()
-
 	streams.audio.init()
 	streams.control.init()
+
+	setupCloseHandler()
 
 	streams.control.start()
 }
