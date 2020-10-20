@@ -91,7 +91,7 @@ func (s *audioStream) handleRxSeqBufEntry(e seqBufEntry) {
 	s.lastReceivedAudioSeq = gotSeq
 	s.receivedAudio = true
 
-	// TODO: audioPipes.source.Write()
+	audio.play <- e.data
 }
 
 func (s *audioStream) handleAudioPacket(r []byte) {
