@@ -52,7 +52,7 @@ func (a *audioStruct) playLoop() {
 				written, err := a.source.Write(d)
 				if err != nil {
 					if _, ok := err.(*os.PathError); !ok {
-						log.Error(err)
+						exit(err)
 					}
 					return
 				}
@@ -74,7 +74,7 @@ func (a *audioStruct) recLoop() {
 		n, err := a.sink.Read(frameBuf)
 		if err != nil {
 			if _, ok := err.(*os.PathError); !ok {
-				log.Error(err)
+				exit(err)
 			}
 			return
 		}
