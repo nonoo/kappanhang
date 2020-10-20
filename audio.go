@@ -24,32 +24,30 @@ type audioStruct struct {
 var audio audioStruct
 
 func (a *audioStruct) playLoop() {
-	frameBuf := make([]byte, 1920)
-
 	for {
 		<-a.canPlay
 
-		for a.playBuf.Len() > 0 {
-			bytesToWrite, err := a.playBuf.Read(frameBuf)
-			if err != nil {
-				log.Error(err)
-				continue
-			}
+		// Trying to read the whole buffer.
+		d := make([]byte, a.playBuf.Len())
+		bytesToWrite, err := a.playBuf.Read(d)
+		if err != nil {
+			log.Error(err)
+			continue
+		}
 
-			for {
-				written, err := a.source.Write(frameBuf[:bytesToWrite])
-				if err != nil {
-					if _, ok := err.(*os.PathError); !ok {
-						log.Error(err)
-					}
-					return
+		for {
+			written, err := a.source.Write(d)
+			if err != nil {
+				if _, ok := err.(*os.PathError); !ok {
+					log.Error(err)
 				}
-				bytesToWrite -= written
-				if bytesToWrite == 0 {
-					break
-				}
-				frameBuf = frameBuf[written:]
+				return
 			}
+			bytesToWrite -= written
+			if bytesToWrite == 0 {
+				break
+			}
+			d = d[written:]
 		}
 	}
 }
