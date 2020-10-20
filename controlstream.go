@@ -246,7 +246,7 @@ func (s *controlStream) start() {
 		})
 	})
 
-	s.common.pkt7.startPeriodicSend(&s.common, 5)
+	s.common.pkt7.startPeriodicSend(&s.common, 5, false)
 
 	pkt0SendTicker := time.NewTicker(100 * time.Millisecond)
 	reauthTicker := time.NewTicker(30 * time.Second)

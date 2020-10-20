@@ -37,13 +37,15 @@ func (p *pkt7Type) handle(s *streamCommon, r []byte) {
 		// Replying to the radio.
 		// Example request from radio: 0x00, 0x00, 0x00, 0x00, 0x07, 0x00, 0x1c, 0x0e, 0xe4, 0x35, 0xdd, 0x72, 0xbe, 0xd9, 0xf2, 0x63, 0x00, 0x57, 0x2b, 0x12, 0x00
 		// Example answer from PC:     0x15, 0x00, 0x00, 0x00, 0x07, 0x00, 0x1c, 0x0e, 0xbe, 0xd9, 0xf2, 0x63, 0xe4, 0x35, 0xdd, 0x72, 0x01, 0x57, 0x2b, 0x12, 0x00
-		if p.timeoutTimer != nil { // Only replying if the auth is already done.
+		if p.sendTicker != nil { // Only replying if the auth is already done.
 			p.sendReply(s, r[17:21], gotSeq)
 		}
 	} else { // This is a pkt7 reply to our request.
-		if p.timeoutTimer != nil {
-			p.timeoutTimer.Stop()
-			p.timeoutTimer.Reset(pkt7TimeoutDuration)
+		if p.sendTicker != nil { // Auth is already done?
+			if p.timeoutTimer != nil {
+				p.timeoutTimer.Stop()
+				p.timeoutTimer.Reset(pkt7TimeoutDuration)
+			}
 
 			// Only measure latency after the timeout has been initialized, so the auth is already done.
 			p.latency += time.Since(p.lastSendAt)
@@ -99,20 +101,27 @@ func (p *pkt7Type) sendReply(s *streamCommon, replyID []byte, seq uint16) {
 	p.sendDo(s, replyID, seq)
 }
 
-func (p *pkt7Type) startPeriodicSend(s *streamCommon, firstSeqNo uint16) {
+func (p *pkt7Type) startPeriodicSend(s *streamCommon, firstSeqNo uint16, checkPingTimeout bool) {
 	p.sendSeq = firstSeqNo
 	p.lastConfirmedSeq = p.sendSeq - 1
 
 	p.sendTicker = time.NewTicker(100 * time.Millisecond)
-	p.timeoutTimer = time.NewTimer(pkt7TimeoutDuration)
+	if checkPingTimeout {
+		p.timeoutTimer = time.NewTimer(pkt7TimeoutDuration)
+	}
 
 	go func() {
 		for {
-			select {
-			case <-p.sendTicker.C:
+			if checkPingTimeout {
+				select {
+				case <-p.sendTicker.C:
+					p.send(s)
+				case <-p.timeoutTimer.C:
+					exit(errors.New(s.name + "/ping timeout"))
+				}
+			} else {
+				<-p.sendTicker.C
 				p.send(s)
-			case <-p.timeoutTimer.C:
-				exit(errors.New(s.name + "/ping timeout"))
 			}
 		}
 	}()
