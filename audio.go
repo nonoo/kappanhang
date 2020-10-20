@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"os"
+	"sync"
 
 	"github.com/akosmarton/papipes"
 	"github.com/nonoo/kappanhang/log"
@@ -17,6 +18,7 @@ type audioStruct struct {
 	play chan []byte
 	rec  chan []byte
 
+	mutex   sync.Mutex
 	playBuf *bytes.Buffer
 	canPlay chan bool
 }
@@ -27,27 +29,39 @@ func (a *audioStruct) playLoop() {
 	for {
 		<-a.canPlay
 
-		// Trying to read the whole buffer.
-		d := make([]byte, a.playBuf.Len())
-		bytesToWrite, err := a.playBuf.Read(d)
-		if err != nil {
-			log.Error(err)
-			continue
-		}
-
 		for {
-			written, err := a.source.Write(d)
-			if err != nil {
-				if _, ok := err.(*os.PathError); !ok {
-					log.Error(err)
-				}
-				return
-			}
-			bytesToWrite -= written
-			if bytesToWrite == 0 {
+			a.mutex.Lock()
+			if a.playBuf.Len() < 1920 {
+				a.mutex.Unlock()
 				break
 			}
-			d = d[written:]
+
+			d := make([]byte, 1920)
+			bytesToWrite, err := a.playBuf.Read(d)
+			a.mutex.Unlock()
+			if err != nil {
+				log.Error(err)
+				break
+			}
+			if bytesToWrite != len(d) {
+				log.Error("buffer underread")
+				break
+			}
+
+			for {
+				written, err := a.source.Write(d)
+				if err != nil {
+					if _, ok := err.(*os.PathError); !ok {
+						log.Error(err)
+					}
+					return
+				}
+				bytesToWrite -= written
+				if bytesToWrite == 0 {
+					break
+				}
+				d = d[written:]
+			}
 		}
 	}
 }
@@ -86,7 +100,9 @@ func (a *audioStruct) loop() {
 
 	for {
 		d := <-a.play
+		a.mutex.Lock()
 		a.playBuf.Write(d)
+		a.mutex.Unlock()
 
 		select {
 		case a.canPlay <- true:
