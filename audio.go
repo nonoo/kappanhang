@@ -87,7 +87,7 @@ func (a *audioStruct) recLoop() {
 				exit(err)
 			}
 			if n != len(frameBuf) {
-				exit(errors.New("buffer read error"))
+				exit(errors.New("audio buffer read error"))
 			}
 			a.rec <- frameBuf
 		}

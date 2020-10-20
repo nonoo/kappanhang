@@ -138,7 +138,7 @@ func (s *audioStream) start() {
 		case r := <-s.common.readChan:
 			s.handleRead(r)
 		case <-s.timeoutTimer.C:
-			exit(errors.New("timeout"))
+			exit(errors.New("audio stream timeout"))
 		case e := <-s.rxSeqBufEntryChan:
 			s.handleRxSeqBufEntry(e)
 		case d := <-audio.rec:
