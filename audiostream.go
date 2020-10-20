@@ -48,7 +48,11 @@ func (s *audioStream) handleAudioPacket(r []byte) {
 	s.receivedAudio = true
 
 	// log.Print("got audio packet ", len(r[24:]), " bytes")
+
+	// TODO: audioPipes.source.Write()
 }
+
+// TODO: audioPipes.sink.Read() + sendPart1(); sendPart2()
 
 func (s *audioStream) handleRead(r []byte) {
 	if len(r) >= 580 && (bytes.Equal(r[:6], []byte{0x6c, 0x05, 0x00, 0x00, 0x00, 0x00}) || bytes.Equal(r[:6], []byte{0x44, 0x02, 0x00, 0x00, 0x00, 0x00})) {
