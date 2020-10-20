@@ -10,6 +10,7 @@ import (
 )
 
 const audioTimeoutDuration = 3 * time.Second
+const rxSeqBufLength = 100 * time.Millisecond
 
 type audioStream struct {
 	common streamCommon
@@ -17,12 +18,34 @@ type audioStream struct {
 	timeoutTimer         *time.Timer
 	receivedAudio        bool
 	lastReceivedAudioSeq uint16
+	rxSeqBuf             seqBuf
+	rxSeqBufEntryChan    chan seqBufEntry
 
 	audioSendSeq uint16
 }
 
 func (s *audioStream) sendDisconnect() {
 	s.common.sendDisconnect()
+}
+
+// sendPart1 expects 1364 bytes of PCM data.
+func (s *audioStream) sendPart1(pcmData []byte) {
+	s.common.send(append([]byte{0x6c, 0x05, 0x00, 0x00, 0x00, 0x00, byte(s.audioSendSeq), byte(s.audioSendSeq >> 8),
+		byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
+		byte(s.common.remoteSID >> 24), byte(s.common.remoteSID >> 16), byte(s.common.remoteSID >> 8), byte(s.common.remoteSID),
+		0x80, 0x00, byte((s.audioSendSeq - 1) >> 8), byte(s.audioSendSeq - 1), 0x00, 0x00, byte(len(pcmData) >> 8), byte(len(pcmData))},
+		pcmData...))
+	s.audioSendSeq++
+}
+
+// sendPart2 expects 556 bytes of PCM data.
+func (s *audioStream) sendPart2(pcmData []byte) {
+	s.common.send(append([]byte{0x44, 0x02, 0x00, 0x00, 0x00, 0x00, byte(s.audioSendSeq), byte(s.audioSendSeq >> 8),
+		byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
+		byte(s.common.remoteSID >> 24), byte(s.common.remoteSID >> 16), byte(s.common.remoteSID >> 8), byte(s.common.remoteSID),
+		0x80, 0x00, byte((s.audioSendSeq - 1) >> 8), byte(s.audioSendSeq - 1), 0x00, 0x00, byte(len(pcmData) >> 8), byte(len(pcmData))},
+		pcmData...))
+	s.audioSendSeq++
 }
 
 func (s *audioStream) sendRetransmitRequest(seqNum uint16) {
@@ -51,13 +74,8 @@ func (s *audioStream) sendRetransmitRequestForRanges(seqNumRanges []seqNumRange)
 	s.common.send(p)
 }
 
-func (s *audioStream) handleAudioPacket(r []byte) {
-	if s.timeoutTimer != nil {
-		s.timeoutTimer.Stop()
-		s.timeoutTimer.Reset(audioTimeoutDuration)
-	}
-
-	gotSeq := binary.LittleEndian.Uint16(r[6:8])
+func (s *audioStream) handleRxSeqBufEntry(e seqBufEntry) {
+	gotSeq := uint16(e.seq)
 	if s.receivedAudio {
 		expectedSeq := s.lastReceivedAudioSeq + 1
 		if expectedSeq != gotSeq {
@@ -73,9 +91,20 @@ func (s *audioStream) handleAudioPacket(r []byte) {
 	s.lastReceivedAudioSeq = gotSeq
 	s.receivedAudio = true
 
-	// log.Print("got audio packet ", len(r[24:]), " bytes seq ", gotSeq)
-
 	// TODO: audioPipes.source.Write()
+}
+
+func (s *audioStream) handleAudioPacket(r []byte) {
+	if s.timeoutTimer != nil {
+		s.timeoutTimer.Stop()
+		s.timeoutTimer.Reset(audioTimeoutDuration)
+	}
+
+	gotSeq := binary.LittleEndian.Uint16(r[6:8])
+	err := s.rxSeqBuf.add(seqNum(gotSeq), r[24:])
+	if err != nil {
+		log.Error(err)
+	}
 }
 
 // TODO: audioPipes.sink.Read() + sendPart1(); sendPart2()
@@ -86,28 +115,10 @@ func (s *audioStream) handleRead(r []byte) {
 	}
 }
 
-// sendPart1 expects 1364 bytes of PCM data.
-func (s *audioStream) sendPart1(pcmData []byte) {
-	s.common.send(append([]byte{0x6c, 0x05, 0x00, 0x00, 0x00, 0x00, byte(s.audioSendSeq), byte(s.audioSendSeq >> 8),
-		byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
-		byte(s.common.remoteSID >> 24), byte(s.common.remoteSID >> 16), byte(s.common.remoteSID >> 8), byte(s.common.remoteSID),
-		0x80, 0x00, byte((s.audioSendSeq - 1) >> 8), byte(s.audioSendSeq - 1), 0x00, 0x00, byte(len(pcmData) >> 8), byte(len(pcmData))},
-		pcmData...))
-	s.audioSendSeq++
-}
-
-// sendPart2 expects 556 bytes of PCM data.
-func (s *audioStream) sendPart2(pcmData []byte) {
-	s.common.send(append([]byte{0x44, 0x02, 0x00, 0x00, 0x00, 0x00, byte(s.audioSendSeq), byte(s.audioSendSeq >> 8),
-		byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
-		byte(s.common.remoteSID >> 24), byte(s.common.remoteSID >> 16), byte(s.common.remoteSID >> 8), byte(s.common.remoteSID),
-		0x80, 0x00, byte((s.audioSendSeq - 1) >> 8), byte(s.audioSendSeq - 1), 0x00, 0x00, byte(len(pcmData) >> 8), byte(len(pcmData))},
-		pcmData...))
-	s.audioSendSeq++
-}
-
 func (s *audioStream) init() {
 	s.common.open("audio", 50003)
+	s.rxSeqBufEntryChan = make(chan seqBufEntry)
+	s.rxSeqBuf.init(rxSeqBufLength, 0xffff, 0, s.rxSeqBufEntryChan)
 }
 
 func (s *audioStream) start() {
@@ -126,13 +137,14 @@ func (s *audioStream) start() {
 
 	testSendTicker := time.NewTicker(80 * time.Millisecond) // TODO: remove
 
-	var r []byte
 	for {
 		select {
-		case r = <-s.common.readChan:
+		case r := <-s.common.readChan:
 			s.handleRead(r)
 		case <-s.timeoutTimer.C:
 			exit(errors.New("timeout"))
+		case e := <-s.rxSeqBufEntryChan:
+			s.handleRxSeqBufEntry(e)
 		case <-testSendTicker.C: // TODO: remove
 			b1 := make([]byte, 1364)
 			s.sendPart1(b1)

@@ -2,8 +2,10 @@ package main
 
 import (
 	"errors"
-	"fmt"
+	"sync"
 	"time"
+
+	"github.com/nonoo/kappanhang/log"
 )
 
 type seqNum int
@@ -18,23 +20,29 @@ type seqBuf struct {
 	length        time.Duration
 	maxSeqNum     seqNum
 	maxSeqNumDiff seqNum
+	entryChan     chan seqBufEntry
 
 	// Note that the most recently added entry is stored as the 0th entry.
 	entries []seqBufEntry
+	mutex   sync.RWMutex
+
+	entryAddedChan         chan bool
+	watcherCloseNeededChan chan bool
+	watcherCloseDoneChan   chan bool
 }
 
-func (s *seqBuf) String() (out string) {
-	if len(s.entries) == 0 {
-		return "empty"
-	}
-	for _, e := range s.entries {
-		if out != "" {
-			out += " "
-		}
-		out += fmt.Sprint(e.seq)
-	}
-	return out
-}
+// func (s *seqBuf) string() (out string) {
+// 	if len(s.entries) == 0 {
+// 		return "empty"
+// 	}
+// 	for _, e := range s.entries {
+// 		if out != "" {
+// 			out += " "
+// 		}
+// 		out += fmt.Sprint(e.seq)
+// 	}
+// 	return out
+// }
 
 func (s *seqBuf) createEntry(seq seqNum, data []byte) seqBufEntry {
 	return seqBufEntry{
@@ -44,12 +52,25 @@ func (s *seqBuf) createEntry(seq seqNum, data []byte) seqBufEntry {
 	}
 }
 
+func (s *seqBuf) notifyWatcher() {
+	select {
+	case s.entryAddedChan <- true:
+	default:
+	}
+}
+
 func (s *seqBuf) addToFront(seq seqNum, data []byte) {
-	s.entries = append([]seqBufEntry{s.createEntry(seq, data)}, s.entries...)
+	e := s.createEntry(seq, data)
+	s.entries = append([]seqBufEntry{e}, s.entries...)
+
+	s.notifyWatcher()
 }
 
 func (s *seqBuf) addToBack(seq seqNum, data []byte) {
-	s.entries = append(s.entries, s.createEntry(seq, data))
+	e := s.createEntry(seq, data)
+	s.entries = append(s.entries, e)
+
+	s.notifyWatcher()
 }
 
 func (s *seqBuf) insert(seq seqNum, data []byte, toPos int) {
@@ -63,7 +84,10 @@ func (s *seqBuf) insert(seq seqNum, data []byte, toPos int) {
 	}
 	sliceBefore := s.entries[:toPos]
 	sliceAfter := s.entries[toPos:]
-	s.entries = append(sliceBefore, append([]seqBufEntry{s.createEntry(seq, data)}, sliceAfter...)...)
+	e := s.createEntry(seq, data)
+	s.entries = append(sliceBefore, append([]seqBufEntry{e}, sliceAfter...)...)
+
+	s.notifyWatcher()
 }
 
 func (s *seqBuf) getDiff(seq1, seq2 seqNum) seqNum {
@@ -107,6 +131,9 @@ func (s *seqBuf) leftOrRightCloserToSeq(seq, whichSeq seqNum) direction {
 }
 
 func (s *seqBuf) add(seq seqNum, data []byte) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	// log.Debug("inserting ", seq)
 	// defer func() {
 	// 	log.Print(s.String())
@@ -153,23 +180,89 @@ func (s *seqBuf) add(seq seqNum, data []byte) error {
 	return nil
 }
 
-func (s *seqBuf) get() (data []byte, err error) {
+func (s *seqBuf) getNextDataAvailableRemainingTime() (time.Duration, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
 	if len(s.entries) == 0 {
-		return nil, errors.New("seqbuf is empty")
+		return 0, errors.New("seqbuf is empty")
+	}
+	lastEntryIdx := len(s.entries) - 1
+	inBufDuration := time.Since(s.entries[lastEntryIdx].addedAt)
+	if inBufDuration >= s.length {
+		return 0, nil
+	}
+	return s.length - inBufDuration, nil
+}
+
+func (s *seqBuf) get() (e seqBufEntry, err error) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	if len(s.entries) == 0 {
+		return e, errors.New("seqbuf is empty")
 	}
 	lastEntryIdx := len(s.entries) - 1
 	if time.Since(s.entries[lastEntryIdx].addedAt) < s.length {
-		return nil, errors.New("no available entries")
+		return e, errors.New("no available entries")
 	}
-	data = make([]byte, len(s.entries[lastEntryIdx].data))
-	copy(data, s.entries[lastEntryIdx].data)
+	e = s.entries[lastEntryIdx]
 	s.entries = s.entries[:lastEntryIdx]
-	return data, nil
+	return e, nil
+}
+
+func (s *seqBuf) watcher() {
+	defer func() {
+		s.watcherCloseDoneChan <- true
+	}()
+
+	entryAvailableTimer := time.NewTimer(s.length)
+	entryAvailableTimer.Stop()
+	var entryAvailableTimerRunning bool
+
+	for {
+		t, err := s.getNextDataAvailableRemainingTime()
+		if err == nil {
+			if t == 0 { // Do we have an entry available right now?
+				e, err := s.get()
+				if err == nil {
+					if s.entryChan != nil {
+						s.entryChan <- e
+					}
+				} else {
+					log.Error(err)
+				}
+			} else if !entryAvailableTimerRunning {
+				// An entry will be available later, waiting for it.
+				entryAvailableTimer.Reset(t)
+				entryAvailableTimerRunning = true
+			}
+		}
+
+		select {
+		case <-s.watcherCloseNeededChan:
+			return
+		case <-s.entryAddedChan:
+		case <-entryAvailableTimer.C:
+			entryAvailableTimerRunning = false
+		}
+	}
 }
 
 // Setting a max. seqnum diff is optional. If it's 0 then the diff will be half of the maxSeqNum range.
-func (s *seqBuf) init(length time.Duration, maxSeqNum, maxSeqNumDiff seqNum) {
+func (s *seqBuf) init(length time.Duration, maxSeqNum, maxSeqNumDiff seqNum, entryChan chan seqBufEntry) {
 	s.length = length
 	s.maxSeqNum = maxSeqNum
 	s.maxSeqNumDiff = maxSeqNumDiff
+	s.entryChan = entryChan
+
+	s.entryAddedChan = make(chan bool)
+	s.watcherCloseNeededChan = make(chan bool)
+	s.watcherCloseDoneChan = make(chan bool)
+	go s.watcher()
 }
+
+// func (s *seqBuf) deinit() {
+// 	s.watcherCloseNeededChan <- true
+// 	<-s.watcherCloseDoneChan
+// }
