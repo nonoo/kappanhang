@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+
 	"github.com/google/goterm/term"
 	"github.com/nonoo/kappanhang/log"
 )
@@ -26,7 +28,9 @@ func (s *serialPortStruct) writeLoop() {
 		for bytesToWrite > 0 {
 			written, err := s.pty.Master.Write(b)
 			if err != nil {
-				exit(err)
+				if _, ok := err.(*os.PathError); !ok {
+					exit(err)
+				}
 			}
 			b = b[written:]
 			bytesToWrite -= written
@@ -40,7 +44,9 @@ func (s *serialPortStruct) readLoop() {
 	for {
 		n, err := s.pty.Master.Read(b)
 		if err != nil {
-			exit(err)
+			if _, ok := err.(*os.PathError); !ok {
+				exit(err)
+			}
 		}
 		s.read <- b[:n]
 	}
