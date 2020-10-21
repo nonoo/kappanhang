@@ -16,7 +16,8 @@ type audioStruct struct {
 
 	// Send to this channel to play audio.
 	play chan []byte
-	rec  chan []byte
+	// Read from this channel for audio.
+	rec chan []byte
 
 	mutex   sync.Mutex
 	playBuf *bytes.Buffer

@@ -22,6 +22,7 @@ func exit(err error) {
 	streams.audio.sendDisconnect()
 	streams.serial.deinit()
 	streams.control.sendDisconnect()
+	serialPort.deinit()
 	audio.deinit()
 
 	log.Print("exiting")
@@ -46,6 +47,7 @@ func main() {
 	log.Print("kappanhang by Norbert Varga HA2NON and Akos Marton ES1AKOS https://github.com/nonoo/kappanhang")
 	parseArgs()
 
+	serialPort.init()
 	audio.init()
 	streams.audio.init()
 	streams.serial.init()
