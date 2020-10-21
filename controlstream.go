@@ -265,7 +265,9 @@ func (s *controlStream) start() {
 		case <-reauthTicker.C:
 			s.sendPktReauth(false)
 		case <-statusLogTicker.C:
-			log.Print("running for ", time.Since(startTime), " roundtrip latency ", s.common.pkt7.latency)
+			if s.serialAndAudioStreamOpened {
+				log.Print("running for ", time.Since(startTime), " roundtrip latency ", s.common.pkt7.latency)
+			}
 		}
 	}
 }
