@@ -53,7 +53,7 @@ func (p *pkt7Type) handle(s *streamCommon, r []byte) {
 		}
 
 		expectedSeq := p.lastConfirmedSeq + 1
-		if expectedSeq != gotSeq {
+		if expectedSeq != gotSeq && gotSeq != p.lastConfirmedSeq {
 			var missingPkts int
 			if gotSeq > expectedSeq {
 				missingPkts = int(gotSeq) - int(expectedSeq)
