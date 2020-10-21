@@ -108,6 +108,16 @@ func (s *controlStream) sendPktReauth(firstReauthSend bool) {
 // 	s.common.sendDisconnect()
 // }
 
+func (s *controlStream) sendPkt0() {
+	p := []byte{0x10, 0x00, 0x00, 0x00, 0x00, 0x00, byte(s.authSendSeq), byte(s.authSendSeq >> 8),
+		byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
+		byte(s.common.remoteSID >> 24), byte(s.common.remoteSID >> 16), byte(s.common.remoteSID >> 8), byte(s.common.remoteSID)}
+	s.common.send(p)
+	s.common.send(p)
+
+	s.authSendSeq++
+}
+
 func (s *controlStream) sendRequestSerialAndAudio() {
 	log.Print("requesting serial and audio stream")
 	p := []byte{0x90, 0x00, 0x00, 0x00, 0x00, 0x00, byte(s.authSendSeq), byte(s.authSendSeq >> 8),
