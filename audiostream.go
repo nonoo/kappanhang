@@ -119,11 +119,13 @@ func (s *audioStream) init() {
 	s.rxSeqBuf.init(rxSeqBufLength, 0xffff, 0, s.rxSeqBufEntryChan)
 }
 
-func (s *audioStream) start() {
+func (s *audioStream) start(devName string) {
 	s.common.sendPkt3()
 	s.common.waitForPkt4Answer()
 	s.common.sendPkt6()
 	s.common.waitForPkt6Answer()
+
+	audio.init(devName)
 
 	log.Print("stream started")
 

@@ -48,7 +48,6 @@ func main() {
 	parseArgs()
 
 	serialPort.init()
-	audio.init()
 	streams.audio.init()
 	streams.serial.init()
 	streams.control.init()

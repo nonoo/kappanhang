@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/nonoo/kappanhang/log"
@@ -150,6 +151,14 @@ func (s *controlStream) sendRequestSerialAndAudio() {
 	})
 }
 
+func (s *controlStream) parseNullTerminatedString(d []byte) (res string) {
+	nullIndex := strings.Index(string(d), "\x00")
+	if nullIndex > 0 {
+		res = string(d[:nullIndex])
+	}
+	return
+}
+
 func (s *controlStream) handleRead(r []byte) {
 	switch len(r) {
 	case 16:
@@ -200,13 +209,14 @@ func (s *controlStream) handleRead(r []byte) {
 			// 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 			// 0x00, 0x00, 0x00, 0x00, 0xc0, 0xa8, 0x03, 0x03,
 			// 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-			log.Print("serial and audio request success")
+			devName := s.parseNullTerminatedString(r[64:])
+			log.Print("serial and audio request success, device name: ", devName)
 			if s.requestSerialAndAudioTimeout != nil {
 				s.requestSerialAndAudioTimeout.Stop()
 				s.requestSerialAndAudioTimeout = nil
 			}
 			go streams.serial.start()
-			go streams.audio.start()
+			go streams.audio.start(devName)
 			s.serialAndAudioStreamOpened = true
 		}
 	}

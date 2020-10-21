@@ -112,14 +112,14 @@ func (a *audioStruct) loop() {
 	}
 }
 
-func (a *audioStruct) init() {
+func (a *audioStruct) init(devName string) {
 	a.source.Name = "kappanhang"
 	a.source.Filename = "/tmp/kappanhang.source"
 	a.source.Rate = 48000
 	a.source.Format = "s16le"
 	a.source.Channels = 1
 	a.source.SetProperty("device.buffering.buffer_size", (48000*16)/10) // 100 ms
-	a.source.SetProperty("device.description", "kappanhang input")
+	a.source.SetProperty("device.description", "kappanhang: "+devName)
 
 	a.sink.Name = "kappanhang"
 	a.sink.Filename = "/tmp/kappanhang.sink"
@@ -127,7 +127,7 @@ func (a *audioStruct) init() {
 	a.sink.Format = "s16le"
 	a.sink.Channels = 1
 	a.sink.SetProperty("device.buffering.buffer_size", (48000*16)/10)
-	a.sink.SetProperty("device.description", "kappanhang output")
+	a.sink.SetProperty("device.description", "kappanhang: "+devName)
 
 	if err := a.source.Open(); err != nil {
 		exit(err)
