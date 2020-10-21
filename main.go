@@ -20,7 +20,7 @@ func exit(err error) {
 	}
 
 	streams.audio.sendDisconnect()
-	streams.serial.deinit()
+	streams.serial.sendDisconnect()
 	streams.control.sendDisconnect()
 	serialPort.deinit()
 	audio.deinit()

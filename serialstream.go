@@ -33,6 +33,6 @@ func (s *serialStream) start() {
 	}
 }
 
-func (s *serialStream) deinit() {
+func (s *serialStream) sendDisconnect() {
 	s.common.sendDisconnect()
 }
