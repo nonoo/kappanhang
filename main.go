@@ -19,9 +19,9 @@ func exit(err error) {
 		log.Error(err.Error())
 	}
 
-	streams.audio.sendDisconnect()
-	streams.serial.sendDisconnect()
-	streams.control.sendDisconnect()
+	streams.audio.common.close()
+	streams.serial.common.close()
+	streams.control.common.close()
 	serialPort.deinit()
 	audio.deinit()
 

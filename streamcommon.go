@@ -108,6 +108,7 @@ func (s *streamCommon) open(name string, portNumber int) {
 }
 
 func (s *streamCommon) close() {
+	s.sendDisconnect()
 	s.conn.Close()
 
 	// Depleting the read channel.

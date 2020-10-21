@@ -92,31 +92,21 @@ func (s *controlStream) sendPktReauth(firstReauthSend bool) {
 	s.authInnerSendSeq++
 }
 
-func (s *controlStream) sendDisconnect() {
-	if s.common.conn == nil {
-		return
-	}
-	// s.common.send([]byte{0x40, 0x00, 0x00, 0x00, 0x00, 0x00, byte(s.authSendSeq), byte(s.authSendSeq >> 8),
-	// 	byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
-	// 	byte(s.common.remoteSID >> 24), byte(s.common.remoteSID >> 16), byte(s.common.remoteSID >> 8), byte(s.common.remoteSID),
-	// 	0x00, 0x00, 0x00, 0x30, 0x01, 0x01, 0x00, byte(s.authInnerSendSeq),
-	// 	byte(s.authInnerSendSeq >> 8), 0x00, s.authID[0], s.authID[1], s.authID[2], s.authID[3], s.authID[4], s.authID[5],
-	// 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	// 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	// 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	// 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00})
-	s.common.sendDisconnect()
-}
-
-func (s *controlStream) sendPkt0() {
-	p := []byte{0x10, 0x00, 0x00, 0x00, 0x00, 0x00, byte(s.authSendSeq), byte(s.authSendSeq >> 8),
-		byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
-		byte(s.common.remoteSID >> 24), byte(s.common.remoteSID >> 16), byte(s.common.remoteSID >> 8), byte(s.common.remoteSID)}
-	s.common.send(p)
-	s.common.send(p)
-
-	s.authSendSeq++
-}
+// func (s *controlStream) sendDisconnect() { TODO
+// 	if s.common.conn == nil {
+// 		return
+// 	}
+// s.common.send([]byte{0x40, 0x00, 0x00, 0x00, 0x00, 0x00, byte(s.authSendSeq), byte(s.authSendSeq >> 8),
+// 	byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
+// 	byte(s.common.remoteSID >> 24), byte(s.common.remoteSID >> 16), byte(s.common.remoteSID >> 8), byte(s.common.remoteSID),
+// 	0x00, 0x00, 0x00, 0x30, 0x01, 0x01, 0x00, byte(s.authInnerSendSeq),
+// 	byte(s.authInnerSendSeq >> 8), 0x00, s.authID[0], s.authID[1], s.authID[2], s.authID[3], s.authID[4], s.authID[5],
+// 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+// 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+// 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+// 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00})
+// 	s.common.sendDisconnect()
+// }
 
 func (s *controlStream) sendRequestSerialAndAudio() {
 	log.Print("requesting serial and audio stream")
