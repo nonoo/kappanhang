@@ -252,18 +252,22 @@ func (s *controlStream) start() {
 	copy(s.authID[:], r[26:32])
 	log.Print("auth ok, waiting a bit")
 
-	time.AfterFunc(time.Second, func() {
+	time.AfterFunc(1*time.Second, func() {
+		log.Print("sending reauth 1/2...")
 		s.sendPktReauth(true)
-		s.sendPktReauth(false)
-		time.AfterFunc(time.Second, func() {
-			s.sendRequestSerialAndAudio()
+		time.AfterFunc(1*time.Second, func() {
+			log.Print("sending reauth 2/2...")
+			s.sendPktReauth(false)
+			time.AfterFunc(time.Second, func() {
+				s.sendRequestSerialAndAudio()
+			})
 		})
 	})
 
 	s.common.pkt7.startPeriodicSend(&s.common, 5, false)
 
 	pkt0SendTicker := time.NewTicker(100 * time.Millisecond)
-	reauthTicker := time.NewTicker(30 * time.Second)
+	reauthTicker := time.NewTicker(60 * time.Second)
 	statusLogTicker := time.NewTicker(3 * time.Second)
 
 	for {
