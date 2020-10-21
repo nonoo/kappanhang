@@ -125,9 +125,11 @@ func (s *streamCommon) close() {
 }
 
 func (s *streamCommon) sendPkt3() {
-	s.send([]byte{0x10, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00,
+	p := []byte{0x10, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00,
 		byte(s.localSID >> 24), byte(s.localSID >> 16), byte(s.localSID >> 8), byte(s.localSID),
-		byte(s.remoteSID >> 24), byte(s.remoteSID >> 16), byte(s.remoteSID >> 8), byte(s.remoteSID)})
+		byte(s.remoteSID >> 24), byte(s.remoteSID >> 16), byte(s.remoteSID >> 8), byte(s.remoteSID)}
+	s.send(p)
+	s.send(p)
 }
 
 func (s *streamCommon) waitForPkt4Answer() {
@@ -139,9 +141,11 @@ func (s *streamCommon) waitForPkt4Answer() {
 }
 
 func (s *streamCommon) sendPkt6() {
-	s.send([]byte{0x10, 0x00, 0x00, 0x00, 0x06, 0x00, 0x01, 0x00,
+	p := []byte{0x10, 0x00, 0x00, 0x00, 0x06, 0x00, 0x01, 0x00,
 		byte(s.localSID >> 24), byte(s.localSID >> 16), byte(s.localSID >> 8), byte(s.localSID),
-		byte(s.remoteSID >> 24), byte(s.remoteSID >> 16), byte(s.remoteSID >> 8), byte(s.remoteSID)})
+		byte(s.remoteSID >> 24), byte(s.remoteSID >> 16), byte(s.remoteSID >> 8), byte(s.remoteSID)}
+	s.send(p)
+	s.send(p)
 }
 
 func (s *streamCommon) waitForPkt6Answer() {
@@ -156,7 +160,9 @@ func (s *streamCommon) sendDisconnect() {
 	}
 
 	log.Print(s.name + "/disconnecting")
-	s.send([]byte{0x10, 0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00,
+	p := []byte{0x10, 0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00,
 		byte(s.localSID >> 24), byte(s.localSID >> 16), byte(s.localSID >> 8), byte(s.localSID),
-		byte(s.remoteSID >> 24), byte(s.remoteSID >> 16), byte(s.remoteSID >> 8), byte(s.remoteSID)})
+		byte(s.remoteSID >> 24), byte(s.remoteSID >> 16), byte(s.remoteSID >> 8), byte(s.remoteSID)}
+	s.send(p)
+	s.send(p)
 }

@@ -85,10 +85,12 @@ func (p *pkt7Type) sendDo(s *streamCommon, replyID []byte, seq uint16) {
 		replyFlag = 0x01
 	}
 
-	s.send([]byte{0x15, 0x00, 0x00, 0x00, 0x07, 0x00, byte(seq), byte(seq >> 8),
+	d := []byte{0x15, 0x00, 0x00, 0x00, 0x07, 0x00, byte(seq), byte(seq >> 8),
 		byte(s.localSID >> 24), byte(s.localSID >> 16), byte(s.localSID >> 8), byte(s.localSID),
 		byte(s.remoteSID >> 24), byte(s.remoteSID >> 16), byte(s.remoteSID >> 8), byte(s.remoteSID),
-		replyFlag, replyID[0], replyID[1], replyID[2], replyID[3]})
+		replyFlag, replyID[0], replyID[1], replyID[2], replyID[3]}
+	s.send(d)
+	s.send(d)
 }
 
 func (p *pkt7Type) send(s *streamCommon) {
