@@ -88,11 +88,7 @@ func (s *streamCommon) open(name string, portNumber int) {
 		exit(err)
 	}
 
-	// Use the same local and remote port. The radio does not handle different ports well.
-	l := net.UDPAddr{
-		Port: portNumber,
-	}
-	s.conn, err = net.DialUDP("udp", &l, raddr)
+	s.conn, err = net.DialUDP("udp", nil, raddr)
 	if err != nil {
 		exit(err)
 	}
@@ -109,21 +105,6 @@ func (s *streamCommon) open(name string, portNumber int) {
 	s.readChan = make(chan []byte)
 	s.readerClosedChan = make(chan bool)
 	go s.reader()
-
-	if r := s.pkt7.tryReceive(300*time.Millisecond, s); s.pkt7.isPkt7(r) {
-		s.remoteSID = binary.BigEndian.Uint32(r[8:12])
-		s.gotRemoteSID = true
-		log.Print(s.name + "/closing running stream")
-		s.sendDisconnect()
-		time.Sleep(time.Second)
-
-		s.close()
-		s.remoteSID = 0
-		s.gotRemoteSID = false
-		s.pkt7.sendSeq = 0
-		s.pkt7.lastConfirmedSeq = 0
-		s.open(name, portNumber)
-	}
 }
 
 func (s *streamCommon) close() {
