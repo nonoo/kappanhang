@@ -27,9 +27,9 @@ func (p *pkt7Type) isPkt7(r []byte) bool {
 	return len(r) == 21 && bytes.Equal(r[1:6], []byte{0x00, 0x00, 0x00, 0x07, 0x00}) // Note that the first byte can be 0x15 or 0x00, so we ignore that.
 }
 
-func (p *pkt7Type) tryReceive(timeout time.Duration, s *streamCommon) []byte {
-	return s.tryReceivePacket(timeout, 21, 1, []byte{0x00, 0x00, 0x00, 0x07, 0x00})
-}
+// func (p *pkt7Type) tryReceive(timeout time.Duration, s *streamCommon) []byte {
+// 	return s.tryReceivePacket(timeout, 21, 1, []byte{0x00, 0x00, 0x00, 0x07, 0x00})
+// }
 
 func (p *pkt7Type) handle(s *streamCommon, r []byte) {
 	gotSeq := binary.LittleEndian.Uint16(r[6:8])
