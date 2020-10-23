@@ -3,43 +3,57 @@ package main
 import (
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
+	"time"
 
 	"github.com/nonoo/kappanhang/log"
 )
 
-var streams struct {
-	control controlStream
-	serial  serialStream
-	audio   audioStream
-}
+var gotErrChan = make(chan bool)
 
-func exit(err error) {
-	if err != nil {
-		log.Error(err.Error())
+func runControlStream(osSignal chan os.Signal) (shouldExit bool, exitCode int) {
+	// Depleting gotErrChan.
+	var finished bool
+	for !finished {
+		select {
+		case <-gotErrChan:
+		default:
+			finished = true
+		}
 	}
 
-	streams.audio.common.close()
-	streams.serial.common.close()
-	streams.control.common.close()
-	serialPort.deinit()
-	audio.deinit()
+	c := controlStream{}
+	defer c.deinit()
 
-	log.Print("exiting")
-	if err == nil {
-		os.Exit(0)
-	} else {
-		os.Exit(1)
+	if err := c.init(); err != nil {
+		log.Error(err)
+		return true, 1
+	}
+	if err := c.start(); err != nil {
+		log.Error(err)
+		return
+	}
+
+	select {
+	case <-gotErrChan:
+		return
+	case <-osSignal:
+		log.Print("sigterm received")
+		return true, 0
 	}
 }
 
-func setupCloseHandler() {
-	c := make(chan os.Signal)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		<-c
-		exit(nil)
-	}()
+func reportError(err error) {
+	if !strings.Contains(err.Error(), "use of closed network connection") {
+		log.ErrorC(log.GetCallerFileName(true), ": ", err)
+	}
+
+	// Non-blocking notify.
+	select {
+	case gotErrChan <- true:
+	default:
+	}
 }
 
 func main() {
@@ -47,12 +61,23 @@ func main() {
 	log.Print("kappanhang by Norbert Varga HA2NON and Akos Marton ES1AKOS https://github.com/nonoo/kappanhang")
 	parseArgs()
 
-	serialPort.init()
-	streams.audio.init()
-	streams.serial.init()
-	streams.control.init()
+	osSignal := make(chan os.Signal, 1)
+	signal.Notify(osSignal, os.Interrupt, syscall.SIGTERM)
 
-	setupCloseHandler()
+	var shouldExit bool
+	var exitCode int
+	for !shouldExit {
+		shouldExit, exitCode = runControlStream(osSignal)
+		if !shouldExit {
+			log.Print("restarting control stream...")
+			select {
+			case <-time.NewTimer(3 * time.Second).C:
+			case <-osSignal:
+				shouldExit = true
+			}
+		}
+	}
 
-	streams.control.start()
+	log.Print("exiting")
+	os.Exit(exitCode)
 }

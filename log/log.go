@@ -13,7 +13,7 @@ import (
 var logger *zap.SugaredLogger
 var filenameTrimChars int
 
-func getCallerFileName(withLine bool) string {
+func GetCallerFileName(withLine bool) string {
 	_, filename, line, _ := runtime.Caller(2)
 	extension := filepath.Ext(filename)
 	if withLine {
@@ -24,35 +24,39 @@ func getCallerFileName(withLine bool) string {
 }
 
 func Printf(a string, b ...interface{}) {
-	logger.Infof(getCallerFileName(false)+": "+a, b...)
+	logger.Infof(GetCallerFileName(false)+": "+a, b...)
 }
 
 func Print(a ...interface{}) {
-	logger.Info(append([]interface{}{getCallerFileName(false) + ": "}, a...)...)
+	logger.Info(append([]interface{}{GetCallerFileName(false) + ": "}, a...)...)
 }
 
 func Debugf(a string, b ...interface{}) {
-	logger.Debugf(getCallerFileName(true)+": "+a, b...)
+	logger.Debugf(GetCallerFileName(true)+": "+a, b...)
 }
 
 func Debug(a ...interface{}) {
-	logger.Debug(append([]interface{}{getCallerFileName(true) + ": "}, a...)...)
+	logger.Debug(append([]interface{}{GetCallerFileName(true) + ": "}, a...)...)
 }
 
 func Errorf(a string, b ...interface{}) {
-	logger.Errorf(getCallerFileName(true)+": "+a, b...)
+	logger.Errorf(GetCallerFileName(true)+": "+a, b...)
 }
 
 func Error(a ...interface{}) {
-	logger.Error(append([]interface{}{getCallerFileName(true) + ": "}, a...)...)
+	logger.Error(append([]interface{}{GetCallerFileName(true) + ": "}, a...)...)
+}
+
+func ErrorC(a ...interface{}) {
+	logger.Error(a)
 }
 
 func Fatalf(a string, b ...interface{}) {
-	logger.Fatalf(getCallerFileName(true)+": "+a, b...)
+	logger.Fatalf(GetCallerFileName(true)+": "+a, b...)
 }
 
 func Fatal(a ...interface{}) {
-	logger.Fatal(append([]interface{}{getCallerFileName(true) + ": "}, a...)...)
+	logger.Fatal(append([]interface{}{GetCallerFileName(true) + ": "}, a...)...)
 }
 
 func Init() {

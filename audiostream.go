@@ -15,6 +15,11 @@ const rxSeqBufLength = 100 * time.Millisecond
 type audioStream struct {
 	common streamCommon
 
+	audio audioStruct
+
+	deinitNeededChan   chan bool
+	deinitFinishedChan chan bool
+
 	timeoutTimer         *time.Timer
 	receivedAudio        bool
 	lastReceivedAudioSeq uint16
@@ -24,41 +29,50 @@ type audioStream struct {
 	audioSendSeq uint16
 }
 
-func (s *audioStream) sendDisconnect() {
-	s.common.sendDisconnect()
-}
-
 // sendPart1 expects 1364 bytes of PCM data.
-func (s *audioStream) sendPart1(pcmData []byte) {
-	s.common.send(append([]byte{0x6c, 0x05, 0x00, 0x00, 0x00, 0x00, byte(s.audioSendSeq), byte(s.audioSendSeq >> 8),
+func (s *audioStream) sendPart1(pcmData []byte) error {
+	err := s.common.send(append([]byte{0x6c, 0x05, 0x00, 0x00, 0x00, 0x00, byte(s.audioSendSeq), byte(s.audioSendSeq >> 8),
 		byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
 		byte(s.common.remoteSID >> 24), byte(s.common.remoteSID >> 16), byte(s.common.remoteSID >> 8), byte(s.common.remoteSID),
 		0x80, 0x00, byte((s.audioSendSeq - 1) >> 8), byte(s.audioSendSeq - 1), 0x00, 0x00, byte(len(pcmData) >> 8), byte(len(pcmData))},
 		pcmData...))
+	if err != nil {
+		return err
+	}
 	s.audioSendSeq++
+	return nil
 }
 
 // sendPart2 expects 556 bytes of PCM data.
-func (s *audioStream) sendPart2(pcmData []byte) {
-	s.common.send(append([]byte{0x44, 0x02, 0x00, 0x00, 0x00, 0x00, byte(s.audioSendSeq), byte(s.audioSendSeq >> 8),
+func (s *audioStream) sendPart2(pcmData []byte) error {
+	err := s.common.send(append([]byte{0x44, 0x02, 0x00, 0x00, 0x00, 0x00, byte(s.audioSendSeq), byte(s.audioSendSeq >> 8),
 		byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
 		byte(s.common.remoteSID >> 24), byte(s.common.remoteSID >> 16), byte(s.common.remoteSID >> 8), byte(s.common.remoteSID),
 		0x80, 0x00, byte((s.audioSendSeq - 1) >> 8), byte(s.audioSendSeq - 1), 0x00, 0x00, byte(len(pcmData) >> 8), byte(len(pcmData))},
 		pcmData...))
+	if err != nil {
+		return err
+	}
 	s.audioSendSeq++
+	return nil
 }
 
-func (s *audioStream) sendRetransmitRequest(seqNum uint16) {
+func (s *audioStream) sendRetransmitRequest(seqNum uint16) error {
 	p := []byte{0x10, 0x00, 0x00, 0x00, 0x01, 0x00, byte(seqNum), byte(seqNum >> 8),
 		byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
 		byte(s.common.remoteSID >> 24), byte(s.common.remoteSID >> 16), byte(s.common.remoteSID >> 8), byte(s.common.remoteSID)}
-	s.common.send(p)
-	s.common.send(p)
+	if err := s.common.send(p); err != nil {
+		return err
+	}
+	if err := s.common.send(p); err != nil {
+		return err
+	}
+	return nil
 }
 
 type seqNumRange [2]uint16
 
-func (s *audioStream) sendRetransmitRequestForRanges(seqNumRanges []seqNumRange) {
+func (s *audioStream) sendRetransmitRequestForRanges(seqNumRanges []seqNumRange) error {
 	seqNumBytes := make([]byte, len(seqNumRanges)*4)
 	for i := 0; i < len(seqNumRanges); i++ {
 		seqNumBytes[i*2] = byte(seqNumRanges[i][0])
@@ -70,8 +84,13 @@ func (s *audioStream) sendRetransmitRequestForRanges(seqNumRanges []seqNumRange)
 		byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
 		byte(s.common.remoteSID >> 24), byte(s.common.remoteSID >> 16), byte(s.common.remoteSID >> 8), byte(s.common.remoteSID)},
 		seqNumBytes...)
-	s.common.send(p)
-	s.common.send(p)
+	if err := s.common.send(p); err != nil {
+		return err
+	}
+	if err := s.common.send(p); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *audioStream) handleRxSeqBufEntry(e seqBufEntry) {
@@ -91,7 +110,7 @@ func (s *audioStream) handleRxSeqBufEntry(e seqBufEntry) {
 	s.lastReceivedAudioSeq = gotSeq
 	s.receivedAudio = true
 
-	audio.play <- e.data
+	s.audio.play <- e.data
 }
 
 func (s *audioStream) handleAudioPacket(r []byte) {
@@ -113,19 +132,46 @@ func (s *audioStream) handleRead(r []byte) {
 	}
 }
 
-func (s *audioStream) init() {
-	s.common.open("audio", 50003)
-	s.rxSeqBufEntryChan = make(chan seqBufEntry)
-	s.rxSeqBuf.init(rxSeqBufLength, 0xffff, 0, s.rxSeqBufEntryChan)
+func (s *audioStream) loop() {
+	for {
+		select {
+		case r := <-s.common.readChan:
+			s.handleRead(r)
+		case <-s.timeoutTimer.C:
+			reportError(errors.New("audio stream timeout"))
+		case e := <-s.rxSeqBufEntryChan:
+			s.handleRxSeqBufEntry(e)
+		case d := <-s.audio.rec:
+			if err := s.sendPart1(d[:1364]); err != nil {
+				reportError(err)
+			}
+			if err := s.sendPart2(d[1364:1920]); err != nil {
+				reportError(err)
+			}
+		case <-s.deinitNeededChan:
+			s.deinitFinishedChan <- true
+			return
+		}
+	}
 }
 
-func (s *audioStream) start(devName string) {
-	s.common.sendPkt3()
-	s.common.waitForPkt4Answer()
-	s.common.sendPkt6()
-	s.common.waitForPkt6Answer()
+func (s *audioStream) start(devName string) error {
+	if err := s.audio.init(devName); err != nil {
+		return err
+	}
 
-	audio.init(devName)
+	if err := s.common.sendPkt3(); err != nil {
+		return err
+	}
+	if err := s.common.waitForPkt4Answer(); err != nil {
+		return err
+	}
+	if err := s.common.sendPkt6(); err != nil {
+		return err
+	}
+	if err := s.common.waitForPkt6Answer(); err != nil {
+		return err
+	}
 
 	log.Print("stream started")
 
@@ -135,17 +181,30 @@ func (s *audioStream) start(devName string) {
 
 	s.audioSendSeq = 1
 
-	for {
-		select {
-		case r := <-s.common.readChan:
-			s.handleRead(r)
-		case <-s.timeoutTimer.C:
-			exit(errors.New("audio stream timeout"))
-		case e := <-s.rxSeqBufEntryChan:
-			s.handleRxSeqBufEntry(e)
-		case d := <-audio.rec:
-			s.sendPart1(d[:1364])
-			s.sendPart2(d[1364:1920])
-		}
+	s.deinitNeededChan = make(chan bool)
+	s.deinitFinishedChan = make(chan bool)
+	go s.loop()
+	return nil
+}
+
+func (s *audioStream) init() error {
+	if err := s.common.init("audio", 50003); err != nil {
+		return err
 	}
+	s.rxSeqBufEntryChan = make(chan seqBufEntry)
+	s.rxSeqBuf.init(rxSeqBufLength, 0xffff, 0, s.rxSeqBufEntryChan)
+	return nil
+}
+
+func (s *audioStream) deinit() {
+	if s.deinitNeededChan != nil {
+		s.deinitNeededChan <- true
+		<-s.deinitFinishedChan
+	}
+	if s.timeoutTimer != nil {
+		s.timeoutTimer.Stop()
+	}
+	s.common.deinit()
+	s.rxSeqBuf.deinit()
+	s.audio.deinit()
 }

@@ -12,21 +12,27 @@ import (
 )
 
 type controlStream struct {
-	common           streamCommon
+	common streamCommon
+	serial serialStream
+	audio  audioStream
+
+	deinitNeededChan   chan bool
+	deinitFinishedChan chan bool
+
 	authSendSeq      uint16
 	authInnerSendSeq uint16
 	authID           [6]byte
 
-	serialAndAudioStreamOpened   bool
+	serialAndAudioStreamOpened bool
+
 	requestSerialAndAudioTimeout *time.Timer
 }
 
-func (s *controlStream) sendPktAuth() {
+func (s *controlStream) sendPktAuth() error {
 	// The reply to the auth packet will contain a 6 bytes long auth ID with the first 2 bytes set to our randID.
 	var randID [2]byte
-	_, err := rand.Read(randID[:])
-	if err != nil {
-		exit(err)
+	if _, err := rand.Read(randID[:]); err != nil {
+		return err
 	}
 	p := []byte{0x80, 0x00, 0x00, 0x00, 0x00, 0x00, byte(s.authSendSeq), byte(s.authSendSeq >> 8),
 		byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
@@ -45,14 +51,19 @@ func (s *controlStream) sendPktAuth() {
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
-	s.common.send(p)
-	s.common.send(p)
+	if err := s.common.send(p); err != nil {
+		return err
+	}
+	if err := s.common.send(p); err != nil {
+		return err
+	}
 
 	s.authSendSeq++
 	s.authInnerSendSeq++
+	return nil
 }
 
-func (s *controlStream) sendPktReauth(firstReauthSend bool) {
+func (s *controlStream) sendPktReauth(firstReauthSend bool) error {
 	var magic byte
 
 	if firstReauthSend {
@@ -86,11 +97,15 @@ func (s *controlStream) sendPktReauth(firstReauthSend bool) {
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
-	s.common.send(p)
-	s.common.send(p)
-
+	if err := s.common.send(p); err != nil {
+		return err
+	}
+	if err := s.common.send(p); err != nil {
+		return err
+	}
 	s.authSendSeq++
 	s.authInnerSendSeq++
+	return nil
 }
 
 // func (s *controlStream) sendDisconnect() { TODO
@@ -109,17 +124,21 @@ func (s *controlStream) sendPktReauth(firstReauthSend bool) {
 // 	s.common.sendDisconnect()
 // }
 
-func (s *controlStream) sendPkt0() {
+func (s *controlStream) sendPkt0() error {
 	p := []byte{0x10, 0x00, 0x00, 0x00, 0x00, 0x00, byte(s.authSendSeq), byte(s.authSendSeq >> 8),
 		byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
 		byte(s.common.remoteSID >> 24), byte(s.common.remoteSID >> 16), byte(s.common.remoteSID >> 8), byte(s.common.remoteSID)}
-	s.common.send(p)
-	s.common.send(p)
-
+	if err := s.common.send(p); err != nil {
+		return err
+	}
+	if err := s.common.send(p); err != nil {
+		return err
+	}
 	s.authSendSeq++
+	return nil
 }
 
-func (s *controlStream) sendRequestSerialAndAudio() {
+func (s *controlStream) sendRequestSerialAndAudio() error {
 	log.Print("requesting serial and audio stream")
 	p := []byte{0x90, 0x00, 0x00, 0x00, 0x00, 0x00, byte(s.authSendSeq), byte(s.authSendSeq >> 8),
 		byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
@@ -140,15 +159,20 @@ func (s *controlStream) sendRequestSerialAndAudio() {
 		0x00, 0x00, 0xbb, 0x80, 0x00, 0x00, 0xc3, 0x52,
 		0x00, 0x00, 0xc3, 0x53, 0x00, 0x00, 0x00, 0xa0,
 		0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
-	s.common.send(p)
-	s.common.send(p)
+	if err := s.common.send(p); err != nil {
+		return err
+	}
+	if err := s.common.send(p); err != nil {
+		return err
+	}
 
 	s.authSendSeq++
 	s.authInnerSendSeq++
 
 	s.requestSerialAndAudioTimeout = time.AfterFunc(3*time.Second, func() {
-		exit(errors.New("serial and audio request timeout"))
+		reportError(errors.New("serial and audio request timeout"))
 	})
+	return nil
 }
 
 func (s *controlStream) parseNullTerminatedString(d []byte) (res string) {
@@ -159,7 +183,7 @@ func (s *controlStream) parseNullTerminatedString(d []byte) (res string) {
 	return
 }
 
-func (s *controlStream) handleRead(r []byte) {
+func (s *controlStream) handleRead(r []byte) error {
 	switch len(r) {
 	case 16:
 		if bytes.Equal(r[:6], []byte{0x10, 0x00, 0x00, 0x00, 0x00, 0x00}) {
@@ -170,8 +194,12 @@ func (s *controlStream) handleRead(r []byte) {
 			p := []byte{0x10, 0x00, 0x00, 0x00, 0x00, 0x00, byte(gotSeq), byte(gotSeq >> 8),
 				byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
 				byte(s.common.remoteSID >> 24), byte(s.common.remoteSID >> 16), byte(s.common.remoteSID >> 8), byte(s.common.remoteSID)}
-			s.common.send(p)
-			s.common.send(p)
+			if err := s.common.send(p); err != nil {
+				return err
+			}
+			if err := s.common.send(p); err != nil {
+				return err
+			}
 		}
 	case 80:
 		if bytes.Equal(r[:6], []byte{0x50, 0x00, 0x00, 0x00, 0x00, 0x00}) && bytes.Equal(r[48:51], []byte{0xff, 0xff, 0xff}) {
@@ -186,7 +214,7 @@ func (s *controlStream) handleRead(r []byte) {
 			//							  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 			//							  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 
-			exit(errors.New("reauth failed, try again after about 1 minute"))
+			return errors.New("reauth failed")
 		}
 	case 144:
 		if !s.serialAndAudioStreamOpened && bytes.Equal(r[:6], []byte{0x90, 0x00, 0x00, 0x00, 0x00, 0x00}) && r[96] == 1 {
@@ -215,31 +243,82 @@ func (s *controlStream) handleRead(r []byte) {
 				s.requestSerialAndAudioTimeout.Stop()
 				s.requestSerialAndAudioTimeout = nil
 			}
-			go streams.serial.start()
-			go streams.audio.start(devName)
+
+			if err := s.serial.start(devName); err != nil {
+				return err
+			}
+
+			if err := s.audio.start(devName); err != nil {
+				return err
+			}
+
 			s.serialAndAudioStreamOpened = true
+		}
+	}
+	return nil
+}
+
+func (s *controlStream) loop() {
+	startTime := time.Now()
+	pkt0SendTicker := time.NewTicker(100 * time.Millisecond)
+	reauthTicker := time.NewTicker(60 * time.Second)
+	statusLogTicker := time.NewTicker(3 * time.Second)
+
+	for {
+		select {
+		case r := <-s.common.readChan:
+			if err := s.handleRead(r); err != nil {
+				reportError(err)
+			}
+		case <-pkt0SendTicker.C:
+			if err := s.sendPkt0(); err != nil {
+				reportError(err)
+			}
+		case <-reauthTicker.C:
+			if err := s.sendPktReauth(false); err != nil {
+				reportError(err)
+			}
+		case <-statusLogTicker.C:
+			if s.serialAndAudioStreamOpened {
+				log.Print("running for ", time.Since(startTime), " roundtrip latency ", s.common.pkt7.latency)
+			}
+		case <-s.deinitNeededChan:
+			s.deinitFinishedChan <- true
+			return
 		}
 	}
 }
 
-func (s *controlStream) init() {
-	s.common.open("control", 50001)
-}
+func (s *controlStream) start() error {
+	if err := s.common.init("control", 50001); err != nil {
+		return err
+	}
 
-func (s *controlStream) start() {
-	startTime := time.Now()
-
-	s.common.sendPkt3()
+	if err := s.common.sendPkt3(); err != nil {
+		return err
+	}
 	s.common.pkt7.sendSeq = 1
-	s.common.pkt7.send(&s.common)
-	s.common.sendPkt3()
-	s.common.waitForPkt4Answer()
-	s.common.sendPkt6()
-	s.common.waitForPkt6Answer()
+	if err := s.common.pkt7.send(&s.common); err != nil {
+		return err
+	}
+	if err := s.common.sendPkt3(); err != nil {
+		return err
+	}
+	if err := s.common.waitForPkt4Answer(); err != nil {
+		return err
+	}
+	if err := s.common.sendPkt6(); err != nil {
+		return err
+	}
+	if err := s.common.waitForPkt6Answer(); err != nil {
+		return err
+	}
 
 	s.authSendSeq = 1
 	s.authInnerSendSeq = 1
-	s.sendPktAuth()
+	if err := s.sendPktAuth(); err != nil {
+		return err
+	}
 
 	log.Debug("expecting auth answer")
 	// Example success auth packet: 0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00,
@@ -254,44 +333,65 @@ func (s *controlStream) start() {
 	//                              0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	//                              0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	//                              0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-	r := s.common.expect(96, []byte{0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00})
+	r, err := s.common.expect(96, []byte{0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00})
+	if err != nil {
+		return err
+	}
 	if bytes.Equal(r[48:52], []byte{0xff, 0xff, 0xff, 0xfe}) {
-		exit(errors.New("invalid user/password"))
+		return errors.New("invalid user/password")
 	}
 
 	copy(s.authID[:], r[26:32])
 	log.Print("auth ok, waiting a bit")
 
-	time.AfterFunc(1*time.Second, func() {
+	time.AfterFunc(2*time.Second, func() {
 		log.Print("sending reauth 1/2...")
-		s.sendPktReauth(true)
-		time.AfterFunc(1*time.Second, func() {
+		if err := s.sendPktReauth(true); err != nil {
+			reportError(err)
+		}
+		time.AfterFunc(2*time.Second, func() {
 			log.Print("sending reauth 2/2...")
-			s.sendPktReauth(false)
-			time.AfterFunc(time.Second, func() {
-				s.sendRequestSerialAndAudio()
+			if err := s.sendPktReauth(false); err != nil {
+				reportError(err)
+			}
+			time.AfterFunc(2*time.Second, func() {
+				if err := s.sendRequestSerialAndAudio(); err != nil {
+					reportError(err)
+				}
 			})
 		})
 	})
 
 	s.common.pkt7.startPeriodicSend(&s.common, 5, false)
 
-	pkt0SendTicker := time.NewTicker(100 * time.Millisecond)
-	reauthTicker := time.NewTicker(60 * time.Second)
-	statusLogTicker := time.NewTicker(3 * time.Second)
+	s.deinitNeededChan = make(chan bool)
+	s.deinitFinishedChan = make(chan bool)
+	go s.loop()
+	return nil
+}
 
-	for {
-		select {
-		case r = <-s.common.readChan:
-			s.handleRead(r)
-		case <-pkt0SendTicker.C:
-			s.sendPkt0()
-		case <-reauthTicker.C:
-			s.sendPktReauth(false)
-		case <-statusLogTicker.C:
-			if s.serialAndAudioStreamOpened {
-				log.Print("running for ", time.Since(startTime), " roundtrip latency ", s.common.pkt7.latency)
-			}
-		}
+func (s *controlStream) init() error {
+	log.Print("init")
+
+	if err := s.serial.init(); err != nil {
+		return err
 	}
+	if err := s.audio.init(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *controlStream) deinit() {
+	if s.deinitNeededChan != nil {
+		s.deinitNeededChan <- true
+		<-s.deinitFinishedChan
+	}
+	if s.requestSerialAndAudioTimeout != nil {
+		s.requestSerialAndAudioTimeout.Stop()
+		s.requestSerialAndAudioTimeout = nil
+	}
+	s.audio.deinit()
+	s.serial.deinit()
+	s.common.deinit()
 }

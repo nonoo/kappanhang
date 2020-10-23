@@ -232,7 +232,11 @@ func (s *seqBuf) watcher() {
 					e, err := s.get()
 					if err == nil {
 						if s.entryChan != nil {
-							s.entryChan <- e
+							select {
+							case s.entryChan <- e:
+							case <-s.watcherCloseNeededChan:
+								return
+							}
 						}
 					} else {
 						log.Error(err)
@@ -271,7 +275,10 @@ func (s *seqBuf) init(length time.Duration, maxSeqNum, maxSeqNumDiff seqNum, ent
 	go s.watcher()
 }
 
-// func (s *seqBuf) deinit() {
-// 	s.watcherCloseNeededChan <- true
-// 	<-s.watcherCloseDoneChan
-// }
+func (s *seqBuf) deinit() {
+	if s.watcherCloseNeededChan == nil { // Init has not ran?
+		return
+	}
+	s.watcherCloseNeededChan <- true
+	<-s.watcherCloseDoneChan
+}
