@@ -48,7 +48,7 @@ func Error(a ...interface{}) {
 }
 
 func ErrorC(a ...interface{}) {
-	logger.Error(a)
+	logger.Error(a...)
 }
 
 func Fatalf(a string, b ...interface{}) {

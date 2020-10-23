@@ -173,6 +173,8 @@ func (a *audioStruct) init(devName string) error {
 		return err
 	}
 
+	log.Print("opened device " + a.source.Name)
+
 	a.playBuf = bytes.NewBuffer([]byte{})
 	a.play = make(chan []byte)
 	a.canPlay = make(chan bool)
