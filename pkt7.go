@@ -81,7 +81,7 @@ func (p *pkt7Type) sendDo(s *streamCommon, replyID []byte, seq uint16) error {
 		replyID[0] = randID[0]
 		replyID[1] = byte(p.innerSendSeq)
 		replyID[2] = byte(p.innerSendSeq >> 8)
-		replyID[3] = 0x05
+		replyID[3] = 0x06
 		p.innerSendSeq++
 	} else {
 		replyFlag = 0x01

@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"crypto/rand"
 	"errors"
 	"strings"
 	"time"
@@ -31,16 +30,13 @@ type controlStream struct {
 }
 
 func (s *controlStream) sendPktLogin() error {
-	// The reply to the auth packet will contain a 6 bytes long auth ID with the first 2 bytes set to our randID.
-	var randID [2]byte
-	if _, err := rand.Read(randID[:]); err != nil {
-		return err
-	}
+	// The reply to the auth packet will contain a 6 bytes long auth ID with the first 2 bytes set to our ID.
+	authStartID := []byte{0x63, 0x00}
 	p := []byte{0x80, 0x00, 0x00, 0x00, 0x00, 0x00, byte(s.authSendSeq), byte(s.authSendSeq >> 8),
 		byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
 		byte(s.common.remoteSID >> 24), byte(s.common.remoteSID >> 16), byte(s.common.remoteSID >> 8), byte(s.common.remoteSID),
 		0x00, 0x00, 0x00, 0x70, 0x01, 0x00, 0x00, byte(s.authInnerSendSeq),
-		byte(s.authInnerSendSeq >> 8), 0x00, randID[0], randID[1], 0x00, 0x00, 0x00, 0x00,
+		byte(s.authInnerSendSeq >> 8), 0x00, authStartID[0], authStartID[1], 0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -227,15 +223,17 @@ func (s *controlStream) handleRead(r []byte) error {
 			// 0x00, 0x00, 0x00, 0x00, 0xc0, 0xa8, 0x03, 0x03,
 			// 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 
-			if !bytes.Equal(r[26:32], s.authID[:]) {
-				return errors.New("got serial and audio request success, but not for our auth id")
-			}
+			devName := s.parseNullTerminatedString(r[64:])
+			log.Print("got serial and audio request success, device name: ", devName)
+
 			if !s.serialAndAudioStreamOpenRequested {
-				return errors.New("got serial and audio request success, but not requested yet")
+				return errors.New("not requested serial and audio streams yet")
 			}
 
-			devName := s.parseNullTerminatedString(r[64:])
-			log.Print("serial and audio request success, device name: ", devName)
+			// The auth ID can change in the meantime because of a previous login...
+			copy(s.authID[:], r[26:32])
+			s.secondAuthTimer.Stop()
+
 			if s.requestSerialAndAudioTimeout != nil {
 				s.requestSerialAndAudioTimeout.Stop()
 				s.requestSerialAndAudioTimeout = nil
@@ -301,13 +299,8 @@ func (s *controlStream) start() error {
 		return err
 	}
 
-	if err := s.common.sendPkt3(); err != nil {
-		return err
-	}
-	s.common.pkt7.sendSeq = 1
-	if err := s.common.pkt7.send(&s.common); err != nil {
-		return err
-	}
+	s.common.pkt7.startPeriodicSend(&s.common, 2, false)
+
 	if err := s.common.sendPkt3(); err != nil {
 		return err
 	}
@@ -352,8 +345,6 @@ func (s *controlStream) start() error {
 		reportError(err)
 	}
 	log.Print("login ok, first auth sent...")
-
-	s.common.pkt7.startPeriodicSend(&s.common, 5, false)
 
 	s.requestSerialAndAudioTimeout = time.AfterFunc(5*time.Second, func() {
 		reportError(errors.New("login/serial/audio request timeout"))
