@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"strings"
 	"time"
@@ -212,28 +213,23 @@ func (s *controlStream) handleRead(r []byte) error {
 			// 0x00, 0x00, 0x00, 0x00, 0xc0, 0xa8, 0x03, 0x03,
 			// 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 
+			s.secondAuthTimer.Stop()
+			s.requestSerialAndAudioTimeout.Stop()
+
 			devName := s.parseNullTerminatedString(r[64:])
 			log.Print("got serial and audio request success, device name: ", devName)
 
-			if !s.serialAndAudioStreamOpenRequested {
-				return errors.New("not requested serial and audio streams yet")
-			}
-
-			// The auth ID can change in the meantime because of a previous login...
+			// Stuff can change in the meantime because of a previous login...
+			s.common.remoteSID = binary.BigEndian.Uint32(r[8:12])
+			s.common.localSID = binary.BigEndian.Uint32(r[12:16])
 			copy(s.authID[:], r[26:32])
-			s.secondAuthTimer.Stop()
-
-			if s.requestSerialAndAudioTimeout != nil {
-				s.requestSerialAndAudioTimeout.Stop()
-				s.requestSerialAndAudioTimeout = nil
-			}
 
 			if err := s.serial.start(devName); err != nil {
-				return err
+				return errors.New("serial/" + err.Error())
 			}
 
 			if err := s.audio.start(devName); err != nil {
-				return err
+				return errors.New("audio/" + err.Error())
 			}
 
 			s.serialAndAudioStreamOpened = true

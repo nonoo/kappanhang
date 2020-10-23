@@ -41,7 +41,7 @@ func runControlStream(osSignal chan os.Signal) (shouldExit bool, exitCode int) {
 		c.deinit()
 
 		// Need to wait before reinit because the IC-705 will disconnect our audio stream eventually if we relogin
-		// in a too short interval...
+		// in a too short interval without a deauth...
 		t := time.NewTicker(time.Second)
 		for sec := 65; sec > 0; sec-- {
 			log.Print("waiting ", sec, " seconds...")
