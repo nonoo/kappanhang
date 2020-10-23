@@ -61,15 +61,7 @@ func (s *controlStream) sendPktLogin() error {
 	return nil
 }
 
-func (s *controlStream) sendPktAuth(firstAuthSend bool) error {
-	var magic byte
-
-	if firstAuthSend {
-		magic = 0x02
-	} else {
-		magic = 0x05
-	}
-
+func (s *controlStream) sendPktAuth(magic byte) error {
 	// Example request from PC:  0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0d, 0x00,
 	//                           0xbb, 0x41, 0x3f, 0x2b, 0xe6, 0xb2, 0x7b, 0x7b,
 	//                           0x00, 0x00, 0x00, 0x30, 0x01, 0x05, 0x00, 0x02,
@@ -264,7 +256,7 @@ func (s *controlStream) loop() {
 	for {
 		select {
 		case <-s.secondAuthTimer.C:
-			if err := s.sendPktAuth(false); err != nil {
+			if err := s.sendPktAuth(0x05); err != nil {
 				reportError(err)
 			}
 			log.Print("second auth sent...")
@@ -280,7 +272,7 @@ func (s *controlStream) loop() {
 			}
 		case <-reauthTicker.C:
 			log.Print("sending auth")
-			if err := s.sendPktAuth(false); err != nil {
+			if err := s.sendPktAuth(0x05); err != nil {
 				reportError(err)
 			}
 		case <-statusLogTicker.C:
@@ -288,6 +280,9 @@ func (s *controlStream) loop() {
 				log.Print("running for ", time.Since(startTime), " roundtrip latency ", s.common.pkt7.latency)
 			}
 		case <-s.deinitNeededChan:
+			if err := s.sendPktAuth(0x01); err != nil {
+				reportError(err)
+			}
 			s.deinitFinishedChan <- true
 			return
 		}
@@ -341,7 +336,7 @@ func (s *controlStream) start() error {
 	}
 
 	copy(s.authID[:], r[26:32])
-	if err := s.sendPktAuth(true); err != nil {
+	if err := s.sendPktAuth(0x02); err != nil {
 		reportError(err)
 	}
 	log.Print("login ok, first auth sent...")
