@@ -22,9 +22,8 @@ type controlStream struct {
 	authInnerSendSeq uint16
 	authID           [6]byte
 
-	serialAndAudioStreamOpenRequested bool
-	serialAndAudioStreamOpened        bool
-	deinitializing                    bool
+	serialAndAudioStreamOpened bool
+	deinitializing             bool
 
 	secondAuthTimer              *time.Timer
 	requestSerialAndAudioTimeout *time.Timer
@@ -141,7 +140,6 @@ func (s *controlStream) sendRequestSerialAndAudio() error {
 	s.authSendSeq++
 	s.authInnerSendSeq++
 
-	s.serialAndAudioStreamOpenRequested = true
 	return nil
 }
 
