@@ -105,9 +105,6 @@ func (s *controlStream) sendPkt0() error {
 	if err := s.common.send(p); err != nil {
 		return err
 	}
-	if err := s.common.send(p); err != nil {
-		return err
-	}
 	s.authSendSeq++
 	return nil
 }

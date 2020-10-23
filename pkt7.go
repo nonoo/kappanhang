@@ -94,9 +94,6 @@ func (p *pkt7Type) sendDo(s *streamCommon, replyID []byte, seq uint16) error {
 	if err := s.send(d); err != nil {
 		return err
 	}
-	if err := s.send(d); err != nil {
-		return err
-	}
 	return nil
 }
 
