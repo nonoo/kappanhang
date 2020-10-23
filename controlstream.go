@@ -22,8 +22,9 @@ type controlStream struct {
 	authInnerSendSeq uint16
 	authID           [6]byte
 
-	serialAndAudioStreamOpened bool
-	deinitializing             bool
+	serialAndAudioStreamOpenRequested bool
+	serialAndAudioStreamOpened        bool
+	deinitializing                    bool
 
 	secondAuthTimer              *time.Timer
 	requestSerialAndAudioTimeout *time.Timer
@@ -154,9 +155,7 @@ func (s *controlStream) sendRequestSerialAndAudio() error {
 	s.authSendSeq++
 	s.authInnerSendSeq++
 
-	s.requestSerialAndAudioTimeout = time.AfterFunc(3*time.Second, func() {
-		reportError(errors.New("serial and audio request timeout"))
-	})
+	s.serialAndAudioStreamOpenRequested = true
 	return nil
 }
 
@@ -185,6 +184,7 @@ func (s *controlStream) handleRead(r []byte) error {
 
 			if r[21] == 0x05 && !s.serialAndAudioStreamOpened { // Answer for our second auth?
 				s.secondAuthTimer.Stop()
+
 				if err := s.sendRequestSerialAndAudio(); err != nil {
 					reportError(err)
 				}
@@ -226,6 +226,14 @@ func (s *controlStream) handleRead(r []byte) error {
 			// 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 			// 0x00, 0x00, 0x00, 0x00, 0xc0, 0xa8, 0x03, 0x03,
 			// 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+
+			if !bytes.Equal(r[26:32], s.authID[:]) {
+				return errors.New("got serial and audio request success, but not for our auth id")
+			}
+			if !s.serialAndAudioStreamOpenRequested {
+				return errors.New("got serial and audio request success, but not requested yet")
+			}
+
 			devName := s.parseNullTerminatedString(r[64:])
 			log.Print("serial and audio request success, device name: ", devName)
 			if s.requestSerialAndAudioTimeout != nil {
@@ -254,8 +262,6 @@ func (s *controlStream) loop() {
 	pkt0SendTicker := time.NewTicker(100 * time.Millisecond)
 	reauthTicker := time.NewTicker(60 * time.Second)
 	statusLogTicker := time.NewTicker(3 * time.Second)
-	logoutTimer := time.NewTimer(3300 * time.Millisecond)
-	logoutTimer.Stop()
 
 	for {
 		select {
@@ -284,11 +290,6 @@ func (s *controlStream) loop() {
 				log.Print("running for ", time.Since(startTime), " roundtrip latency ", s.common.pkt7.latency)
 			}
 		case <-s.deinitNeededChan:
-			log.Print("sending logout auth")
-			_ = s.sendPktAuth(false)
-
-			logoutTimer.Reset(3300 * time.Millisecond)
-		case <-logoutTimer.C:
 			s.deinitFinishedChan <- true
 			return
 		}
@@ -354,6 +355,10 @@ func (s *controlStream) start() error {
 
 	s.common.pkt7.startPeriodicSend(&s.common, 5, false)
 
+	s.requestSerialAndAudioTimeout = time.AfterFunc(5*time.Second, func() {
+		reportError(errors.New("login/serial/audio request timeout"))
+	})
+
 	s.deinitNeededChan = make(chan bool)
 	s.deinitFinishedChan = make(chan bool)
 	go s.loop()
@@ -373,9 +378,6 @@ func (s *controlStream) init() error {
 }
 
 func (s *controlStream) deinit() {
-	s.audio.deinit()
-	s.serial.deinit()
-
 	s.deinitializing = true
 	s.serialAndAudioStreamOpened = false
 
@@ -388,4 +390,6 @@ func (s *controlStream) deinit() {
 		s.requestSerialAndAudioTimeout = nil
 	}
 	s.common.deinit()
+	s.audio.deinit()
+	s.serial.deinit()
 }

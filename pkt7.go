@@ -14,7 +14,7 @@ const pkt7TimeoutDuration = 3 * time.Second
 
 type pkt7Type struct {
 	sendSeq          uint16
-	randIDBytes      [2]byte
+	innerSendSeq     uint16
 	lastConfirmedSeq uint16
 
 	sendTicker   *time.Ticker
@@ -74,14 +74,15 @@ func (p *pkt7Type) sendDo(s *streamCommon, replyID []byte, seq uint16) error {
 	var replyFlag byte
 	if replyID == nil {
 		replyID = make([]byte, 4)
-		var randID [2]byte
+		var randID [1]byte
 		if _, err := rand.Read(randID[:]); err != nil {
 			return err
 		}
 		replyID[0] = randID[0]
-		replyID[1] = randID[1]
-		replyID[2] = p.randIDBytes[0]
-		replyID[3] = p.randIDBytes[1]
+		replyID[1] = byte(p.innerSendSeq)
+		replyID[2] = byte(p.innerSendSeq >> 8)
+		replyID[3] = 0x05
+		p.innerSendSeq++
 	} else {
 		replyFlag = 0x01
 	}
@@ -142,6 +143,7 @@ func (p *pkt7Type) loop(s *streamCommon) {
 
 func (p *pkt7Type) startPeriodicSend(s *streamCommon, firstSeqNo uint16, checkPingTimeout bool) {
 	p.sendSeq = firstSeqNo
+	p.innerSendSeq = 0x8304
 	p.lastConfirmedSeq = p.sendSeq - 1
 
 	p.sendTicker = time.NewTicker(100 * time.Millisecond)

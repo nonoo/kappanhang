@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"crypto/rand"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -162,11 +161,6 @@ func (s *streamCommon) init(name string, portNumber int) error {
 	// Constructing the local session ID by combining the local IP address and port.
 	laddr := s.conn.LocalAddr().(*net.UDPAddr)
 	s.localSID = binary.BigEndian.Uint32(laddr.IP[len(laddr.IP)-4:])<<16 | uint32(laddr.Port&0xffff)
-
-	_, err = rand.Read(s.pkt7.randIDBytes[:])
-	if err != nil {
-		return err
-	}
 
 	s.readChan = make(chan []byte)
 	s.readerCloseNeededChan = make(chan bool)

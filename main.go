@@ -24,22 +24,35 @@ func runControlStream(osSignal chan os.Signal) (shouldExit bool, exitCode int) {
 	}
 
 	c := controlStream{}
-	defer c.deinit()
 
 	if err := c.init(); err != nil {
 		log.Error(err)
+		c.deinit()
 		return true, 1
 	}
 	if err := c.start(); err != nil {
 		log.Error(err)
+		c.deinit()
 		return
 	}
 
 	select {
 	case <-gotErrChan:
+		c.deinit()
+
+		t := time.NewTicker(time.Second)
+		for sec := 180; sec > 0; sec-- {
+			log.Print("waiting ", sec, " seconds...")
+			select {
+			case <-t.C:
+			case <-osSignal:
+				return true, 0
+			}
+		}
 		return
 	case <-osSignal:
 		log.Print("sigterm received")
+		c.deinit()
 		return true, 0
 	}
 }
@@ -51,7 +64,7 @@ func reportError(err error) {
 
 	// Non-blocking notify.
 	select {
-	case gotErrChan <- true:
+	case gotErrChan <- false:
 	default:
 	}
 }
@@ -70,11 +83,6 @@ func main() {
 		shouldExit, exitCode = runControlStream(osSignal)
 		if !shouldExit {
 			log.Print("restarting control stream...")
-			select {
-			case <-time.NewTimer(3 * time.Second).C:
-			case <-osSignal:
-				shouldExit = true
-			}
 		}
 	}
 
