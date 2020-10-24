@@ -22,6 +22,7 @@ type controlStream struct {
 	authInnerSendSeq uint16
 	authID           [6]byte
 
+	gotAuthID                  bool
 	serialAndAudioStreamOpened bool
 	deinitializing             bool
 
@@ -221,6 +222,7 @@ func (s *controlStream) handleRead(r []byte) error {
 			s.common.remoteSID = binary.BigEndian.Uint32(r[8:12])
 			s.common.localSID = binary.BigEndian.Uint32(r[12:16])
 			copy(s.authID[:], r[26:32])
+			s.gotAuthID = true
 
 			if err := s.serial.start(devName); err != nil {
 				return errors.New("serial/" + err.Error())
@@ -271,9 +273,6 @@ func (s *controlStream) loop() {
 				log.Print("running for ", time.Since(startTime), " roundtrip latency ", s.common.pkt7.latency)
 			}
 		case <-s.deinitNeededChan:
-			if err := s.sendPktAuth(0x01); err != nil {
-				reportError(err)
-			}
 			s.deinitFinishedChan <- true
 			return
 		}
@@ -327,6 +326,7 @@ func (s *controlStream) start() error {
 	}
 
 	copy(s.authID[:], r[26:32])
+	s.gotAuthID = true
 	if err := s.sendPktAuth(0x02); err != nil {
 		reportError(err)
 	}
@@ -366,6 +366,12 @@ func (s *controlStream) deinit() {
 		s.requestSerialAndAudioTimeout.Stop()
 		s.requestSerialAndAudioTimeout = nil
 	}
+
+	if s.gotAuthID && s.common.gotRemoteSID && s.common.conn != nil {
+		log.Print("sending deauth")
+		_ = s.sendPktAuth(0x01)
+	}
+
 	s.common.deinit()
 	s.audio.deinit()
 	s.serial.deinit()
