@@ -25,6 +25,8 @@ type streamCommon struct {
 
 	pkt0 pkt0Type
 	pkt7 pkt7Type
+
+	lastSeqBufFrontRxSeq uint16
 }
 
 func (s *streamCommon) send(d []byte) error {
@@ -164,6 +166,36 @@ func (s *streamCommon) sendRetransmitRequestForRanges(seqNumRanges []seqNumRange
 	if err := s.send(p); err != nil {
 		return err
 	}
+	return nil
+}
+
+func (s *streamCommon) requestRetransmitIfNeeded(gotSeq uint16) error {
+	prevExpectedSeq := gotSeq - 1
+	if s.lastSeqBufFrontRxSeq != prevExpectedSeq {
+		var missingPkts int
+		var sr seqNumRange
+		if prevExpectedSeq > s.lastSeqBufFrontRxSeq {
+			sr[0] = s.lastSeqBufFrontRxSeq
+			sr[1] = prevExpectedSeq
+			missingPkts = int(prevExpectedSeq) - int(s.lastSeqBufFrontRxSeq)
+		} else {
+			sr[0] = prevExpectedSeq
+			sr[1] = s.lastSeqBufFrontRxSeq
+			missingPkts = int(prevExpectedSeq) + 65536 - int(s.lastSeqBufFrontRxSeq)
+		}
+		if missingPkts == 1 {
+			log.Debug("request pkt #", sr[1], " retransmit")
+			if err := s.sendRetransmitRequest(sr[1]); err != nil {
+				return err
+			}
+		} else if missingPkts < 50 {
+			log.Debug("request pkt #", sr[0], "-#", sr[1], " retransmit")
+			if err := s.sendRetransmitRequestForRanges([]seqNumRange{sr}); err != nil {
+				return err
+			}
+		}
+	}
+	s.lastSeqBufFrontRxSeq = gotSeq
 	return nil
 }
 
