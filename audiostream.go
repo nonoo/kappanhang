@@ -32,11 +32,12 @@ type audioStream struct {
 
 // sendPart1 expects 1364 bytes of PCM data.
 func (s *audioStream) sendPart1(pcmData []byte) error {
-	err := s.common.send(append([]byte{0x6c, 0x05, 0x00, 0x00, 0x00, 0x00, byte(s.audioSendSeq), byte(s.audioSendSeq >> 8),
-		byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
-		byte(s.common.remoteSID >> 24), byte(s.common.remoteSID >> 16), byte(s.common.remoteSID >> 8), byte(s.common.remoteSID),
-		0x80, 0x00, byte((s.audioSendSeq - 1) >> 8), byte(s.audioSendSeq - 1), 0x00, 0x00, byte(len(pcmData) >> 8), byte(len(pcmData))},
-		pcmData...))
+	err := s.common.pkt0.sendTrackedPacket(&s.common,
+		append([]byte{0x6c, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+			byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
+			byte(s.common.remoteSID >> 24), byte(s.common.remoteSID >> 16), byte(s.common.remoteSID >> 8), byte(s.common.remoteSID),
+			0x80, 0x00, byte((s.audioSendSeq - 1) >> 8), byte(s.audioSendSeq - 1), 0x00, 0x00, byte(len(pcmData) >> 8), byte(len(pcmData))},
+			pcmData...))
 	if err != nil {
 		return err
 	}
@@ -46,7 +47,7 @@ func (s *audioStream) sendPart1(pcmData []byte) error {
 
 // sendPart2 expects 556 bytes of PCM data.
 func (s *audioStream) sendPart2(pcmData []byte) error {
-	err := s.common.send(append([]byte{0x44, 0x02, 0x00, 0x00, 0x00, 0x00, byte(s.audioSendSeq), byte(s.audioSendSeq >> 8),
+	err := s.common.pkt0.sendTrackedPacket(&s.common, append([]byte{0x44, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
 		byte(s.common.remoteSID >> 24), byte(s.common.remoteSID >> 16), byte(s.common.remoteSID >> 8), byte(s.common.remoteSID),
 		0x80, 0x00, byte((s.audioSendSeq - 1) >> 8), byte(s.audioSendSeq - 1), 0x00, 0x00, byte(len(pcmData) >> 8), byte(len(pcmData))},
@@ -115,6 +116,7 @@ func (s *audioStream) loop() {
 		case e := <-s.rxSeqBufEntryChan:
 			s.handleRxSeqBufEntry(e)
 		case d := <-s.audio.rec:
+			log.Print(len(d))
 			if err := s.sendPart1(d[:1364]); err != nil {
 				reportError(err)
 			}
@@ -151,7 +153,7 @@ func (s *audioStream) start(devName string) error {
 	s.timeoutTimer = time.NewTimer(audioTimeoutDuration)
 
 	s.common.pkt7.startPeriodicSend(&s.common, 1, false)
-
+	// This stream does not use periodic pkt0 idle packets.
 	s.audioSendSeq = 1
 
 	s.deinitNeededChan = make(chan bool)
