@@ -33,9 +33,7 @@ func (s *serialPortStruct) writeLoop() {
 			return
 		}
 
-		bytesToWrite := len(b)
-
-		for bytesToWrite > 0 {
+		for len(b) > 0 {
 			written, err := s.pty.Master.Write(b)
 			if err != nil {
 				if _, ok := err.(*os.PathError); !ok {
@@ -43,7 +41,6 @@ func (s *serialPortStruct) writeLoop() {
 				}
 			}
 			b = b[written:]
-			bytesToWrite -= written
 		}
 	}
 }
