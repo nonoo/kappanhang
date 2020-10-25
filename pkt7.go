@@ -6,16 +6,14 @@ import (
 	"encoding/binary"
 	"errors"
 	"time"
-
-	"github.com/nonoo/kappanhang/log"
 )
 
 const pkt7TimeoutDuration = 3 * time.Second
 
 type pkt7Type struct {
-	sendSeq          uint16
-	innerSendSeq     uint16
-	lastConfirmedSeq uint16
+	sendSeq      uint16
+	innerSendSeq uint16
+	// lastConfirmedSeq uint16
 
 	sendTicker   *time.Ticker
 	timeoutTimer *time.Timer
@@ -53,17 +51,17 @@ func (p *pkt7Type) handle(s *streamCommon, r []byte) error {
 			p.latency /= 2
 		}
 
-		expectedSeq := p.lastConfirmedSeq + 1
-		if expectedSeq != gotSeq && gotSeq != p.lastConfirmedSeq {
-			var missingPkts int
-			if gotSeq > expectedSeq {
-				missingPkts = int(gotSeq) - int(expectedSeq)
-			} else {
-				missingPkts = int(gotSeq) + 65536 - int(expectedSeq)
-			}
-			log.Error(s.name+"/lost ", missingPkts, " packets")
-		}
-		p.lastConfirmedSeq = gotSeq
+		// expectedSeq := p.lastConfirmedSeq + 1
+		// if expectedSeq != gotSeq && gotSeq != p.lastConfirmedSeq {
+		// 	var missingPkts int
+		// 	if gotSeq > expectedSeq {
+		// 		missingPkts = int(gotSeq) - int(expectedSeq)
+		// 	} else {
+		// 		missingPkts = int(gotSeq) + 65536 - int(expectedSeq)
+		// 	}
+		// 	log.Error(s.name+"/lost ", missingPkts, " packets")
+		// }
+		// p.lastConfirmedSeq = gotSeq
 	}
 	return nil
 }
@@ -141,7 +139,7 @@ func (p *pkt7Type) loop(s *streamCommon) {
 func (p *pkt7Type) startPeriodicSend(s *streamCommon, firstSeqNo uint16, checkPingTimeout bool) {
 	p.sendSeq = firstSeqNo
 	p.innerSendSeq = 0x8304
-	p.lastConfirmedSeq = p.sendSeq - 1
+	// p.lastConfirmedSeq = p.sendSeq - 1
 
 	p.sendTicker = time.NewTicker(100 * time.Millisecond)
 	if checkPingTimeout {
