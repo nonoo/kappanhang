@@ -189,12 +189,12 @@ func (s *streamCommon) requestRetransmitIfNeeded(gotSeq uint16) error {
 			missingPkts = int(prevExpectedSeq) + 65536 - int(s.lastSeqBufFrontRxSeq)
 		}
 		if missingPkts == 1 {
-			log.Debug("request pkt #", sr[1], " retransmit")
+			log.Debug(s.name+"/requesting pkt #", sr[1], " retransmit")
 			if err := s.sendRetransmitRequest(sr[1]); err != nil {
 				return err
 			}
 		} else if missingPkts < 50 {
-			log.Debug("request pkt #", sr[0], "-#", sr[1], " retransmit")
+			log.Debug(s.name+"/requesting pkt #", sr[0], "-#", sr[1], " retransmit")
 			if err := s.sendRetransmitRequestForRanges([]seqNumRange{sr}); err != nil {
 				return err
 			}
