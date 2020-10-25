@@ -163,7 +163,7 @@ func (s *seqBuf) add(seq seqNum, data []byte) error {
 		// This seqnum is already in the queue, but not as the first entry? It's not a duplicate packet.
 		// It can be a beginning of a new stream for example.
 		if s.entries[i].seq == seq {
-			s.addToFront(seq, data)
+			// s.addToFront(seq, data)
 			return nil
 		}
 
@@ -263,6 +263,7 @@ func (s *seqBuf) watcher() {
 }
 
 // Setting a max. seqnum diff is optional. If it's 0 then the diff will be half of the maxSeqNum range.
+// Available entries coming out from the seqbuf will be sent to entryChan.
 func (s *seqBuf) init(length time.Duration, maxSeqNum, maxSeqNumDiff seqNum, entryChan chan seqBufEntry) {
 	s.length = length
 	s.maxSeqNum = maxSeqNum
