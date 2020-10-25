@@ -112,12 +112,13 @@ func (p *pkt7Type) loop(s *streamCommon) {
 	for {
 		if p.timeoutTimer != nil {
 			select {
+			case <-p.timeoutTimer.C:
+				reportError(errors.New(s.name + "/ping timeout"))
+
 			case <-p.sendTicker.C:
 				if err := p.send(s); err != nil {
 					reportError(err)
 				}
-			case <-p.timeoutTimer.C:
-				reportError(errors.New(s.name + "/ping timeout"))
 			case <-p.periodicStopNeededChan:
 				p.periodicStopFinishedChan <- true
 				return
