@@ -75,51 +75,49 @@ func (s *serialStream) handleRead(r []byte) {
 }
 
 func (s *serialStream) gotDataFromSerialPort(r []byte) {
-	for len(r) > 0 {
-		for len(r) > 0 && !s.readFromSerialPort.frameStarted {
-			if s.readFromSerialPort.buf.Len() > 1 {
-				s.readFromSerialPort.buf.Reset()
-			}
-			if s.readFromSerialPort.buf.Len() == 0 {
-				// Cut until we find the frame start byte.
-				for r[0] != 0xfe {
-					r = r[1:]
-					if len(r) == 0 {
-						return
-					}
+	for len(r) > 0 && !s.readFromSerialPort.frameStarted {
+		if s.readFromSerialPort.buf.Len() > 1 {
+			s.readFromSerialPort.buf.Reset()
+		}
+		if s.readFromSerialPort.buf.Len() == 0 {
+			// Cut until we find the frame start byte.
+			for r[0] != 0xfe {
+				r = r[1:]
+				if len(r) == 0 {
+					return
 				}
-				// Found the first start byte.
+			}
+			// Found the first start byte.
+			s.readFromSerialPort.buf.WriteByte(r[0])
+			r = r[1:]
+		}
+		if len(r) > 0 && s.readFromSerialPort.buf.Len() == 1 {
+			if r[0] != 0xfe {
+				s.readFromSerialPort.buf.Reset()
+				r = r[1:]
+			} else {
+				// Found the second start byte.
 				s.readFromSerialPort.buf.WriteByte(r[0])
 				r = r[1:]
-			}
-			if s.readFromSerialPort.buf.Len() == 1 {
-				if r[0] != 0xfe {
-					s.readFromSerialPort.buf.Reset()
-					r = r[1:]
-				} else {
-					// Found the second start byte.
-					s.readFromSerialPort.buf.WriteByte(r[0])
-					r = r[1:]
-					s.readFromSerialPort.frameTimeout.Reset(100 * time.Millisecond)
-					s.readFromSerialPort.frameStarted = true
-				}
+				s.readFromSerialPort.frameTimeout.Reset(100 * time.Millisecond)
+				s.readFromSerialPort.frameStarted = true
 			}
 		}
+	}
 
-		for _, b := range r {
-			s.readFromSerialPort.buf.WriteByte(b)
-			if b == 0xfc || b == 0xfd || s.readFromSerialPort.buf.Len() == maxSerialFrameLength {
-				log.Print("snd ", s.readFromSerialPort.buf.Bytes())
-				if err := s.send(s.readFromSerialPort.buf.Bytes()); err != nil {
-					reportError(err)
-				}
-				if !s.readFromSerialPort.frameTimeout.Stop() {
-					<-s.readFromSerialPort.frameTimeout.C
-				}
-				s.readFromSerialPort.buf.Reset()
-				s.readFromSerialPort.frameStarted = false
-				break
+	for _, b := range r {
+		s.readFromSerialPort.buf.WriteByte(b)
+		if b == 0xfc || b == 0xfd || s.readFromSerialPort.buf.Len() == maxSerialFrameLength {
+			log.Print("snd ", s.readFromSerialPort.buf.Bytes())
+			if err := s.send(s.readFromSerialPort.buf.Bytes()); err != nil {
+				reportError(err)
 			}
+			if !s.readFromSerialPort.frameTimeout.Stop() {
+				<-s.readFromSerialPort.frameTimeout.C
+			}
+			s.readFromSerialPort.buf.Reset()
+			s.readFromSerialPort.frameStarted = false
+			break
 		}
 	}
 }
