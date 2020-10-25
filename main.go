@@ -83,6 +83,14 @@ func main() {
 	var exitCode int
 	for !shouldExit {
 		shouldExit, exitCode = runControlStream(osSignal)
+
+		select {
+		case <-osSignal:
+			log.Print("sigterm received")
+			shouldExit = true
+		default:
+		}
+
 		if !shouldExit {
 			log.Print("restarting control stream...")
 		}
