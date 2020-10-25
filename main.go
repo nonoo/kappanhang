@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/signal"
 	"strings"
@@ -72,9 +73,9 @@ func reportError(err error) {
 }
 
 func main() {
-	log.Init()
-	log.Print("kappanhang by Norbert Varga HA2NON and Akos Marton ES1AKOS https://github.com/nonoo/kappanhang")
+	fmt.Println("kappanhang by Norbert Varga HA2NON and Akos Marton ES1AKOS https://github.com/nonoo/kappanhang")
 	parseArgs()
+	log.Init()
 
 	osSignal := make(chan os.Signal, 1)
 	signal.Notify(osSignal, os.Interrupt, syscall.SIGTERM)
