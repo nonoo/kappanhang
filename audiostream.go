@@ -116,7 +116,6 @@ func (s *audioStream) loop() {
 		case e := <-s.rxSeqBufEntryChan:
 			s.handleRxSeqBufEntry(e)
 		case d := <-s.audio.rec:
-			log.Print(len(d))
 			if err := s.sendPart1(d[:1364]); err != nil {
 				reportError(err)
 			}
