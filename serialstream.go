@@ -36,26 +36,19 @@ type serialStream struct {
 }
 
 func (s *serialStream) send(d []byte) error {
-	s.common.pkt0.sendSeqLock()
-	defer s.common.pkt0.sendSeqUnlock()
-
 	l := byte(len(d))
-	p := append([]byte{0x15 + l, 0x00, 0x00, 0x00, 0x00, 0x00, byte(s.common.pkt0.sendSeq), byte(s.common.pkt0.sendSeq >> 8),
+	p := append([]byte{0x15 + l, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
 		byte(s.common.remoteSID >> 24), byte(s.common.remoteSID >> 16), byte(s.common.remoteSID >> 8), byte(s.common.remoteSID),
 		0xc1, l, 0x00, byte(s.sendSeq >> 8), byte(s.sendSeq)}, d...)
-	if err := s.common.send(p); err != nil {
+	if err := s.common.pkt0.sendTrackedPacket(&s.common, p); err != nil {
 		return err
 	}
-	s.common.pkt0.sendSeq++
 	s.sendSeq++
 	return nil
 }
 
 func (s *serialStream) sendOpenClose(close bool) error {
-	s.common.pkt0.sendSeqLock()
-	defer s.common.pkt0.sendSeqUnlock()
-
 	var magic byte
 	if close {
 		magic = 0x00
@@ -63,14 +56,13 @@ func (s *serialStream) sendOpenClose(close bool) error {
 		magic = 0x05
 	}
 
-	p := []byte{0x16, 0x00, 0x00, 0x00, 0x00, 0x00, byte(s.common.pkt0.sendSeq), byte(s.common.pkt0.sendSeq >> 8),
+	p := []byte{0x16, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
 		byte(s.common.remoteSID >> 24), byte(s.common.remoteSID >> 16), byte(s.common.remoteSID >> 8), byte(s.common.remoteSID),
 		0xc0, 0x01, 0x00, byte(s.sendSeq >> 8), byte(s.sendSeq), magic}
-	if err := s.common.send(p); err != nil {
+	if err := s.common.pkt0.sendTrackedPacket(&s.common, p); err != nil {
 		return err
 	}
-	s.common.pkt0.sendSeq++
 	s.sendSeq++
 	return nil
 }
@@ -92,7 +84,7 @@ func (s *serialStream) handleRxSeqBufEntry(e seqBufEntry) {
 	s.lastReceivedSeq = gotSeq
 	s.receivedSerialData = true
 
-	if len(e.data) == 16 { // Do not send pkt0s.
+	if s.common.pkt0.isPkt0(e.data) {
 		return
 	}
 
@@ -118,9 +110,8 @@ func (s *serialStream) handleSerialPacket(r []byte) error {
 }
 
 func (s *serialStream) handleRead(r []byte) error {
-	// We add both serial data and pkt0 to the seqbuf.
-	if (len(r) == 16 && bytes.Equal(r[:6], []byte{0x10, 0x00, 0x00, 0x00, 0x00, 0x00})) || // Pkt0?
-		(len(r) >= 22 && r[16] == 0xc1 && r[0]-0x15 == r[17]) { // Serial data?
+	// We add both idle pkt0 and serial data to the seqbuf.
+	if s.common.pkt0.isIdlePkt0(r) || (len(r) >= 22 && r[16] == 0xc1 && r[0]-0x15 == r[17]) {
 		return s.handleSerialPacket(r)
 	}
 	return nil

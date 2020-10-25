@@ -51,7 +51,12 @@ func (s *streamCommon) reader() {
 			if err := s.pkt7.handle(s, r); err != nil {
 				reportError(err)
 			}
+			// Don't let pkt7 packets further downstream.
 			continue
+		} else if s.pkt0.isPkt0(r) {
+			if err := s.pkt0.handle(s, r); err != nil {
+				reportError(err)
+			}
 		}
 
 		select {

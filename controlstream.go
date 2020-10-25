@@ -30,12 +30,9 @@ type controlStream struct {
 }
 
 func (s *controlStream) sendPktLogin() error {
-	s.common.pkt0.sendSeqLock()
-	defer s.common.pkt0.sendSeqUnlock()
-
 	// The reply to the auth packet will contain a 6 bytes long auth ID with the first 2 bytes set to our ID.
 	authStartID := []byte{0x63, 0x00}
-	p := []byte{0x80, 0x00, 0x00, 0x00, 0x00, 0x00, byte(s.common.pkt0.sendSeq), byte(s.common.pkt0.sendSeq >> 8),
+	p := []byte{0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
 		byte(s.common.remoteSID >> 24), byte(s.common.remoteSID >> 16), byte(s.common.remoteSID >> 8), byte(s.common.remoteSID),
 		0x00, 0x00, 0x00, 0x70, 0x01, 0x00, 0x00, byte(s.authInnerSendSeq),
@@ -52,14 +49,10 @@ func (s *controlStream) sendPktLogin() error {
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
-	if err := s.common.send(p); err != nil {
-		return err
-	}
-	if err := s.common.send(p); err != nil {
+	if err := s.common.pkt0.sendTrackedPacket(&s.common, p); err != nil {
 		return err
 	}
 
-	s.common.pkt0.sendSeq++
 	s.authInnerSendSeq++
 	return nil
 }
@@ -82,10 +75,7 @@ func (s *controlStream) sendPktAuth(magic byte) error {
 	//                           0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	//                           0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 
-	s.common.pkt0.sendSeqLock()
-	defer s.common.pkt0.sendSeqUnlock()
-
-	p := []byte{0x40, 0x00, 0x00, 0x00, 0x00, 0x00, byte(s.common.pkt0.sendSeq), byte(s.common.pkt0.sendSeq >> 8),
+	p := []byte{0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
 		byte(s.common.remoteSID >> 24), byte(s.common.remoteSID >> 16), byte(s.common.remoteSID >> 8), byte(s.common.remoteSID),
 		0x00, 0x00, 0x00, 0x30, 0x01, magic, 0x00, byte(s.authInnerSendSeq),
@@ -94,23 +84,16 @@ func (s *controlStream) sendPktAuth(magic byte) error {
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
-	if err := s.common.send(p); err != nil {
+	if err := s.common.pkt0.sendTrackedPacket(&s.common, p); err != nil {
 		return err
 	}
-	if err := s.common.send(p); err != nil {
-		return err
-	}
-	s.common.pkt0.sendSeq++
 	s.authInnerSendSeq++
 	return nil
 }
 
 func (s *controlStream) sendRequestSerialAndAudio() error {
-	s.common.pkt0.sendSeqLock()
-	defer s.common.pkt0.sendSeqUnlock()
-
 	log.Print("requesting serial and audio stream")
-	p := []byte{0x90, 0x00, 0x00, 0x00, 0x00, 0x00, byte(s.common.pkt0.sendSeq), byte(s.common.pkt0.sendSeq >> 8),
+	p := []byte{0x90, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
 		byte(s.common.remoteSID >> 24), byte(s.common.remoteSID >> 16), byte(s.common.remoteSID >> 8), byte(s.common.remoteSID),
 		0x00, 0x00, 0x00, 0x80, 0x01, 0x03, 0x00, byte(s.authInnerSendSeq),
@@ -129,14 +112,10 @@ func (s *controlStream) sendRequestSerialAndAudio() error {
 		0x00, 0x00, 0xbb, 0x80, 0x00, 0x00, 0xc3, 0x52,
 		0x00, 0x00, 0xc3, 0x53, 0x00, 0x00, 0x00, 0xa0,
 		0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
-	if err := s.common.send(p); err != nil {
-		return err
-	}
-	if err := s.common.send(p); err != nil {
+	if err := s.common.pkt0.sendTrackedPacket(&s.common, p); err != nil {
 		return err
 	}
 
-	s.common.pkt0.sendSeq++
 	s.authInnerSendSeq++
 
 	return nil
@@ -244,8 +223,6 @@ func (s *controlStream) handleRead(r []byte) error {
 func (s *controlStream) loop() {
 	startTime := time.Now()
 
-	s.common.pkt0.startPeriodicSend(&s.common)
-
 	s.secondAuthTimer = time.NewTimer(time.Second)
 	reauthTicker := time.NewTicker(60 * time.Second)
 	statusLogTicker := time.NewTicker(3 * time.Second)
@@ -299,7 +276,8 @@ func (s *controlStream) start() error {
 		return err
 	}
 
-	s.common.pkt0.sendSeq = 1
+	s.common.pkt0.startPeriodicSend(&s.common)
+
 	if err := s.sendPktLogin(); err != nil {
 		return err
 	}
