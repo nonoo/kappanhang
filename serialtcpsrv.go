@@ -123,6 +123,10 @@ func (s *serialTCPSrv) stop() {
 	}
 
 	s.disconnectClient()
-	close(s.fromClient)
-	<-s.deinitFinishedChan
+	if s.fromClient != nil {
+		close(s.fromClient)
+	}
+	if s.deinitFinishedChan != nil {
+		<-s.deinitFinishedChan
+	}
 }
