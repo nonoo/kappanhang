@@ -13,6 +13,7 @@ type serialStream struct {
 	common streamCommon
 
 	serialPort serialPortStruct
+	tcpsrv     serialTCPSrv
 
 	sendSeq uint16
 
@@ -69,13 +70,20 @@ func (s *serialStream) sendOpenClose(close bool) error {
 func (s *serialStream) handleRead(r []byte) {
 	if len(r) >= 22 {
 		if r[16] == 0xc1 && r[0]-0x15 == r[17] {
-			s.serialPort.write <- r[21:]
+			r = r[21:]
+
+			// log.Print("fromradio ", r)
+
+			s.serialPort.write <- r
+			if s.tcpsrv.toClient != nil {
+				s.tcpsrv.toClient <- r
+			}
 		}
 	}
 
 }
 
-func (s *serialStream) gotDataFromSerialPort(r []byte) {
+func (s *serialStream) gotDataForRadio(r []byte) {
 	for len(r) > 0 && !s.readFromSerialPort.frameStarted {
 		if s.readFromSerialPort.buf.Len() > 1 {
 			s.readFromSerialPort.buf.Reset()
@@ -109,6 +117,8 @@ func (s *serialStream) gotDataFromSerialPort(r []byte) {
 	for _, b := range r {
 		s.readFromSerialPort.buf.WriteByte(b)
 		if b == 0xfc || b == 0xfd || s.readFromSerialPort.buf.Len() == maxSerialFrameLength {
+			// log.Print("toradio ", s.readFromSerialPort.buf.Bytes())
+
 			if err := s.send(s.readFromSerialPort.buf.Bytes()); err != nil {
 				reportError(err)
 			}
@@ -128,7 +138,9 @@ func (s *serialStream) loop() {
 		case r := <-s.common.readChan:
 			s.handleRead(r)
 		case r := <-s.serialPort.read:
-			s.gotDataFromSerialPort(r)
+			s.gotDataForRadio(r)
+		case r := <-s.tcpsrv.fromClient:
+			s.gotDataForRadio(r)
 		case <-s.readFromSerialPort.frameTimeout.C:
 			s.readFromSerialPort.buf.Reset()
 			s.readFromSerialPort.frameStarted = false
@@ -166,6 +178,10 @@ func (s *serialStream) start(devName string) error {
 		return err
 	}
 
+	if err := s.tcpsrv.start(); err != nil {
+		return err
+	}
+
 	s.deinitNeededChan = make(chan bool)
 	s.deinitFinishedChan = make(chan bool)
 
@@ -184,10 +200,11 @@ func (s *serialStream) init() error {
 }
 
 func (s *serialStream) deinit() {
-	if s.common.pkt0.sendTicker != nil { // Stream opened?
+	if s.common.conn != nil {
 		_ = s.sendOpenClose(true)
 	}
 
+	s.tcpsrv.stop()
 	s.serialPort.deinit()
 
 	if s.deinitNeededChan != nil {

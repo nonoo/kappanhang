@@ -176,7 +176,9 @@ func (s *streamCommon) deinit() {
 	if s.gotRemoteSID && s.conn != nil {
 		_ = s.sendDisconnect()
 	}
-	s.conn.Close()
+	if s.conn != nil {
+		s.conn.Close()
+	}
 
 	if s.readerCloseNeededChan != nil {
 		s.readerCloseNeededChan <- true
