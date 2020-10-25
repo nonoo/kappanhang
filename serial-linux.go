@@ -50,7 +50,7 @@ func (s *serialPortStruct) writeLoop() {
 
 func (s *serialPortStruct) readLoop() {
 	s.read = make(chan []byte)
-	b := make([]byte, 80) // Max. frame length according to Hamlib.
+	b := make([]byte, maxSerialFrameLength)
 	for {
 		n, err := s.pty.Master.Read(b)
 		if err != nil {
