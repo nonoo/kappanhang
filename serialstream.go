@@ -38,6 +38,7 @@ func (s *serialStream) send(d []byte) error {
 	if err := s.common.send(p); err != nil {
 		return err
 	}
+	s.common.pkt0.sendSeq++
 	s.sendSeq++
 	return nil
 }
@@ -60,6 +61,7 @@ func (s *serialStream) sendOpenClose(close bool) error {
 	if err := s.common.send(p); err != nil {
 		return err
 	}
+	s.common.pkt0.sendSeq++
 	s.sendSeq++
 	return nil
 }
@@ -67,7 +69,6 @@ func (s *serialStream) sendOpenClose(close bool) error {
 func (s *serialStream) handleRead(r []byte) {
 	if len(r) >= 22 {
 		if r[16] == 0xc1 && r[0]-0x15 == r[17] {
-			log.Print("rcv ", r[21:])
 			s.serialPort.write <- r[21:]
 		}
 	}
@@ -108,7 +109,6 @@ func (s *serialStream) gotDataFromSerialPort(r []byte) {
 	for _, b := range r {
 		s.readFromSerialPort.buf.WriteByte(b)
 		if b == 0xfc || b == 0xfd || s.readFromSerialPort.buf.Len() == maxSerialFrameLength {
-			log.Print("snd ", s.readFromSerialPort.buf.Bytes())
 			if err := s.send(s.readFromSerialPort.buf.Bytes()); err != nil {
 				reportError(err)
 			}
