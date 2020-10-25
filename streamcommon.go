@@ -131,6 +131,42 @@ func (s *streamCommon) waitForPkt6Answer() error {
 	return err
 }
 
+func (s *streamCommon) sendRetransmitRequest(seqNum uint16) error {
+	p := []byte{0x10, 0x00, 0x00, 0x00, 0x01, 0x00, byte(seqNum), byte(seqNum >> 8),
+		byte(s.localSID >> 24), byte(s.localSID >> 16), byte(s.localSID >> 8), byte(s.localSID),
+		byte(s.remoteSID >> 24), byte(s.remoteSID >> 16), byte(s.remoteSID >> 8), byte(s.remoteSID)}
+	if err := s.send(p); err != nil {
+		return err
+	}
+	if err := s.send(p); err != nil {
+		return err
+	}
+	return nil
+}
+
+type seqNumRange [2]uint16
+
+func (s *streamCommon) sendRetransmitRequestForRanges(seqNumRanges []seqNumRange) error {
+	seqNumBytes := make([]byte, len(seqNumRanges)*4)
+	for i := 0; i < len(seqNumRanges); i++ {
+		seqNumBytes[i*2] = byte(seqNumRanges[i][0])
+		seqNumBytes[i*2+1] = byte(seqNumRanges[i][0] >> 8)
+		seqNumBytes[i*2+2] = byte(seqNumRanges[i][1])
+		seqNumBytes[i*2+3] = byte(seqNumRanges[i][1] >> 8)
+	}
+	p := append([]byte{0x18, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
+		byte(s.localSID >> 24), byte(s.localSID >> 16), byte(s.localSID >> 8), byte(s.localSID),
+		byte(s.remoteSID >> 24), byte(s.remoteSID >> 16), byte(s.remoteSID >> 8), byte(s.remoteSID)},
+		seqNumBytes...)
+	if err := s.send(p); err != nil {
+		return err
+	}
+	if err := s.send(p); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *streamCommon) sendDisconnect() error {
 	log.Print(s.name + "/disconnecting")
 	p := []byte{0x10, 0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00,

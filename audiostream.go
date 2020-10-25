@@ -10,7 +10,7 @@ import (
 )
 
 const audioTimeoutDuration = 3 * time.Second
-const rxSeqBufLength = 100 * time.Millisecond
+const audioRxSeqBufLength = 100 * time.Millisecond
 
 type audioStream struct {
 	common streamCommon
@@ -59,42 +59,6 @@ func (s *audioStream) sendPart2(pcmData []byte) error {
 	return nil
 }
 
-func (s *audioStream) sendRetransmitRequest(seqNum uint16) error {
-	p := []byte{0x10, 0x00, 0x00, 0x00, 0x01, 0x00, byte(seqNum), byte(seqNum >> 8),
-		byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
-		byte(s.common.remoteSID >> 24), byte(s.common.remoteSID >> 16), byte(s.common.remoteSID >> 8), byte(s.common.remoteSID)}
-	if err := s.common.send(p); err != nil {
-		return err
-	}
-	if err := s.common.send(p); err != nil {
-		return err
-	}
-	return nil
-}
-
-type seqNumRange [2]uint16
-
-func (s *audioStream) sendRetransmitRequestForRanges(seqNumRanges []seqNumRange) error {
-	seqNumBytes := make([]byte, len(seqNumRanges)*4)
-	for i := 0; i < len(seqNumRanges); i++ {
-		seqNumBytes[i*2] = byte(seqNumRanges[i][0])
-		seqNumBytes[i*2+1] = byte(seqNumRanges[i][0] >> 8)
-		seqNumBytes[i*2+2] = byte(seqNumRanges[i][1])
-		seqNumBytes[i*2+3] = byte(seqNumRanges[i][1] >> 8)
-	}
-	p := append([]byte{0x18, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
-		byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
-		byte(s.common.remoteSID >> 24), byte(s.common.remoteSID >> 16), byte(s.common.remoteSID >> 8), byte(s.common.remoteSID)},
-		seqNumBytes...)
-	if err := s.common.send(p); err != nil {
-		return err
-	}
-	if err := s.common.send(p); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (s *audioStream) handleRxSeqBufEntry(e seqBufEntry) {
 	gotSeq := uint16(e.seq)
 	if s.receivedAudio {
@@ -131,12 +95,12 @@ func (s *audioStream) requestRetransmitIfNeeded(gotSeq uint16) error {
 		}
 		if missingPkts == 1 {
 			log.Debug("request audio pkt #", sr[1], " retransmit")
-			if err := s.sendRetransmitRequest(sr[1]); err != nil {
+			if err := s.common.sendRetransmitRequest(sr[1]); err != nil {
 				return err
 			}
 		} else if missingPkts < 50 {
 			log.Debug("request audio pkt #", sr[0], "-#", sr[1], " retransmit")
-			if err := s.sendRetransmitRequestForRanges([]seqNumRange{sr}); err != nil {
+			if err := s.common.sendRetransmitRequestForRanges([]seqNumRange{sr}); err != nil {
 				return err
 			}
 		}
@@ -232,7 +196,7 @@ func (s *audioStream) init() error {
 		return err
 	}
 	s.rxSeqBufEntryChan = make(chan seqBufEntry)
-	s.rxSeqBuf.init(rxSeqBufLength, 0xffff, 0, s.rxSeqBufEntryChan)
+	s.rxSeqBuf.init(audioRxSeqBufLength, 0xffff, 0, s.rxSeqBufEntryChan)
 	return nil
 }
 
