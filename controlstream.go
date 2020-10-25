@@ -373,6 +373,6 @@ func (s *controlStream) deinit() {
 	}
 
 	s.common.deinit()
-	s.audio.deinit()
 	s.serial.deinit()
+	s.audio.deinit()
 }
