@@ -73,14 +73,14 @@ func (s *seqBuf) addToBack(seq seqNum, data []byte) {
 	s.notifyWatcher()
 }
 
-func (s *seqBuf) insert(seq seqNum, data []byte, toPos int) {
+func (s *seqBuf) insert(seq seqNum, data []byte, toPos int) (addedToFront bool) {
 	if toPos == 0 {
 		s.addToFront(seq, data)
-		return
+		return true
 	}
 	if toPos >= len(s.entries) {
 		s.addToBack(seq, data)
-		return
+		return false
 	}
 	sliceBefore := s.entries[:toPos]
 	sliceAfter := s.entries[toPos:]
@@ -88,6 +88,7 @@ func (s *seqBuf) insert(seq seqNum, data []byte, toPos int) {
 	s.entries = append(sliceBefore, append([]seqBufEntry{e}, sliceAfter...)...)
 
 	s.notifyWatcher()
+	return false
 }
 
 func (s *seqBuf) getDiff(seq1, seq2 seqNum) seqNum {
@@ -130,7 +131,7 @@ func (s *seqBuf) leftOrRightCloserToSeq(seq, whichSeq seqNum) direction {
 	return left
 }
 
-func (s *seqBuf) add(seq seqNum, data []byte) error {
+func (s *seqBuf) add(seq seqNum, data []byte) (addedToFront bool, err error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -140,22 +141,22 @@ func (s *seqBuf) add(seq seqNum, data []byte) error {
 	// }()
 
 	if seq > s.maxSeqNum {
-		return errors.New("seq out of range")
+		return false, errors.New("seq out of range")
 	}
 
 	if len(s.entries) == 0 {
 		s.addToFront(seq, data)
-		return nil
+		return true, nil
 	}
 
 	if s.entries[0].seq == seq {
-		return errors.New("dropping duplicate seq")
+		return false, errors.New("dropping duplicate seq")
 	}
 
 	// Checking the first entry.
 	if s.leftOrRightCloserToSeq(seq, s.entries[0].seq) == left {
 		s.addToFront(seq, data)
-		return nil
+		return true, nil
 	}
 
 	// Parsing through other entries if there are more than 1.
@@ -164,20 +165,19 @@ func (s *seqBuf) add(seq seqNum, data []byte) error {
 		// It can be a beginning of a new stream for example.
 		if s.entries[i].seq == seq {
 			// s.addToFront(seq, data)
-			return nil
+			return false, nil
 		}
 
 		if s.leftOrRightCloserToSeq(seq, s.entries[i].seq) == left {
 			// log.Debug("left for ", s.entries[i].seq)
-			s.insert(seq, data, i)
-			return nil
+			return s.insert(seq, data, i), nil
 		}
 		// log.Debug("right for ", s.entries[i].seq)
 	}
 
 	// No place found for the item?
 	s.addToBack(seq, data)
-	return nil
+	return false, nil
 }
 
 func (s *seqBuf) getNextDataAvailableRemainingTime() (time.Duration, error) {

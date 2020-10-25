@@ -23,6 +23,8 @@ type audioStream struct {
 	timeoutTimer         *time.Timer
 	receivedAudio        bool
 	lastReceivedAudioSeq uint16
+
+	lastSeqBufFrontRxSeq uint16
 	rxSeqBuf             seqBuf
 	rxSeqBufEntryChan    chan seqBufEntry
 
@@ -113,30 +115,68 @@ func (s *audioStream) handleRxSeqBufEntry(e seqBufEntry) {
 	s.audio.play <- e.data
 }
 
-func (s *audioStream) handleAudioPacket(r []byte) {
+func (s *audioStream) requestRetransmitIfNeeded(gotSeq uint16) error {
+	prevExpectedSeq := gotSeq - 1
+	if s.lastSeqBufFrontRxSeq != prevExpectedSeq {
+		var missingPkts int
+		var sr seqNumRange
+		if prevExpectedSeq > s.lastSeqBufFrontRxSeq {
+			sr[0] = s.lastSeqBufFrontRxSeq
+			sr[1] = prevExpectedSeq
+			missingPkts = int(prevExpectedSeq) - int(s.lastSeqBufFrontRxSeq)
+		} else {
+			sr[0] = prevExpectedSeq
+			sr[1] = s.lastSeqBufFrontRxSeq
+			missingPkts = int(prevExpectedSeq) + 65536 - int(s.lastSeqBufFrontRxSeq)
+		}
+		if missingPkts == 1 {
+			log.Debug("request audio pkt #", sr[1], " retransmit")
+			if err := s.sendRetransmitRequest(sr[1]); err != nil {
+				return err
+			}
+		} else if missingPkts < 50 {
+			log.Debug("request audio pkt #", sr[0], "-#", sr[1], " retransmit")
+			if err := s.sendRetransmitRequestForRanges([]seqNumRange{sr}); err != nil {
+				return err
+			}
+		}
+	}
+	s.lastSeqBufFrontRxSeq = gotSeq
+	return nil
+}
+
+func (s *audioStream) handleAudioPacket(r []byte) error {
 	if s.timeoutTimer != nil {
 		s.timeoutTimer.Stop()
 		s.timeoutTimer.Reset(audioTimeoutDuration)
 	}
 
 	gotSeq := binary.LittleEndian.Uint16(r[6:8])
-	err := s.rxSeqBuf.add(seqNum(gotSeq), r[24:])
-	if err != nil {
-		log.Error(err)
+	addedToFront, _ := s.rxSeqBuf.add(seqNum(gotSeq), r[24:])
+
+	// If the packet is not added to the front of the seqbuf, then it means that it was an answer for a
+	// retransmit request (or it was an out of order packet which we don't want start a retransmit).
+	if !addedToFront {
+		return nil
 	}
+
+	return s.requestRetransmitIfNeeded(gotSeq)
 }
 
-func (s *audioStream) handleRead(r []byte) {
+func (s *audioStream) handleRead(r []byte) error {
 	if len(r) >= 580 && (bytes.Equal(r[:6], []byte{0x6c, 0x05, 0x00, 0x00, 0x00, 0x00}) || bytes.Equal(r[:6], []byte{0x44, 0x02, 0x00, 0x00, 0x00, 0x00})) {
-		s.handleAudioPacket(r)
+		return s.handleAudioPacket(r)
 	}
+	return nil
 }
 
 func (s *audioStream) loop() {
 	for {
 		select {
 		case r := <-s.common.readChan:
-			s.handleRead(r)
+			if err := s.handleRead(r); err != nil {
+				reportError(err)
+			}
 		case <-s.timeoutTimer.C:
 			reportError(errors.New("audio stream timeout, try rebooting the radio"))
 		case e := <-s.rxSeqBufEntryChan:
