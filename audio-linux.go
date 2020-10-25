@@ -127,6 +127,8 @@ func (a *audioStruct) loop() {
 		select {
 		case d = <-a.play:
 		case <-a.deinitNeededChan:
+			a.close()
+
 			recLoopDeinitNeededChan <- true
 			<-recLoopDeinitFinishedChan
 			playLoopDeinitNeededChan <- true
@@ -185,7 +187,7 @@ func (a *audioStruct) init(devName string) error {
 	return nil
 }
 
-func (a *audioStruct) deinit() {
+func (a *audioStruct) close() {
 	if a.source.IsOpen() {
 		if err := a.source.Close(); err != nil {
 			if _, ok := err.(*os.PathError); !ok {
@@ -201,6 +203,10 @@ func (a *audioStruct) deinit() {
 			}
 		}
 	}
+}
+
+func (a *audioStruct) deinit() {
+	a.close()
 
 	if a.deinitNeededChan != nil {
 		a.deinitNeededChan <- true
