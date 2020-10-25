@@ -190,10 +190,11 @@ func (s *serialStream) deinit() {
 		_ = s.sendOpenClose(true)
 	}
 
+	s.serialPort.deinit()
+
 	if s.deinitNeededChan != nil {
 		s.deinitNeededChan <- true
 		<-s.deinitFinishedChan
 	}
 	s.common.deinit()
-	s.serialPort.deinit()
 }
