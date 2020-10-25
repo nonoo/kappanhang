@@ -1,6 +1,9 @@
 package main
 
 import (
+	"bytes"
+	"time"
+
 	"github.com/nonoo/kappanhang/log"
 )
 
@@ -12,6 +15,12 @@ type serialStream struct {
 	serialPort serialPortStruct
 
 	sendSeq uint16
+
+	readFromSerialPort struct {
+		buf          bytes.Buffer
+		frameStarted bool
+		frameTimeout *time.Timer
+	}
 
 	deinitNeededChan   chan bool
 	deinitFinishedChan chan bool
@@ -58,10 +67,61 @@ func (s *serialStream) sendOpenClose(close bool) error {
 func (s *serialStream) handleRead(r []byte) {
 	if len(r) >= 22 {
 		if r[16] == 0xc1 && r[0]-0x15 == r[17] {
+			log.Print("rcv ", r[21:])
 			s.serialPort.write <- r[21:]
 		}
 	}
 
+}
+
+func (s *serialStream) gotDataFromSerialPort(r []byte) {
+	for len(r) > 0 {
+		for len(r) > 0 && !s.readFromSerialPort.frameStarted {
+			if s.readFromSerialPort.buf.Len() > 1 {
+				s.readFromSerialPort.buf.Reset()
+			}
+			if s.readFromSerialPort.buf.Len() == 0 {
+				// Cut until we find the frame start byte.
+				for r[0] != 0xfe {
+					r = r[1:]
+					if len(r) == 0 {
+						return
+					}
+				}
+				// Found the first start byte.
+				s.readFromSerialPort.buf.WriteByte(r[0])
+				r = r[1:]
+			}
+			if s.readFromSerialPort.buf.Len() == 1 {
+				if r[0] != 0xfe {
+					s.readFromSerialPort.buf.Reset()
+					r = r[1:]
+				} else {
+					// Found the second start byte.
+					s.readFromSerialPort.buf.WriteByte(r[0])
+					r = r[1:]
+					s.readFromSerialPort.frameTimeout.Reset(100 * time.Millisecond)
+					s.readFromSerialPort.frameStarted = true
+				}
+			}
+		}
+
+		for _, b := range r {
+			s.readFromSerialPort.buf.WriteByte(b)
+			if b == 0xfc || b == 0xfd || s.readFromSerialPort.buf.Len() == maxSerialFrameLength {
+				log.Print("snd ", s.readFromSerialPort.buf.Bytes())
+				if err := s.send(s.readFromSerialPort.buf.Bytes()); err != nil {
+					reportError(err)
+				}
+				if !s.readFromSerialPort.frameTimeout.Stop() {
+					<-s.readFromSerialPort.frameTimeout.C
+				}
+				s.readFromSerialPort.buf.Reset()
+				s.readFromSerialPort.frameStarted = false
+				break
+			}
+		}
+	}
 }
 
 func (s *serialStream) loop() {
@@ -70,9 +130,10 @@ func (s *serialStream) loop() {
 		case r := <-s.common.readChan:
 			s.handleRead(r)
 		case r := <-s.serialPort.read:
-			if err := s.send(r); err != nil {
-				reportError(err)
-			}
+			s.gotDataFromSerialPort(r)
+		case <-s.readFromSerialPort.frameTimeout.C:
+			s.readFromSerialPort.buf.Reset()
+			s.readFromSerialPort.frameStarted = false
 		case <-s.deinitNeededChan:
 			s.deinitFinishedChan <- true
 			return
@@ -109,6 +170,10 @@ func (s *serialStream) start(devName string) error {
 
 	s.deinitNeededChan = make(chan bool)
 	s.deinitFinishedChan = make(chan bool)
+
+	s.readFromSerialPort.frameTimeout = time.NewTimer(0)
+	<-s.readFromSerialPort.frameTimeout.C
+
 	go s.loop()
 	return nil
 }
