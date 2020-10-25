@@ -73,6 +73,18 @@ func (s *serialPortStruct) init(devName string) (err error) {
 	if err != nil {
 		return err
 	}
+
+	var t term.Termios
+	t.Raw()
+	err = t.Set(s.pty.Master)
+	if err != nil {
+		return err
+	}
+	err = t.Set(s.pty.Slave)
+	if err != nil {
+		return err
+	}
+
 	n, err := s.pty.PTSName()
 	if err != nil {
 		return err
