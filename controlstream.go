@@ -18,7 +18,6 @@ type controlStream struct {
 	deinitNeededChan   chan bool
 	deinitFinishedChan chan bool
 
-	authSendSeq      uint16
 	authInnerSendSeq uint16
 	authID           [6]byte
 
@@ -31,9 +30,12 @@ type controlStream struct {
 }
 
 func (s *controlStream) sendPktLogin() error {
+	s.common.pkt0.sendSeqLock()
+	defer s.common.pkt0.sendSeqUnlock()
+
 	// The reply to the auth packet will contain a 6 bytes long auth ID with the first 2 bytes set to our ID.
 	authStartID := []byte{0x63, 0x00}
-	p := []byte{0x80, 0x00, 0x00, 0x00, 0x00, 0x00, byte(s.authSendSeq), byte(s.authSendSeq >> 8),
+	p := []byte{0x80, 0x00, 0x00, 0x00, 0x00, 0x00, byte(s.common.pkt0.sendSeq), byte(s.common.pkt0.sendSeq >> 8),
 		byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
 		byte(s.common.remoteSID >> 24), byte(s.common.remoteSID >> 16), byte(s.common.remoteSID >> 8), byte(s.common.remoteSID),
 		0x00, 0x00, 0x00, 0x70, 0x01, 0x00, 0x00, byte(s.authInnerSendSeq),
@@ -57,7 +59,7 @@ func (s *controlStream) sendPktLogin() error {
 		return err
 	}
 
-	s.authSendSeq++
+	s.common.pkt0.sendSeq++
 	s.authInnerSendSeq++
 	return nil
 }
@@ -79,7 +81,11 @@ func (s *controlStream) sendPktAuth(magic byte) error {
 	//                           0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	//                           0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	//                           0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-	p := []byte{0x40, 0x00, 0x00, 0x00, 0x00, 0x00, byte(s.authSendSeq), byte(s.authSendSeq >> 8),
+
+	s.common.pkt0.sendSeqLock()
+	defer s.common.pkt0.sendSeqUnlock()
+
+	p := []byte{0x40, 0x00, 0x00, 0x00, 0x00, 0x00, byte(s.common.pkt0.sendSeq), byte(s.common.pkt0.sendSeq >> 8),
 		byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
 		byte(s.common.remoteSID >> 24), byte(s.common.remoteSID >> 16), byte(s.common.remoteSID >> 8), byte(s.common.remoteSID),
 		0x00, 0x00, 0x00, 0x30, 0x01, magic, 0x00, byte(s.authInnerSendSeq),
@@ -94,25 +100,17 @@ func (s *controlStream) sendPktAuth(magic byte) error {
 	if err := s.common.send(p); err != nil {
 		return err
 	}
-	s.authSendSeq++
+	s.common.pkt0.sendSeq++
 	s.authInnerSendSeq++
 	return nil
 }
 
-func (s *controlStream) sendPkt0() error {
-	p := []byte{0x10, 0x00, 0x00, 0x00, 0x00, 0x00, byte(s.authSendSeq), byte(s.authSendSeq >> 8),
-		byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
-		byte(s.common.remoteSID >> 24), byte(s.common.remoteSID >> 16), byte(s.common.remoteSID >> 8), byte(s.common.remoteSID)}
-	if err := s.common.send(p); err != nil {
-		return err
-	}
-	s.authSendSeq++
-	return nil
-}
-
 func (s *controlStream) sendRequestSerialAndAudio() error {
+	s.common.pkt0.sendSeqLock()
+	defer s.common.pkt0.sendSeqUnlock()
+
 	log.Print("requesting serial and audio stream")
-	p := []byte{0x90, 0x00, 0x00, 0x00, 0x00, 0x00, byte(s.authSendSeq), byte(s.authSendSeq >> 8),
+	p := []byte{0x90, 0x00, 0x00, 0x00, 0x00, 0x00, byte(s.common.pkt0.sendSeq), byte(s.common.pkt0.sendSeq >> 8),
 		byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
 		byte(s.common.remoteSID >> 24), byte(s.common.remoteSID >> 16), byte(s.common.remoteSID >> 8), byte(s.common.remoteSID),
 		0x00, 0x00, 0x00, 0x80, 0x01, 0x03, 0x00, byte(s.authInnerSendSeq),
@@ -138,7 +136,7 @@ func (s *controlStream) sendRequestSerialAndAudio() error {
 		return err
 	}
 
-	s.authSendSeq++
+	s.common.pkt0.sendSeq++
 	s.authInnerSendSeq++
 
 	return nil
@@ -241,8 +239,9 @@ func (s *controlStream) handleRead(r []byte) error {
 func (s *controlStream) loop() {
 	startTime := time.Now()
 
+	s.common.pkt0.startPeriodicSend(&s.common)
+
 	s.secondAuthTimer = time.NewTimer(time.Second)
-	pkt0SendTicker := time.NewTicker(100 * time.Millisecond)
 	reauthTicker := time.NewTicker(60 * time.Second)
 	statusLogTicker := time.NewTicker(3 * time.Second)
 
@@ -258,10 +257,6 @@ func (s *controlStream) loop() {
 				if err := s.handleRead(r); err != nil {
 					reportError(err)
 				}
-			}
-		case <-pkt0SendTicker.C:
-			if err := s.sendPkt0(); err != nil {
-				reportError(err)
 			}
 		case <-reauthTicker.C:
 			log.Print("sending auth")
@@ -299,7 +294,7 @@ func (s *controlStream) start() error {
 		return err
 	}
 
-	s.authSendSeq = 1
+	s.common.pkt0.sendSeq = 1
 	if err := s.sendPktLogin(); err != nil {
 		return err
 	}

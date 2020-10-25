@@ -23,6 +23,7 @@ type streamCommon struct {
 	readerCloseNeededChan   chan bool
 	readerCloseFinishedChan chan bool
 
+	pkt0 pkt0Type
 	pkt7 pkt7Type
 }
 
@@ -170,6 +171,7 @@ func (s *streamCommon) init(name string, portNumber int) error {
 }
 
 func (s *streamCommon) deinit() {
+	s.pkt0.stopPeriodicSend()
 	s.pkt7.stopPeriodicSend()
 	if s.gotRemoteSID && s.conn != nil {
 		_ = s.sendDisconnect()
