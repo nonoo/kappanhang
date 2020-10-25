@@ -24,9 +24,8 @@ type audioStream struct {
 	receivedAudio        bool
 	lastReceivedAudioSeq uint16
 
-	lastSeqBufFrontRxSeq uint16
-	rxSeqBuf             seqBuf
-	rxSeqBufEntryChan    chan seqBufEntry
+	rxSeqBuf          seqBuf
+	rxSeqBufEntryChan chan seqBufEntry
 
 	audioSendSeq uint16
 }
@@ -79,36 +78,6 @@ func (s *audioStream) handleRxSeqBufEntry(e seqBufEntry) {
 	s.audio.play <- e.data
 }
 
-func (s *audioStream) requestRetransmitIfNeeded(gotSeq uint16) error {
-	prevExpectedSeq := gotSeq - 1
-	if s.lastSeqBufFrontRxSeq != prevExpectedSeq {
-		var missingPkts int
-		var sr seqNumRange
-		if prevExpectedSeq > s.lastSeqBufFrontRxSeq {
-			sr[0] = s.lastSeqBufFrontRxSeq
-			sr[1] = prevExpectedSeq
-			missingPkts = int(prevExpectedSeq) - int(s.lastSeqBufFrontRxSeq)
-		} else {
-			sr[0] = prevExpectedSeq
-			sr[1] = s.lastSeqBufFrontRxSeq
-			missingPkts = int(prevExpectedSeq) + 65536 - int(s.lastSeqBufFrontRxSeq)
-		}
-		if missingPkts == 1 {
-			log.Debug("request audio pkt #", sr[1], " retransmit")
-			if err := s.common.sendRetransmitRequest(sr[1]); err != nil {
-				return err
-			}
-		} else if missingPkts < 50 {
-			log.Debug("request audio pkt #", sr[0], "-#", sr[1], " retransmit")
-			if err := s.common.sendRetransmitRequestForRanges([]seqNumRange{sr}); err != nil {
-				return err
-			}
-		}
-	}
-	s.lastSeqBufFrontRxSeq = gotSeq
-	return nil
-}
-
 func (s *audioStream) handleAudioPacket(r []byte) error {
 	if s.timeoutTimer != nil {
 		s.timeoutTimer.Stop()
@@ -124,7 +93,7 @@ func (s *audioStream) handleAudioPacket(r []byte) error {
 		return nil
 	}
 
-	return s.requestRetransmitIfNeeded(gotSeq)
+	return s.common.requestRetransmitIfNeeded(gotSeq)
 }
 
 func (s *audioStream) handleRead(r []byte) error {

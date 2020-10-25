@@ -19,9 +19,8 @@ type serialStream struct {
 
 	sendSeq uint16
 
-	lastSeqBufFrontRxSeq uint16
-	rxSeqBuf             seqBuf
-	rxSeqBufEntryChan    chan seqBufEntry
+	rxSeqBuf          seqBuf
+	rxSeqBufEntryChan chan seqBufEntry
 
 	receivedSerialData bool
 	lastReceivedSeq    uint16
@@ -105,36 +104,6 @@ func (s *serialStream) handleRxSeqBufEntry(e seqBufEntry) {
 	}
 }
 
-func (s *serialStream) requestRetransmitIfNeeded(gotSeq uint16) error {
-	prevExpectedSeq := gotSeq - 1
-	if s.lastSeqBufFrontRxSeq != prevExpectedSeq {
-		var missingPkts int
-		var sr seqNumRange
-		if prevExpectedSeq > s.lastSeqBufFrontRxSeq {
-			sr[0] = s.lastSeqBufFrontRxSeq
-			sr[1] = prevExpectedSeq
-			missingPkts = int(prevExpectedSeq) - int(s.lastSeqBufFrontRxSeq)
-		} else {
-			sr[0] = prevExpectedSeq
-			sr[1] = s.lastSeqBufFrontRxSeq
-			missingPkts = int(prevExpectedSeq) + 65536 - int(s.lastSeqBufFrontRxSeq)
-		}
-		if missingPkts == 1 {
-			log.Debug("request pkt #", sr[1], " retransmit")
-			if err := s.common.sendRetransmitRequest(sr[1]); err != nil {
-				return err
-			}
-		} else if missingPkts < 50 {
-			log.Debug("request pkt #", sr[0], "-#", sr[1], " retransmit")
-			if err := s.common.sendRetransmitRequestForRanges([]seqNumRange{sr}); err != nil {
-				return err
-			}
-		}
-	}
-	s.lastSeqBufFrontRxSeq = gotSeq
-	return nil
-}
-
 func (s *serialStream) handleSerialPacket(r []byte) error {
 	gotSeq := binary.LittleEndian.Uint16(r[6:8])
 	addedToFront, _ := s.rxSeqBuf.add(seqNum(gotSeq), r)
@@ -145,7 +114,7 @@ func (s *serialStream) handleSerialPacket(r []byte) error {
 		return nil
 	}
 
-	return s.requestRetransmitIfNeeded(gotSeq)
+	return s.common.requestRetransmitIfNeeded(gotSeq)
 }
 
 func (s *serialStream) handleRead(r []byte) error {
