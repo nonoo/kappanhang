@@ -90,7 +90,9 @@ func (s *serialStream) handleRxSeqBufEntry(e seqBufEntry) {
 
 	e.data = e.data[21:]
 
-	s.serialPort.write <- e.data
+	if s.serialPort.write != nil {
+		s.serialPort.write <- e.data
+	}
 	if s.tcpsrv.toClient != nil {
 		s.tcpsrv.toClient <- e.data
 	}
@@ -165,31 +167,55 @@ func (s *serialStream) gotDataForRadio(r []byte) {
 }
 
 func (s *serialStream) loop() {
-	for {
-		select {
-		case r := <-s.common.readChan:
-			if err := s.handleRead(r); err != nil {
-				reportError(err)
+	if enableSerialDevice {
+		for {
+			select {
+			case r := <-s.common.readChan:
+				if err := s.handleRead(r); err != nil {
+					reportError(err)
+				}
+			case e := <-s.rxSeqBufEntryChan:
+				s.handleRxSeqBufEntry(e)
+			case r := <-s.tcpsrv.fromClient:
+				s.gotDataForRadio(r)
+			case <-s.readFromSerialPort.frameTimeout.C:
+				s.readFromSerialPort.buf.Reset()
+				s.readFromSerialPort.frameStarted = false
+			case <-s.deinitNeededChan:
+				s.deinitFinishedChan <- true
+				return
 			}
-		case e := <-s.rxSeqBufEntryChan:
-			s.handleRxSeqBufEntry(e)
-		case r := <-s.serialPort.read:
-			s.gotDataForRadio(r)
-		case r := <-s.tcpsrv.fromClient:
-			s.gotDataForRadio(r)
-		case <-s.readFromSerialPort.frameTimeout.C:
-			s.readFromSerialPort.buf.Reset()
-			s.readFromSerialPort.frameStarted = false
-		case <-s.deinitNeededChan:
-			s.deinitFinishedChan <- true
-			return
+		}
+	} else {
+		for {
+			select {
+			case r := <-s.serialPort.read:
+				s.gotDataForRadio(r)
+
+			case r := <-s.common.readChan:
+				if err := s.handleRead(r); err != nil {
+					reportError(err)
+				}
+			case e := <-s.rxSeqBufEntryChan:
+				s.handleRxSeqBufEntry(e)
+			case r := <-s.tcpsrv.fromClient:
+				s.gotDataForRadio(r)
+			case <-s.readFromSerialPort.frameTimeout.C:
+				s.readFromSerialPort.buf.Reset()
+				s.readFromSerialPort.frameStarted = false
+			case <-s.deinitNeededChan:
+				s.deinitFinishedChan <- true
+				return
+			}
 		}
 	}
 }
 
 func (s *serialStream) start(devName string) error {
-	if err := s.serialPort.init(devName); err != nil {
-		return err
+	if enableSerialDevice {
+		if err := s.serialPort.init(devName); err != nil {
+			return err
+		}
 	}
 
 	if err := s.common.sendPkt3(); err != nil {
