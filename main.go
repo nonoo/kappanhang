@@ -30,7 +30,7 @@ func runControlStream(osSignal chan os.Signal) (shouldExit bool, exitCode int) {
 	if err := c.init(); err != nil {
 		log.Error(err)
 		c.deinit()
-		return true, 1
+		return false, 0
 	}
 
 	select {
