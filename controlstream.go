@@ -296,7 +296,7 @@ func (s *controlStream) init() error {
 	copy(s.authID[:], r[26:32])
 	s.gotAuthID = true
 	if err := s.sendPktAuth(0x02); err != nil {
-		reportError(err)
+		return err
 	}
 	log.Debug("login ok, first auth sent...")
 
