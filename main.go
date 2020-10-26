@@ -3,24 +3,21 @@ package main
 import (
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"strings"
 	"syscall"
 	"time"
 )
 
-var gitTag string
-var gitHash string
-
 var gotErrChan = make(chan bool)
 
 func getAboutStr() string {
 	var v string
-	if gitTag != "" {
-		v = gitTag
-	} else if gitHash != "" {
-		v = gitTag
+	bi, ok := debug.ReadBuildInfo()
+	if ok {
+		v = bi.Main.Version
 	} else {
-		v = "debug"
+		v = "(devel)"
 	}
 	return "kappanhang " + v + " by Norbert Varga HA2NON and Akos Marton ES1AKOS https://github.com/nonoo/kappanhang"
 }
