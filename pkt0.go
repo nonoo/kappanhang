@@ -38,9 +38,11 @@ func (p *pkt0Type) retransmitRange(s *streamCommon, start, end uint16) error {
 	for {
 		d := p.txSeqBuf.get(seqNum(start))
 		if d != nil {
-			log.Debug(s.name+"/retransmitting #", start)
-			if err := s.send(d); err != nil {
-				return err
+			if !s.pkt0.isIdlePkt0(d) { // Not retransmitting idle pkts.
+				log.Debug(s.name+"/retransmitting #", start)
+				if err := s.send(d); err != nil {
+					return err
+				}
 			}
 		} else {
 			log.Debug(s.name+"/can't retransmit #", start, " - not found")
@@ -63,9 +65,11 @@ func (p *pkt0Type) handle(s *streamCommon, r []byte) error {
 		seq := binary.LittleEndian.Uint16(r[6:8])
 		d := p.txSeqBuf.get(seqNum(seq))
 		if d != nil {
-			log.Debug(s.name+"/retransmitting #", seq)
-			if err := s.send(d); err != nil {
-				return err
+			if !s.pkt0.isIdlePkt0(d) { // Not retransmitting idle pkts.
+				log.Debug(s.name+"/retransmitting #", seq)
+				if err := s.send(d); err != nil {
+					return err
+				}
 			}
 		} else {
 			log.Debug(s.name+"/can't retransmit #", seq, " - not found")
