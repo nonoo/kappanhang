@@ -55,7 +55,7 @@ func (b *bandwidthStruct) get() (toRadioBytesPerSec, fromRadioBytesPerSec int, l
 	secs := time.Since(b.lastGet).Seconds()
 	toRadioBytesPerSec = int(float64(b.toRadioBytes) / secs)
 	fromRadioBytesPerSec = int(float64(b.fromRadioBytes) / secs)
-	lossPercent = (float64(b.lostPkts) / float64(b.toRadioPkts)) * 100
+	lossPercent = (float64(b.lostPkts) / float64(b.lostPkts+b.fromRadioPkts)) * 100
 
 	b.toRadioBytes = 0
 	b.toRadioPkts = 0
