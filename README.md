@@ -65,6 +65,11 @@ virtual serial port, so other apps which don't support Hamlib can access the
 transceiver directly. Look at the app log to find out the name of the virtual
 serial port.
 
+## Authors
+
+- Norbert Varga HA2NON [nonoo@nonoo.hu](mailto:nonoo@nonoo.hu)
+- Akos Marton ES1AKOS
+
 ## Donations
 
 If you find this app useful then [buy me a beer](https://paypal.me/ha2non). :)
