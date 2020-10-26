@@ -6,7 +6,7 @@
         {
             "label": "build",
             "type": "shell",
-            "command": "build/build.sh",
+            "command": "go build",
             "problemMatcher": [],
             "group": {
                 "kind": "build",
