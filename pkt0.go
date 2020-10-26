@@ -96,18 +96,35 @@ func (p *pkt0Type) isPkt0(r []byte) bool {
 		bytes.Equal(r[:6], []byte{0x18, 0x00, 0x00, 0x00, 0x01, 0x00})) // Retransmit request for ranges.
 }
 
+//var drop int
+
 // The radio can request retransmit for tracked packets. If there are no tracked packets to send, idle pkt0
 // packets are periodically sent.
 func (p *pkt0Type) sendTrackedPacket(s *streamCommon, d []byte) error {
 	p.sendSeqLock()
 	defer p.sendSeqUnlock()
 
+	// if s.name == "audio" {
+	// 	if drop == 0 && time.Now().UnixNano()%100 == 0 {
+	// 		log.Print(s.name+"/drop start - ", p.sendSeq)
+	// 		drop = 1
+	// 	} else if drop > 0 {
+	// 		drop++
+	// 		if drop == 3 {
+	// 			log.Print(s.name+"/drop stop - ", p.sendSeq)
+	// 			drop = 0
+	// 		}
+	// 	}
+	// }
+
 	d[6] = byte(p.sendSeq)
 	d[7] = byte(p.sendSeq >> 8)
 	p.txSeqBuf.add(seqNum(p.sendSeq), d)
+	// if s.name != "audio" || drop == 0 {
 	if err := s.send(d); err != nil {
 		return err
 	}
+	// }
 	p.sendSeq++
 	return nil
 }
