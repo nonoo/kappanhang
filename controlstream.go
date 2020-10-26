@@ -92,7 +92,7 @@ func (s *controlStream) sendPktAuth(magic byte) error {
 }
 
 func (s *controlStream) sendRequestSerialAndAudio() error {
-	log.Print("requesting serial and audio stream")
+	log.Debug("requesting serial and audio stream")
 	p := []byte{0x90, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
 		byte(s.common.remoteSID >> 24), byte(s.common.remoteSID >> 16), byte(s.common.remoteSID >> 8), byte(s.common.remoteSID),
@@ -142,7 +142,7 @@ func (s *controlStream) handleRead(r []byte) error {
 			// 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 			// 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 
-			log.Print("auth ok")
+			log.Debug("auth ok")
 
 			if r[21] == 0x05 && !s.serialAndAudioStreamOpened { // Answer for our second auth?
 				s.secondAuthTimer.Stop()
@@ -233,7 +233,7 @@ func (s *controlStream) loop() {
 			if err := s.sendPktAuth(0x05); err != nil {
 				reportError(err)
 			}
-			log.Print("second auth sent...")
+			log.Debug("second auth sent...")
 		case r := <-s.common.readChan:
 			if !s.deinitializing {
 				if err := s.handleRead(r); err != nil {
@@ -241,7 +241,7 @@ func (s *controlStream) loop() {
 				}
 			}
 		case <-reauthTicker.C:
-			log.Print("sending auth")
+			log.Debug("sending auth")
 			if err := s.sendPktAuth(0x05); err != nil {
 				reportError(err)
 			}
@@ -298,7 +298,7 @@ func (s *controlStream) start() error {
 	if err := s.sendPktAuth(0x02); err != nil {
 		reportError(err)
 	}
-	log.Print("login ok, first auth sent...")
+	log.Debug("login ok, first auth sent...")
 
 	s.requestSerialAndAudioTimeout = time.AfterFunc(5*time.Second, func() {
 		reportError(errors.New("login/serial/audio request timeout"))
@@ -311,7 +311,7 @@ func (s *controlStream) start() error {
 }
 
 func (s *controlStream) init() error {
-	log.Print("init")
+	log.Debug("init")
 
 	if err := s.serial.init(); err != nil {
 		return err
@@ -336,7 +336,7 @@ func (s *controlStream) deinit() {
 	}
 
 	if s.gotAuthID && s.common.gotRemoteSID && s.common.conn != nil {
-		log.Print("sending deauth")
+		log.Debug("sending deauth")
 		_ = s.sendPktAuth(0x01)
 	}
 
