@@ -13,6 +13,8 @@ const controlStreamPort = 50001
 const serialStreamPort = 50002
 const audioStreamPort = 50003
 
+const statusLogInterval = 3 * time.Second
+
 type controlStream struct {
 	common streamCommon
 	serial serialStream
@@ -237,7 +239,7 @@ func (s *controlStream) loop() {
 	<-s.reauthTimeoutTimer.C
 
 	reauthTicker := time.NewTicker(25 * time.Second)
-	statusLogTicker := time.NewTicker(3 * time.Second)
+	statusLogTicker := time.NewTicker(statusLogInterval)
 
 	for {
 		select {

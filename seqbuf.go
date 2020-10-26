@@ -217,8 +217,8 @@ func (s *seqBuf) watcher() {
 		s.watcherCloseDoneChan <- true
 	}()
 
-	entryAvailableTimer := time.NewTimer(s.length)
-	entryAvailableTimer.Stop()
+	entryAvailableTimer := time.NewTimer(0)
+	<-entryAvailableTimer.C
 	var entryAvailableTimerRunning bool
 
 	for {
