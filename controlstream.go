@@ -234,7 +234,7 @@ func (s *controlStream) loop() {
 	s.reauthTimeoutTimer = time.NewTimer(0)
 	<-s.reauthTimeoutTimer.C
 
-	reauthTicker := time.NewTicker(30 * time.Second)
+	reauthTicker := time.NewTicker(25 * time.Second)
 	statusLogTicker := time.NewTicker(3 * time.Second)
 
 	for {
