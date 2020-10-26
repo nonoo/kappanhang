@@ -221,7 +221,7 @@ func (s *controlStream) handleRead(r []byte) error {
 func (s *controlStream) loop() {
 	startTime := time.Now()
 
-	s.secondAuthTimer = time.NewTimer(time.Second)
+	s.secondAuthTimer = time.NewTimer(200 * time.Millisecond)
 	reauthTicker := time.NewTicker(60 * time.Second)
 	statusLogTicker := time.NewTicker(3 * time.Second)
 
