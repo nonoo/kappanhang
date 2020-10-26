@@ -106,6 +106,7 @@ const (
 type direction int
 
 // Decides the direction of which seq is closer to whichSeq, considering the seq turnover at maxSeqNum.
+// Basically left means seq is larger than whichSeq, and right means seq is smaller than whichSeq.
 // Example: returns left for seq=2 whichSeq=1
 //          returns right for seq=0 whichSeq=1
 //          returns right for seq=39 whichSeq=1 if maxSeqNum is 40

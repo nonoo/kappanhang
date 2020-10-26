@@ -18,9 +18,9 @@ type audioStream struct {
 	deinitNeededChan   chan bool
 	deinitFinishedChan chan bool
 
-	timeoutTimer         *time.Timer
-	receivedAudio        bool
-	lastReceivedAudioSeq uint16
+	timeoutTimer    *time.Timer
+	receivedAudio   bool
+	lastReceivedSeq uint16
 
 	rxSeqBuf          seqBuf
 	rxSeqBufEntryChan chan seqBufEntry
@@ -60,7 +60,13 @@ func (s *audioStream) sendPart2(pcmData []byte) error {
 func (s *audioStream) handleRxSeqBufEntry(e seqBufEntry) {
 	gotSeq := uint16(e.seq)
 	if s.receivedAudio {
-		expectedSeq := s.lastReceivedAudioSeq + 1
+		// Out of order packets can happen if we receive a retransmitted packet, but too late.
+		if s.rxSeqBuf.leftOrRightCloserToSeq(e.seq, seqNum(s.lastReceivedSeq)) != left {
+			log.Debug("got out of order pkt seq #", e.seq)
+			return
+		}
+
+		expectedSeq := s.lastReceivedSeq + 1
 		if expectedSeq != gotSeq {
 			var missingPkts int
 			if gotSeq > expectedSeq {
@@ -72,7 +78,7 @@ func (s *audioStream) handleRxSeqBufEntry(e seqBufEntry) {
 			log.Error("lost ", missingPkts, " audio packets")
 		}
 	}
-	s.lastReceivedAudioSeq = gotSeq
+	s.lastReceivedSeq = gotSeq
 	s.receivedAudio = true
 
 	s.audio.play <- e.data
