@@ -229,6 +229,7 @@ func (s *controlStream) handleRead(r []byte) error {
 
 func (s *controlStream) loop() {
 	startTime := time.Now()
+	bandwidth.reset()
 
 	s.secondAuthTimer = time.NewTimer(200 * time.Millisecond)
 	s.reauthTimeoutTimer = time.NewTimer(0)
@@ -260,7 +261,10 @@ func (s *controlStream) loop() {
 			log.Error("auth timeout, audio/serial stream may stop")
 		case <-statusLogTicker.C:
 			if s.serialAndAudioStreamOpened {
-				log.Print("running for ", time.Since(startTime), " roundtrip latency ", s.common.pkt7.latency)
+				up, down := bandwidth.get()
+				log.Print("running for ", time.Since(startTime).Round(time.Second),
+					" rtt ", s.common.pkt7.latency.Milliseconds(), "ms up ",
+					bandwidth.formatByteCount(up), "/s down ", bandwidth.formatByteCount(down), "/s")
 			}
 		case <-s.deinitNeededChan:
 			s.deinitFinishedChan <- true

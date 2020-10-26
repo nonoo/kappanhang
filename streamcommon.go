@@ -31,12 +31,16 @@ func (s *streamCommon) send(d []byte) error {
 	if _, err := s.conn.Write(d); err != nil {
 		return err
 	}
+	bandwidth.add(len(d), 0)
 	return nil
 }
 
 func (s *streamCommon) read() ([]byte, error) {
 	b := make([]byte, 1500)
 	n, _, err := s.conn.ReadFromUDP(b)
+	if err == nil {
+		bandwidth.add(0, n)
+	}
 	return b[:n], err
 }
 
