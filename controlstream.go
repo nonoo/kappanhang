@@ -228,7 +228,7 @@ func (s *controlStream) loop() {
 	startTime := time.Now()
 
 	s.secondAuthTimer = time.NewTimer(200 * time.Millisecond)
-	reauthTicker := time.NewTicker(60 * time.Second)
+	reauthTicker := time.NewTicker(30 * time.Second)
 	statusLogTicker := time.NewTicker(3 * time.Second)
 
 	for {
