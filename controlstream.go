@@ -29,6 +29,7 @@ type controlStream struct {
 
 	secondAuthTimer              *time.Timer
 	requestSerialAndAudioTimeout *time.Timer
+	reauthTimeoutTimer           *time.Timer
 }
 
 func (s *controlStream) sendPktLogin() error {
@@ -146,6 +147,8 @@ func (s *controlStream) handleRead(r []byte) error {
 			// 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 			// 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 
+			s.reauthTimeoutTimer.Stop()
+
 			log.Debug("auth ok")
 
 			if r[21] == 0x05 && !s.serialAndAudioStreamOpened { // Answer for our second auth?
@@ -228,6 +231,9 @@ func (s *controlStream) loop() {
 	startTime := time.Now()
 
 	s.secondAuthTimer = time.NewTimer(200 * time.Millisecond)
+	s.reauthTimeoutTimer = time.NewTimer(0)
+	<-s.reauthTimeoutTimer.C
+
 	reauthTicker := time.NewTicker(30 * time.Second)
 	statusLogTicker := time.NewTicker(3 * time.Second)
 
@@ -246,9 +252,12 @@ func (s *controlStream) loop() {
 			}
 		case <-reauthTicker.C:
 			log.Debug("sending auth")
+			s.reauthTimeoutTimer.Reset(3 * time.Second)
 			if err := s.sendPktAuth(0x05); err != nil {
 				reportError(err)
 			}
+		case <-s.reauthTimeoutTimer.C:
+			log.Error("auth timeout, audio/serial stream may stop")
 		case <-statusLogTicker.C:
 			if s.serialAndAudioStreamOpened {
 				log.Print("running for ", time.Since(startTime), " roundtrip latency ", s.common.pkt7.latency)
