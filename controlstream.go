@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 )
@@ -261,10 +262,11 @@ func (s *controlStream) loop() {
 			log.Error("auth timeout, audio/serial stream may stop")
 		case <-statusLogTicker.C:
 			if s.serialAndAudioStreamOpened {
-				up, down := bandwidth.get()
+				up, down, loss := bandwidth.get()
 				log.Print("running for ", time.Since(startTime).Round(time.Second),
 					" rtt ", s.common.pkt7.latency.Milliseconds(), "ms up ",
-					bandwidth.formatByteCount(up), "/s down ", bandwidth.formatByteCount(down), "/s")
+					bandwidth.formatByteCount(up), "/s down ",
+					bandwidth.formatByteCount(down), "/s loss ", fmt.Sprintf("%.2f", loss), "%")
 			}
 		case <-s.deinitNeededChan:
 			s.deinitFinishedChan <- true
