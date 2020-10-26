@@ -66,6 +66,7 @@ func (s *seqBuf) addToFront(seq seqNum, data []byte) {
 
 func (s *seqBuf) addToBack(seq seqNum, data []byte) {
 	e := s.createEntry(seq, data)
+	e.addedAt = time.Time{} // Release the packet from the seqbuf as soon as possible, as it is a late entry.
 	s.entries = append(s.entries, e)
 
 	s.notifyWatcher()
@@ -83,6 +84,7 @@ func (s *seqBuf) insert(seq seqNum, data []byte, toPos int) (addedToFront bool) 
 	sliceBefore := s.entries[:toPos]
 	sliceAfter := s.entries[toPos:]
 	e := s.createEntry(seq, data)
+	e.addedAt = time.Time{} // Release the packet from the seqbuf as soon as possible, as it is a late entry.
 	s.entries = append(sliceBefore, append([]seqBufEntry{e}, sliceAfter...)...)
 
 	s.notifyWatcher()
