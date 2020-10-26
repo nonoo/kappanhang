@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/pborman/getopt"
@@ -19,6 +20,7 @@ func parseArgs() {
 	getopt.Parse()
 
 	if *h || *a == "" {
+		fmt.Println(getAboutStr())
 		getopt.Usage()
 		os.Exit(1)
 	}

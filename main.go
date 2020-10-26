@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"os/signal"
 	"strings"
@@ -12,6 +11,10 @@ import (
 )
 
 var gotErrChan = make(chan bool)
+
+func getAboutStr() string {
+	return "kappanhang by Norbert Varga HA2NON and Akos Marton ES1AKOS https://github.com/nonoo/kappanhang"
+}
 
 func runControlStream(osSignal chan os.Signal) (shouldExit bool, exitCode int) {
 	// Depleting gotErrChan.
@@ -73,9 +76,9 @@ func reportError(err error) {
 }
 
 func main() {
-	fmt.Println("kappanhang by Norbert Varga HA2NON and Akos Marton ES1AKOS https://github.com/nonoo/kappanhang")
 	parseArgs()
 	log.Init()
+	log.Print(getAboutStr())
 
 	osSignal := make(chan os.Signal, 1)
 	signal.Notify(osSignal, os.Interrupt, syscall.SIGTERM)
