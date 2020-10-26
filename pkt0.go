@@ -38,14 +38,17 @@ func (p *pkt0Type) retransmitRange(s *streamCommon, start, end uint16) error {
 	for {
 		d := p.txSeqBuf.get(seqNum(start))
 		if d != nil {
-			if !s.pkt0.isIdlePkt0(d) { // Not retransmitting idle pkts.
-				log.Debug(s.name+"/retransmitting #", start)
-				if err := s.send(d); err != nil {
-					return err
-				}
+			log.Debug(s.name+"/retransmitting #", start)
+			if err := s.send(d); err != nil {
+				return err
 			}
 		} else {
 			log.Debug(s.name+"/can't retransmit #", start, " - not found")
+
+			// Sending an idle with the requested seqnum.
+			if err := p.sendIdle(s, false, start); err != nil {
+				return err
+			}
 		}
 
 		if start == end {
@@ -65,14 +68,17 @@ func (p *pkt0Type) handle(s *streamCommon, r []byte) error {
 		seq := binary.LittleEndian.Uint16(r[6:8])
 		d := p.txSeqBuf.get(seqNum(seq))
 		if d != nil {
-			if !s.pkt0.isIdlePkt0(d) { // Not retransmitting idle pkts.
-				log.Debug(s.name+"/retransmitting #", seq)
-				if err := s.send(d); err != nil {
-					return err
-				}
+			log.Debug(s.name+"/retransmitting #", seq)
+			if err := s.send(d); err != nil {
+				return err
 			}
 		} else {
 			log.Debug(s.name+"/can't retransmit #", seq, " - not found")
+
+			// Sending an idle with the requested seqnum.
+			if err := p.sendIdle(s, false, seq); err != nil {
+				return err
+			}
 		}
 	} else if bytes.Equal(r[:6], []byte{0x18, 0x00, 0x00, 0x00, 0x01, 0x00}) {
 		r = r[16:]
@@ -131,18 +137,22 @@ func (p *pkt0Type) sendTrackedPacket(s *streamCommon, d []byte) error {
 	return nil
 }
 
-func (p *pkt0Type) sendIdle(s *streamCommon) error {
-	d := []byte{0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+func (p *pkt0Type) sendIdle(s *streamCommon, tracked bool, seqIfUntracked uint16) error {
+	d := []byte{0x10, 0x00, 0x00, 0x00, 0x00, 0x00, byte(seqIfUntracked), byte(seqIfUntracked >> 8),
 		byte(s.localSID >> 24), byte(s.localSID >> 16), byte(s.localSID >> 8), byte(s.localSID),
 		byte(s.remoteSID >> 24), byte(s.remoteSID >> 16), byte(s.remoteSID >> 8), byte(s.remoteSID)}
-	return p.sendTrackedPacket(s, d)
+	if tracked {
+		return p.sendTrackedPacket(s, d)
+	} else {
+		return s.send(d)
+	}
 }
 
 func (p *pkt0Type) loop(s *streamCommon) {
 	for {
 		select {
 		case <-p.sendTicker.C:
-			if err := p.sendIdle(s); err != nil {
+			if err := p.sendIdle(s, true, 0); err != nil {
 				reportError(err)
 			}
 		case <-p.periodicStopNeededChan:
