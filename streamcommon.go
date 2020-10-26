@@ -218,6 +218,19 @@ func (s *streamCommon) sendDisconnect() error {
 	return nil
 }
 
+func (s *streamCommon) start() error {
+	if err := s.sendPkt3(); err != nil {
+		return err
+	}
+	if err := s.waitForPkt4Answer(); err != nil {
+		return err
+	}
+	if err := s.sendPkt6(); err != nil {
+		return err
+	}
+	return s.waitForPkt6Answer()
+}
+
 func (s *streamCommon) init(name string, portNumber int) error {
 	s.name = name
 	hostPort := fmt.Sprint(connectAddress, ":", portNumber)

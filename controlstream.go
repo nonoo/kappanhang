@@ -261,21 +261,11 @@ func (s *controlStream) start() error {
 		return err
 	}
 
+	if err := s.common.start(); err != nil {
+		return err
+	}
+
 	s.common.pkt7.startPeriodicSend(&s.common, 2, false)
-
-	if err := s.common.sendPkt3(); err != nil {
-		return err
-	}
-	if err := s.common.waitForPkt4Answer(); err != nil {
-		return err
-	}
-	if err := s.common.sendPkt6(); err != nil {
-		return err
-	}
-	if err := s.common.waitForPkt6Answer(); err != nil {
-		return err
-	}
-
 	s.common.pkt0.startPeriodicSend(&s.common)
 
 	if err := s.sendPktLogin(); err != nil {

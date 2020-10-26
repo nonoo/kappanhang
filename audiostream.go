@@ -134,26 +134,17 @@ func (s *audioStream) start(devName string) error {
 		return err
 	}
 
-	if err := s.common.sendPkt3(); err != nil {
+	if err := s.common.start(); err != nil {
 		return err
 	}
-	if err := s.common.waitForPkt4Answer(); err != nil {
-		return err
-	}
-	if err := s.common.sendPkt6(); err != nil {
-		return err
-	}
-	if err := s.common.waitForPkt6Answer(); err != nil {
-		return err
-	}
-
-	log.Print("stream started")
-
-	s.timeoutTimer = time.NewTimer(audioTimeoutDuration)
 
 	s.common.pkt7.startPeriodicSend(&s.common, 1, false)
 	// This stream does not use periodic pkt0 idle packets.
 	s.audioSendSeq = 1
+
+	log.Print("stream started")
+
+	s.timeoutTimer = time.NewTimer(audioTimeoutDuration)
 
 	s.deinitNeededChan = make(chan bool)
 	s.deinitFinishedChan = make(chan bool)

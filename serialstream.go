@@ -218,20 +218,9 @@ func (s *serialStream) start(devName string) error {
 		}
 	}
 
-	if err := s.common.sendPkt3(); err != nil {
+	if err := s.common.start(); err != nil {
 		return err
 	}
-	if err := s.common.waitForPkt4Answer(); err != nil {
-		return err
-	}
-	if err := s.common.sendPkt6(); err != nil {
-		return err
-	}
-	if err := s.common.waitForPkt6Answer(); err != nil {
-		return err
-	}
-
-	log.Print("stream started")
 
 	s.common.pkt7.startPeriodicSend(&s.common, 1, false)
 	s.common.pkt0.startPeriodicSend(&s.common)
@@ -239,6 +228,8 @@ func (s *serialStream) start(devName string) error {
 	if err := s.sendOpenClose(false); err != nil {
 		return err
 	}
+
+	log.Print("stream started")
 
 	if err := s.tcpsrv.start(); err != nil {
 		return err
