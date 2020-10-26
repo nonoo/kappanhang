@@ -11,6 +11,8 @@ import (
 	"github.com/akosmarton/papipes"
 )
 
+const audioSampleRate = 48000
+
 type audioStruct struct {
 	source papipes.Source
 	sink   papipes.Sink
@@ -154,18 +156,18 @@ func (a *audioStruct) loop() {
 func (a *audioStruct) init(devName string) error {
 	a.source.Name = "kappanhang-" + devName
 	a.source.Filename = "/tmp/kappanhang-" + devName + ".source"
-	a.source.Rate = 48000
+	a.source.Rate = audioSampleRate
 	a.source.Format = "s16le"
 	a.source.Channels = 1
-	a.source.SetProperty("device.buffering.buffer_size", (48000*16)/10) // 100 ms
+	a.source.SetProperty("device.buffering.buffer_size", (audioSampleRate*16)/10) // 100 ms
 	a.source.SetProperty("device.description", "kappanhang: "+devName)
 
 	a.sink.Name = "kappanhang-" + devName
 	a.sink.Filename = "/tmp/kappanhang-" + devName + ".sink"
-	a.sink.Rate = 48000
+	a.sink.Rate = audioSampleRate
 	a.sink.Format = "s16le"
 	a.sink.Channels = 1
-	a.sink.SetProperty("device.buffering.buffer_size", (48000*16)/10)
+	a.sink.SetProperty("device.buffering.buffer_size", (audioSampleRate*16)/10)
 	a.sink.SetProperty("device.description", "kappanhang: "+devName)
 
 	if err := a.source.Open(); err != nil {

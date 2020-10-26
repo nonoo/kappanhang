@@ -210,7 +210,7 @@ func (s *serialStream) loop() {
 }
 
 func (s *serialStream) init(devName string) error {
-	if err := s.common.init("serial", 50002); err != nil {
+	if err := s.common.init("serial", serialStreamPort); err != nil {
 		return err
 	}
 

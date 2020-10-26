@@ -128,7 +128,7 @@ func (s *audioStream) loop() {
 }
 
 func (s *audioStream) init(devName string) error {
-	if err := s.common.init("audio", 50003); err != nil {
+	if err := s.common.init("audio", audioStreamPort); err != nil {
 		return err
 	}
 
