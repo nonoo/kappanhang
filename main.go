@@ -8,10 +8,21 @@ import (
 	"time"
 )
 
+var gitTag string
+var gitHash string
+
 var gotErrChan = make(chan bool)
 
 func getAboutStr() string {
-	return "kappanhang by Norbert Varga HA2NON and Akos Marton ES1AKOS https://github.com/nonoo/kappanhang"
+	var v string
+	if gitTag != "" {
+		v = gitTag
+	} else if gitHash != "" {
+		v = gitTag
+	} else {
+		v = "debug"
+	}
+	return "kappanhang " + v + " by Norbert Varga HA2NON and Akos Marton ES1AKOS https://github.com/nonoo/kappanhang"
 }
 
 func runControlStream(osSignal chan os.Signal) (shouldExit bool, exitCode int) {
