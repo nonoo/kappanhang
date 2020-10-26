@@ -209,7 +209,11 @@ func (s *serialStream) loop() {
 	}
 }
 
-func (s *serialStream) start(devName string) error {
+func (s *serialStream) init(devName string) error {
+	if err := s.common.init("serial", 50002); err != nil {
+		return err
+	}
+
 	if enableSerialDevice {
 		if err := s.serialPort.init(devName); err != nil {
 			return err
@@ -233,6 +237,9 @@ func (s *serialStream) start(devName string) error {
 		return err
 	}
 
+	s.rxSeqBufEntryChan = make(chan seqBufEntry)
+	s.rxSeqBuf.init(serialRxSeqBufLength, 0xffff, 0, s.rxSeqBufEntryChan)
+
 	s.deinitNeededChan = make(chan bool)
 	s.deinitFinishedChan = make(chan bool)
 
@@ -240,15 +247,6 @@ func (s *serialStream) start(devName string) error {
 	<-s.readFromSerialPort.frameTimeout.C
 
 	go s.loop()
-	return nil
-}
-
-func (s *serialStream) init() error {
-	if err := s.common.init("serial", 50002); err != nil {
-		return err
-	}
-	s.rxSeqBufEntryChan = make(chan seqBufEntry)
-	s.rxSeqBuf.init(serialRxSeqBufLength, 0xffff, 0, s.rxSeqBufEntryChan)
 	return nil
 }
 

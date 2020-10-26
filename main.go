@@ -32,11 +32,6 @@ func runControlStream(osSignal chan os.Signal) (shouldExit bool, exitCode int) {
 		c.deinit()
 		return true, 1
 	}
-	if err := c.start(); err != nil {
-		log.Error(err)
-		c.deinit()
-		return
-	}
 
 	select {
 	case <-gotErrChan:

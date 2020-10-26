@@ -204,11 +204,11 @@ func (s *controlStream) handleRead(r []byte) error {
 			copy(s.authID[:], r[26:32])
 			s.gotAuthID = true
 
-			if err := s.serial.start(devName); err != nil {
+			if err := s.serial.init(devName); err != nil {
 				return errors.New("serial/" + err.Error())
 			}
 
-			if err := s.audio.start(devName); err != nil {
+			if err := s.audio.init(devName); err != nil {
 				return errors.New("audio/" + err.Error())
 			}
 
@@ -254,7 +254,9 @@ func (s *controlStream) loop() {
 	}
 }
 
-func (s *controlStream) start() error {
+func (s *controlStream) init() error {
+	log.Debug("init")
+
 	if err := s.common.init("control", 50001); err != nil {
 		return err
 	}
@@ -305,18 +307,6 @@ func (s *controlStream) start() error {
 	s.deinitNeededChan = make(chan bool)
 	s.deinitFinishedChan = make(chan bool)
 	go s.loop()
-	return nil
-}
-
-func (s *controlStream) init() error {
-	log.Debug("init")
-
-	if err := s.serial.init(); err != nil {
-		return err
-	}
-	if err := s.audio.init(); err != nil {
-		return err
-	}
 	return nil
 }
 

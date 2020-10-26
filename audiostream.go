@@ -127,7 +127,11 @@ func (s *audioStream) loop() {
 	}
 }
 
-func (s *audioStream) start(devName string) error {
+func (s *audioStream) init(devName string) error {
+	if err := s.common.init("audio", 50003); err != nil {
+		return err
+	}
+
 	if err := s.audio.init(devName); err != nil {
 		return err
 	}
@@ -142,20 +146,14 @@ func (s *audioStream) start(devName string) error {
 
 	log.Print("stream started")
 
+	s.rxSeqBufEntryChan = make(chan seqBufEntry)
+	s.rxSeqBuf.init(audioRxSeqBufLength, 0xffff, 0, s.rxSeqBufEntryChan)
+
 	s.timeoutTimer = time.NewTimer(audioTimeoutDuration)
 
 	s.deinitNeededChan = make(chan bool)
 	s.deinitFinishedChan = make(chan bool)
 	go s.loop()
-	return nil
-}
-
-func (s *audioStream) init() error {
-	if err := s.common.init("audio", 50003); err != nil {
-		return err
-	}
-	s.rxSeqBufEntryChan = make(chan seqBufEntry)
-	s.rxSeqBuf.init(audioRxSeqBufLength, 0xffff, 0, s.rxSeqBufEntryChan)
 	return nil
 }
 
