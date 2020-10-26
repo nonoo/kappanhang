@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"net"
 	"time"
-
-	"github.com/nonoo/kappanhang/log"
 )
 
 const expectTimeoutDuration = time.Second

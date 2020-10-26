@@ -6,8 +6,6 @@ import (
 	"strings"
 	"syscall"
 	"time"
-
-	"github.com/nonoo/kappanhang/log"
 )
 
 var gotErrChan = make(chan bool)

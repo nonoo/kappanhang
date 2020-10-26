@@ -5,8 +5,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"time"
-
-	"github.com/nonoo/kappanhang/log"
 )
 
 const audioTimeoutDuration = 3 * time.Second

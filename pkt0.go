@@ -6,8 +6,6 @@ import (
 	"math"
 	"sync"
 	"time"
-
-	"github.com/nonoo/kappanhang/log"
 )
 
 type pkt0Type struct {

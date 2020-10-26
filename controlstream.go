@@ -6,8 +6,6 @@ import (
 	"errors"
 	"strings"
 	"time"
-
-	"github.com/nonoo/kappanhang/log"
 )
 
 type controlStream struct {

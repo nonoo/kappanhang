@@ -4,8 +4,6 @@ import (
 	"errors"
 	"sync"
 	"time"
-
-	"github.com/nonoo/kappanhang/log"
 )
 
 type seqNum int

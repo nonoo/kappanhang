@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"time"
-
-	"github.com/nonoo/kappanhang/log"
 )
 
 const maxSerialFrameLength = 80 // Max. frame length according to Hamlib.

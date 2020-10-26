@@ -6,7 +6,6 @@ import (
 	"os"
 
 	"github.com/google/goterm/term"
-	"github.com/nonoo/kappanhang/log"
 )
 
 type serialPortStruct struct {

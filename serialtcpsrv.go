@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-
-	"github.com/nonoo/kappanhang/log"
 )
 
 type serialTCPSrv struct {

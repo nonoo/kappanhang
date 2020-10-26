@@ -9,7 +9,6 @@ import (
 	"sync"
 
 	"github.com/akosmarton/papipes"
-	"github.com/nonoo/kappanhang/log"
 )
 
 type audioStruct struct {
