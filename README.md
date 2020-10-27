@@ -5,6 +5,8 @@ server. The app is mainly developed for connecting to the Icom IC-705
 transceiver, which has built-in Wi-Fi and RS-BA1 server. All features of the
 protocol are implemented including packet retransmission on packet loss.
 
+<p align="center"><img src="demo.gif?raw=true"/></p>
+
 kappanhang currently only supports Linux, but support for other platforms can
 be easily added if anyone is interested (volunteers needed).
 
