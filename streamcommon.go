@@ -90,7 +90,7 @@ func (s *streamCommon) tryReceivePacket(timeout time.Duration, packetLength, mat
 func (s *streamCommon) expect(packetLength int, b []byte) ([]byte, error) {
 	r := s.tryReceivePacket(expectTimeoutDuration, packetLength, 0, b)
 	if r == nil {
-		return nil, errors.New(s.name + "/expect timeout")
+		return nil, errors.New(s.name + "/expect timeout - the server did not answer, check if it's running")
 	}
 	return r, nil
 }
