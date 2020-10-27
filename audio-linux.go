@@ -7,11 +7,13 @@ import (
 	"errors"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/akosmarton/papipes"
 )
 
 const audioSampleRate = 48000
+const audioBufferLength = 100 * time.Millisecond
 
 type audioStruct struct {
 	source papipes.Source
@@ -160,12 +162,14 @@ func (a *audioStruct) loop() {
 }
 
 func (a *audioStruct) init(devName string) error {
+	bufferSizeInBits := (audioSampleRate * 16) / 1000 * audioBufferLength.Milliseconds()
+
 	a.source.Name = "kappanhang-" + devName
 	a.source.Filename = "/tmp/kappanhang-" + devName + ".source"
 	a.source.Rate = audioSampleRate
 	a.source.Format = "s16le"
 	a.source.Channels = 1
-	a.source.SetProperty("device.buffering.buffer_size", (audioSampleRate*16)/10) // 100 ms
+	a.source.SetProperty("device.buffering.buffer_size", bufferSizeInBits)
 	a.source.SetProperty("device.description", "kappanhang: "+devName)
 
 	// Cleanup previous pipes.
@@ -184,7 +188,7 @@ func (a *audioStruct) init(devName string) error {
 	a.sink.Format = "s16le"
 	a.sink.Channels = 1
 	a.sink.UseSystemClockForTiming = true
-	a.sink.SetProperty("device.buffering.buffer_size", (audioSampleRate*16)/10)
+	a.sink.SetProperty("device.buffering.buffer_size", bufferSizeInBits)
 	a.sink.SetProperty("device.description", "kappanhang: "+devName)
 
 	// Cleanup previous pipes.
