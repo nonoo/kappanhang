@@ -48,8 +48,8 @@ func (s *serialPortStruct) writeLoop() {
 
 func (s *serialPortStruct) readLoop() {
 	s.read = make(chan []byte)
-	b := make([]byte, maxSerialFrameLength)
 	for {
+		b := make([]byte, maxSerialFrameLength)
 		n, err := s.pty.Master.Read(b)
 		if err != nil {
 			if _, ok := err.(*os.PathError); !ok {

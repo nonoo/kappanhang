@@ -175,6 +175,9 @@ func (s *serialStream) loop() {
 	if enableSerialDevice {
 		for {
 			select {
+			case r := <-s.serialPort.read:
+				s.gotDataForRadio(r)
+
 			case r := <-s.common.readChan:
 				if err := s.handleRead(r); err != nil {
 					reportError(err)
@@ -194,9 +197,6 @@ func (s *serialStream) loop() {
 	} else {
 		for {
 			select {
-			case r := <-s.serialPort.read:
-				s.gotDataForRadio(r)
-
 			case r := <-s.common.readChan:
 				if err := s.handleRead(r); err != nil {
 					reportError(err)
