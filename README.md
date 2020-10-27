@@ -33,12 +33,12 @@ Remote settings`.
   - Audio port: `50003`
 - Leave the **Internet access line** on the default `FTTH` value.
 
-Make sure the DATA MOD (you can find this setting on the Icom IC-705 in:
-`Menu -> Set -> Connectors -> MOD Input -> DATA MOD`) is set to WLAN.
+Make sure the **DATA MOD** (you can find this setting on the Icom IC-705 in:
+`Menu -> Set -> Connectors -> MOD Input -> DATA MOD`) is set to `WLAN`.
 
 ## Running
 
-You can get the available command line parameters with the **-h** command line
+You can get the available command line parameters with the `-h` command line
 argument.
 
 If no command line arguments are set, then the app will try to connect to the
@@ -72,9 +72,9 @@ After it is connected and logged in:
   rigctl`, and the *Network server* to `127.0.0.1:4532`.
 
 If the `-s` command line argument is specified, then kappanhang will create a
-virtual serial port, so other apps which don't support Hamlib can access the
-transceiver directly. Look at the app log to find out the name of the virtual
-serial port.
+**virtual serial port**, so other apps which don't support Hamlib can access
+the transceiver directly. Look at the app log to find out the name of the
+virtual serial port.
 
 ## Authors
 
