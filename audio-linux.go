@@ -104,7 +104,9 @@ func (a *audioStruct) recLoop(deinitNeededChan, deinitFinishedChan chan bool) {
 		buf.Write(frameBuf[:n])
 
 		for buf.Len() >= len(frameBuf) {
-			n, err = buf.Read(frameBuf)
+			// We need to create a new []byte slice for each chunk to be able to send it through the rec chan.
+			b := make([]byte, len(frameBuf))
+			n, err = buf.Read(b)
 			if err != nil {
 				reportError(err)
 			}
@@ -113,7 +115,7 @@ func (a *audioStruct) recLoop(deinitNeededChan, deinitFinishedChan chan bool) {
 			}
 
 			select {
-			case a.rec <- frameBuf:
+			case a.rec <- b:
 			case <-deinitNeededChan:
 				return
 			}
