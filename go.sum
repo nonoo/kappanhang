@@ -1,7 +1,5 @@
 github.com/BurntSushi/toml v0.3.1 h1:WXkYYl6Yr3qBf1K79EBnL4mak0OimBfB0XUf9Vl28OQ=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
-github.com/akosmarton/papipes v0.0.0-20201019191624-9c504c911830 h1:Gdk6kmzod8ZeJ9VCXkaMLUh6E2QtnEBsYABQgg1s+LU=
-github.com/akosmarton/papipes v0.0.0-20201019191624-9c504c911830/go.mod h1:mdvQ399enti+OdGDfk21dAR0/nkd9oUak/wiEbwowtc=
 github.com/akosmarton/papipes v0.0.0-20201020060136-a13951732479 h1:YUUKO1V9gTQWqqKc7pOJdmeXwmdeVodiOjR2tkPoSkM=
 github.com/akosmarton/papipes v0.0.0-20201020060136-a13951732479/go.mod h1:mdvQ399enti+OdGDfk21dAR0/nkd9oUak/wiEbwowtc=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
