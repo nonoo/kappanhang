@@ -46,7 +46,15 @@ host **ic-705** (ic-705.local or ic-705.localdomain).
 
 After it is connected and logged in:
 
-- TODO: audio
+- Creates a virtual PulseAudio **sound card** (48kHz, s16le, mono). This can be
+  used to record/play audio from/to the server (the radio). You can also set
+  this sound card in [WSJT-X](https://physics.princeton.edu/pulsar/K1JT/wsjtx.html).
+
+  If you want to listen to the audio coming from this sound card in real time,
+  then you can create a [PulseAudio loopback](https://github.com/alentoghostflame/Python-Pulseaudio-Loopback-Tool)
+  between the kappanhang sound card and your real sound card. You can also
+  create a loopback for your microphone using this tool, so you'll be able to
+  transmit your voice.
 - It starts a **TCP server** on port `4533` for exposing the **serial port**.
   This can be used for controlling the server (the transceiver) with
   [Hamlib](https://hamlib.github.io/):
