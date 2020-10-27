@@ -193,7 +193,7 @@ func (a *audioStruct) init(devName string) error {
 
 	// Cleanup previous pipes.
 	sinks, err := papipes.GetActiveSinks()
-	if err != nil {
+	if err == nil {
 		for _, i := range sinks {
 			if i.Filename == a.sink.Filename {
 				i.Close()
