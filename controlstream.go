@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 )
 
@@ -129,14 +128,6 @@ func (s *controlStream) sendRequestSerialAndAudio() error {
 	return nil
 }
 
-func (s *controlStream) parseNullTerminatedString(d []byte) (res string) {
-	nullIndex := strings.Index(string(d), "\x00")
-	if nullIndex > 0 {
-		res = string(d[:nullIndex])
-	}
-	return
-}
-
 func (s *controlStream) handleRead(r []byte) error {
 	switch len(r) {
 	case 64:
@@ -207,7 +198,7 @@ func (s *controlStream) handleRead(r []byte) error {
 			s.secondAuthTimer.Stop()
 			s.requestSerialAndAudioTimeout.Stop()
 
-			devName := s.parseNullTerminatedString(r[64:])
+			devName := parseNullTerminatedString(r[64:])
 			log.Print("got serial and audio request success, device name: ", devName)
 
 			// Stuff can change in the meantime because of a previous login...

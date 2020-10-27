@@ -98,7 +98,7 @@ func (a *audioStruct) recLoop(deinitNeededChan, deinitFinishedChan chan bool) {
 		}
 
 		// Do not send silence frames to the radio unnecessarily
-		if allZero(frameBuf[:n]) {
+		if isAllZero(frameBuf[:n]) {
 			continue
 		}
 		buf.Write(frameBuf[:n])
