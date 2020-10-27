@@ -195,7 +195,7 @@ func (a *audioStruct) init(devName string) error {
 	sinks, err := papipes.GetActiveSinks()
 	if err != nil {
 		for _, i := range sinks {
-			if i.Filename == a.source.Filename {
+			if i.Filename == a.sink.Filename {
 				i.Close()
 			}
 		}
