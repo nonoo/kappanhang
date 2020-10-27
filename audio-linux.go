@@ -168,6 +168,16 @@ func (a *audioStruct) init(devName string) error {
 	a.source.SetProperty("device.buffering.buffer_size", (audioSampleRate*16)/10) // 100 ms
 	a.source.SetProperty("device.description", "kappanhang: "+devName)
 
+	// Cleanup previous pipes.
+	sources, err := papipes.GetActiveSources()
+	if err == nil {
+		for _, i := range sources {
+			if i.Filename == a.source.Filename {
+				i.Close()
+			}
+		}
+	}
+
 	a.sink.Name = "kappanhang-" + devName
 	a.sink.Filename = "/tmp/kappanhang-" + devName + ".sink"
 	a.sink.Rate = audioSampleRate
@@ -176,6 +186,16 @@ func (a *audioStruct) init(devName string) error {
 	a.sink.UseSystemClockForTiming = true
 	a.sink.SetProperty("device.buffering.buffer_size", (audioSampleRate*16)/10)
 	a.sink.SetProperty("device.description", "kappanhang: "+devName)
+
+	// Cleanup previous pipes.
+	sinks, err := papipes.GetActiveSinks()
+	if err != nil {
+		for _, i := range sinks {
+			if i.Filename == a.source.Filename {
+				i.Close()
+			}
+		}
+	}
 
 	if err := a.source.Open(); err != nil {
 		return err
