@@ -66,6 +66,7 @@ func (a *audioStruct) playLoop(deinitNeededChan, deinitFinishedChan chan bool) {
 					if _, ok := err.(*os.PathError); !ok {
 						reportError(err)
 					}
+					break
 				}
 				bytesToWrite -= written
 				if bytesToWrite == 0 {
