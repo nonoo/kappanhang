@@ -97,6 +97,10 @@ func (a *audioStruct) recLoop(deinitNeededChan, deinitFinishedChan chan bool) {
 			}
 		}
 
+		// Do not send silence frames to the radio unnecessarily
+		if allZero(frameBuf[:n]) {
+			continue
+		}
 		buf.Write(frameBuf[:n])
 
 		for buf.Len() >= len(frameBuf) {
@@ -167,6 +171,7 @@ func (a *audioStruct) init(devName string) error {
 	a.sink.Rate = audioSampleRate
 	a.sink.Format = "s16le"
 	a.sink.Channels = 1
+	a.sink.UseSystemClockForTiming = true
 	a.sink.SetProperty("device.buffering.buffer_size", (audioSampleRate*16)/10)
 	a.sink.SetProperty("device.description", "kappanhang: "+devName)
 
