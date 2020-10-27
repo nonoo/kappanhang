@@ -33,6 +33,9 @@ Remote settings`.
   - Audio port: `50003`
 - Leave the **Internet access line** on the default `FTTH` value.
 
+Make sure the DATA MOD (you can find this setting on the Icom IC-705 in:
+`Menu -> Set -> Connectors -> MOD Input -> DATA MOD`) is set to WLAN.
+
 ## Running
 
 You can get the available command line parameters with the **-h** command line
