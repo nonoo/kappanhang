@@ -83,7 +83,6 @@ func (s *audioStream) handleRxSeqBufEntry(e seqBufEntry) {
 	} else {
 		s.serverAudioTime = time.Now()
 	}
-	statusLog.reportServerAudioTime(s.serverAudioTime)
 	s.lastReceivedSeq = gotSeq
 	s.receivedAudio = true
 

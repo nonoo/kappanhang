@@ -14,9 +14,8 @@ type statusLogStruct struct {
 
 	line string
 
-	startTime     time.Time
-	rttLatency    time.Duration
-	audioTimeDiff time.Duration
+	startTime  time.Time
+	rttLatency time.Duration
 }
 
 var statusLog statusLogStruct
@@ -26,13 +25,6 @@ func (s *statusLogStruct) reportRTTLatency(l time.Duration) {
 	defer s.mutex.Unlock()
 
 	s.rttLatency = l
-}
-
-func (s *statusLogStruct) reportServerAudioTime(t time.Time) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
-	s.audioTimeDiff = time.Since(t)
 }
 
 func (s *statusLogStruct) print() {
@@ -52,15 +44,11 @@ func (s *statusLogStruct) update() {
 	defer s.mutex.Unlock()
 
 	up, down, lost, retransmits := netstat.get()
-	var debugStr string
-	if verboseLog {
-		debugStr = fmt.Sprint(" adiff ", s.audioTimeDiff.Milliseconds(), "ms")
-	}
 
 	s.line = fmt.Sprint("up ", time.Since(s.startTime).Round(time.Second),
 		" rtt ", s.rttLatency.Milliseconds(), "ms up ",
 		netstat.formatByteCount(up), "/s down ",
-		netstat.formatByteCount(down), "/s retx ", retransmits, " /1m lost ", lost, " /1m", debugStr)
+		netstat.formatByteCount(down), "/s retx ", retransmits, " /1m lost ", lost, " /1m")
 
 	if s.isRealtimeInternal() {
 		s.line = fmt.Sprint(time.Now().Format("2006-01-02T15:04:05.000Z0700"), " ", s.line, "\r")
