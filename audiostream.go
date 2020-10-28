@@ -13,8 +13,6 @@ const audioRxSeqBufLength = 120 * time.Millisecond
 type audioStream struct {
 	common streamCommon
 
-	audio audioStruct
-
 	deinitNeededChan   chan bool
 	deinitFinishedChan chan bool
 
@@ -86,7 +84,7 @@ func (s *audioStream) handleRxSeqBufEntry(e seqBufEntry) {
 	s.lastReceivedSeq = gotSeq
 	s.receivedAudio = true
 
-	s.audio.play <- e.data
+	audio.play <- e.data
 }
 
 // var drop int
@@ -141,7 +139,7 @@ func (s *audioStream) loop() {
 			reportError(errors.New("audio stream timeout, try rebooting the radio"))
 		case e := <-s.rxSeqBufEntryChan:
 			s.handleRxSeqBufEntry(e)
-		case d := <-s.audio.rec:
+		case d := <-audio.rec:
 			if err := s.sendPart1(d[:1364]); err != nil {
 				reportError(err)
 			}
@@ -160,7 +158,7 @@ func (s *audioStream) init(devName string) error {
 		return err
 	}
 
-	if err := s.audio.init(devName); err != nil {
+	if err := audio.initIfNeeded(devName); err != nil {
 		return err
 	}
 
@@ -195,5 +193,4 @@ func (s *audioStream) deinit() {
 	}
 	s.common.deinit()
 	s.rxSeqBuf.deinit()
-	s.audio.deinit()
 }

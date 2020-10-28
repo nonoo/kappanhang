@@ -12,9 +12,6 @@ const serialRxSeqBufLength = 120 * time.Millisecond
 type serialStream struct {
 	common streamCommon
 
-	serialPort serialPortStruct
-	tcpsrv     serialTCPSrv
-
 	sendSeq uint16
 
 	rxSeqBuf          seqBuf
@@ -95,11 +92,11 @@ func (s *serialStream) handleRxSeqBufEntry(e seqBufEntry) {
 
 	e.data = e.data[21:]
 
-	if s.serialPort.write != nil {
-		s.serialPort.write <- e.data
+	if serialPort.write != nil {
+		serialPort.write <- e.data
 	}
-	if s.tcpsrv.toClient != nil {
-		s.tcpsrv.toClient <- e.data
+	if serialTCPSrv.isClientConnected() {
+		serialTCPSrv.toClient <- e.data
 	}
 }
 
@@ -175,7 +172,7 @@ func (s *serialStream) loop() {
 	if enableSerialDevice {
 		for {
 			select {
-			case r := <-s.serialPort.read:
+			case r := <-serialPort.read:
 				s.gotDataForRadio(r)
 
 			case r := <-s.common.readChan:
@@ -184,7 +181,7 @@ func (s *serialStream) loop() {
 				}
 			case e := <-s.rxSeqBufEntryChan:
 				s.handleRxSeqBufEntry(e)
-			case r := <-s.tcpsrv.fromClient:
+			case r := <-serialTCPSrv.fromClient:
 				s.gotDataForRadio(r)
 			case <-s.readFromSerialPort.frameTimeout.C:
 				s.readFromSerialPort.buf.Reset()
@@ -203,7 +200,7 @@ func (s *serialStream) loop() {
 				}
 			case e := <-s.rxSeqBufEntryChan:
 				s.handleRxSeqBufEntry(e)
-			case r := <-s.tcpsrv.fromClient:
+			case r := <-serialTCPSrv.fromClient:
 				s.gotDataForRadio(r)
 			case <-s.readFromSerialPort.frameTimeout.C:
 				s.readFromSerialPort.buf.Reset()
@@ -222,9 +219,12 @@ func (s *serialStream) init(devName string) error {
 	}
 
 	if enableSerialDevice {
-		if err := s.serialPort.init(devName); err != nil {
+		if err := serialPort.initIfNeeded(devName); err != nil {
 			return err
 		}
+	}
+	if err := serialTCPSrv.initIfNeeded(); err != nil {
+		return err
 	}
 
 	if err := s.common.start(); err != nil {
@@ -240,10 +240,6 @@ func (s *serialStream) init(devName string) error {
 	}
 
 	log.Print("stream started")
-
-	if err := s.tcpsrv.start(); err != nil {
-		return err
-	}
 
 	s.rxSeqBufEntryChan = make(chan seqBufEntry)
 	s.rxSeqBuf.init(serialRxSeqBufLength, 0xffff, 0, s.rxSeqBufEntryChan)
@@ -262,9 +258,6 @@ func (s *serialStream) deinit() {
 	if s.common.conn != nil {
 		_ = s.sendOpenClose(true)
 	}
-
-	s.tcpsrv.stop()
-	s.serialPort.deinit()
 
 	if s.deinitNeededChan != nil {
 		s.deinitNeededChan <- true

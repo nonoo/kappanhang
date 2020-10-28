@@ -6,7 +6,7 @@ import (
 	"net"
 )
 
-type serialTCPSrv struct {
+type serialTCPSrvStruct struct {
 	listener net.Listener
 	client   net.Conn
 
@@ -16,15 +16,17 @@ type serialTCPSrv struct {
 	writeLoopDeinitNeededChan   chan bool
 	writeLoopDeinitFinishedChan chan bool
 
+	deinitNeededChan   chan bool
 	deinitFinishedChan chan bool
 }
 
-func (s *serialTCPSrv) writeLoop(errChan chan error) {
-	s.toClient = make(chan []byte)
-	defer func() {
-		s.toClient = nil
-	}()
+var serialTCPSrv serialTCPSrvStruct
 
+func (s *serialTCPSrvStruct) isClientConnected() bool {
+	return s.writeLoopDeinitNeededChan != nil
+}
+
+func (s *serialTCPSrvStruct) writeLoop(errChan chan error) {
 	var b []byte
 	for {
 		select {
@@ -38,13 +40,14 @@ func (s *serialTCPSrv) writeLoop(errChan chan error) {
 			written, err := s.client.Write(b)
 			if err != nil {
 				errChan <- err
+				break
 			}
 			b = b[written:]
 		}
 	}
 }
 
-func (s *serialTCPSrv) disconnectClient() {
+func (s *serialTCPSrvStruct) disconnectClient() {
 	if s.client != nil {
 		s.client.Close()
 	}
@@ -57,7 +60,7 @@ func (s *serialTCPSrv) disconnectClient() {
 	}
 }
 
-func (s *serialTCPSrv) loop() {
+func (s *serialTCPSrvStruct) loop() {
 	for {
 		var err error
 		s.client, err = s.listener.Accept()
@@ -66,8 +69,8 @@ func (s *serialTCPSrv) loop() {
 			if err != io.EOF {
 				reportError(err)
 			}
-			s.listener.Close()
 			s.disconnectClient()
+			<-s.deinitNeededChan
 			s.deinitFinishedChan <- true
 			return
 		}
@@ -91,15 +94,32 @@ func (s *serialTCPSrv) loop() {
 			case s.fromClient <- b[:n]:
 			case <-writeErrChan:
 				connected = false
+			case <-s.deinitNeededChan:
+				s.disconnectClient()
+				s.deinitFinishedChan <- true
+				return
 			}
 		}
 
-		s.client.Close()
+		s.disconnectClient()
 		log.Print("client ", s.client.RemoteAddr().String(), " disconnected")
 	}
 }
 
-func (s *serialTCPSrv) start() (err error) {
+// We only init the serial port TCP server once, with the first device name we acquire, so apps using the
+// serial port TCP server won't have issues with the interface going down while the app is running.
+func (s *serialTCPSrvStruct) initIfNeeded() (err error) {
+	if s.listener != nil {
+		// Depleting channel which may contain data while the serial connection to the server was offline.
+		for {
+			select {
+			case <-s.fromClient:
+			default:
+				return
+			}
+		}
+	}
+
 	s.listener, err = net.Listen("tcp", fmt.Sprint(":", serialTCPPort))
 	if err != nil {
 		fmt.Println(err)
@@ -109,22 +129,20 @@ func (s *serialTCPSrv) start() (err error) {
 	log.Print("exposing serial port on tcp port ", serialTCPPort)
 
 	s.fromClient = make(chan []byte)
+	s.toClient = make(chan []byte)
 
+	s.deinitNeededChan = make(chan bool)
 	s.deinitFinishedChan = make(chan bool)
 	go s.loop()
 	return
 }
 
-func (s *serialTCPSrv) stop() {
+func (s *serialTCPSrvStruct) deinit() {
 	if s.listener != nil {
 		s.listener.Close()
 	}
 
 	s.disconnectClient()
-	if s.fromClient != nil {
-		close(s.fromClient)
-	}
-	if s.deinitFinishedChan != nil {
-		<-s.deinitFinishedChan
-	}
+	s.deinitNeededChan <- true
+	<-s.deinitFinishedChan
 }

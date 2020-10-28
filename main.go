@@ -110,6 +110,10 @@ func main() {
 		}
 	}
 
+	audio.deinit()
+	serialTCPSrv.deinit()
+	serialPort.deinit()
+
 	log.Print("exiting")
 	os.Exit(exitCode)
 }

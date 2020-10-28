@@ -35,6 +35,8 @@ type audioStruct struct {
 	canPlay chan bool
 }
 
+var audio audioStruct
+
 func (a *audioStruct) playLoop(deinitNeededChan, deinitFinishedChan chan bool) {
 	for {
 		select {
@@ -142,7 +144,7 @@ func (a *audioStruct) loop() {
 		select {
 		case d = <-a.play:
 		case <-a.deinitNeededChan:
-			a.close()
+			a.closeIfNeeded()
 
 			recLoopDeinitNeededChan <- true
 			<-recLoopDeinitFinishedChan
@@ -170,67 +172,75 @@ func (a *audioStruct) loop() {
 	}
 }
 
-func (a *audioStruct) init(devName string) error {
+// We only init the audio once, with the first device name we acquire, so apps using the virtual sound card
+// won't have issues with the interface going down while the app is running.
+func (a *audioStruct) initIfNeeded(devName string) error {
 	bufferSizeInBits := (audioSampleRate * audioSampleBytes * 8) / 1000 * pulseAudioBufferLength.Milliseconds()
 
-	a.source.Name = "kappanhang-" + devName
-	a.source.Filename = "/tmp/kappanhang-" + devName + ".source"
-	a.source.Rate = audioSampleRate
-	a.source.Format = "s16le"
-	a.source.Channels = 1
-	a.source.SetProperty("device.buffering.buffer_size", bufferSizeInBits)
-	a.source.SetProperty("device.description", "kappanhang: "+devName)
+	if !a.source.IsOpen() {
+		a.source.Name = "kappanhang-" + devName
+		a.source.Filename = "/tmp/kappanhang-" + devName + ".source"
+		a.source.Rate = audioSampleRate
+		a.source.Format = "s16le"
+		a.source.Channels = 1
+		a.source.SetProperty("device.buffering.buffer_size", bufferSizeInBits)
+		a.source.SetProperty("device.description", "kappanhang: "+devName)
 
-	// Cleanup previous pipes.
-	sources, err := papipes.GetActiveSources()
-	if err == nil {
-		for _, i := range sources {
-			if i.Filename == a.source.Filename {
-				i.Close()
+		// Cleanup previous pipes.
+		sources, err := papipes.GetActiveSources()
+		if err == nil {
+			for _, i := range sources {
+				if i.Filename == a.source.Filename {
+					i.Close()
+				}
 			}
+		}
+
+		if err := a.source.Open(); err != nil {
+			return err
 		}
 	}
 
-	a.sink.Name = "kappanhang-" + devName
-	a.sink.Filename = "/tmp/kappanhang-" + devName + ".sink"
-	a.sink.Rate = audioSampleRate
-	a.sink.Format = "s16le"
-	a.sink.Channels = 1
-	a.sink.UseSystemClockForTiming = true
-	a.sink.SetProperty("device.buffering.buffer_size", bufferSizeInBits)
-	a.sink.SetProperty("device.description", "kappanhang: "+devName)
+	if !a.sink.IsOpen() {
+		a.sink.Name = "kappanhang-" + devName
+		a.sink.Filename = "/tmp/kappanhang-" + devName + ".sink"
+		a.sink.Rate = audioSampleRate
+		a.sink.Format = "s16le"
+		a.sink.Channels = 1
+		a.sink.UseSystemClockForTiming = true
+		a.sink.SetProperty("device.buffering.buffer_size", bufferSizeInBits)
+		a.sink.SetProperty("device.description", "kappanhang: "+devName)
 
-	// Cleanup previous pipes.
-	sinks, err := papipes.GetActiveSinks()
-	if err == nil {
-		for _, i := range sinks {
-			if i.Filename == a.sink.Filename {
-				i.Close()
+		// Cleanup previous pipes.
+		sinks, err := papipes.GetActiveSinks()
+		if err == nil {
+			for _, i := range sinks {
+				if i.Filename == a.sink.Filename {
+					i.Close()
+				}
 			}
+		}
+
+		if err := a.sink.Open(); err != nil {
+			return err
 		}
 	}
 
-	if err := a.source.Open(); err != nil {
-		return err
+	if a.playBuf == nil {
+		log.Print("opened device " + a.source.Name)
+
+		a.playBuf = bytes.NewBuffer([]byte{})
+		a.play = make(chan []byte)
+		a.canPlay = make(chan bool)
+		a.rec = make(chan []byte)
+		a.deinitNeededChan = make(chan bool)
+		a.deinitFinishedChan = make(chan bool)
+		go a.loop()
 	}
-
-	if err := a.sink.Open(); err != nil {
-		return err
-	}
-
-	log.Print("opened device " + a.source.Name)
-
-	a.playBuf = bytes.NewBuffer([]byte{})
-	a.play = make(chan []byte)
-	a.canPlay = make(chan bool)
-	a.rec = make(chan []byte)
-	a.deinitNeededChan = make(chan bool)
-	a.deinitFinishedChan = make(chan bool)
-	go a.loop()
 	return nil
 }
 
-func (a *audioStruct) close() {
+func (a *audioStruct) closeIfNeeded() {
 	if a.source.IsOpen() {
 		if err := a.source.Close(); err != nil {
 			if _, ok := err.(*os.PathError); !ok {
@@ -249,7 +259,7 @@ func (a *audioStruct) close() {
 }
 
 func (a *audioStruct) deinit() {
-	a.close()
+	a.closeIfNeeded()
 
 	if a.deinitNeededChan != nil {
 		a.deinitNeededChan <- true

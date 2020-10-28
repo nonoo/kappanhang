@@ -23,8 +23,9 @@ type serialPortStruct struct {
 	write chan []byte
 }
 
+var serialPort serialPortStruct
+
 func (s *serialPortStruct) writeLoop() {
-	s.write = make(chan []byte)
 	var b []byte
 	for {
 		select {
@@ -47,7 +48,6 @@ func (s *serialPortStruct) writeLoop() {
 }
 
 func (s *serialPortStruct) readLoop() {
-	s.read = make(chan []byte)
 	for {
 		b := make([]byte, maxSerialFrameLength)
 		n, err := s.pty.Master.Read(b)
@@ -66,7 +66,20 @@ func (s *serialPortStruct) readLoop() {
 	}
 }
 
-func (s *serialPortStruct) init(devName string) (err error) {
+// We only init the virtual serial port once, with the first device name we acquire, so apps using the
+// virtual serial port won't have issues with the interface going down while the app is running.
+func (s *serialPortStruct) initIfNeeded(devName string) (err error) {
+	if s.pty != nil {
+		// Depleting channel which may contain data while the serial connection to the server was offline.
+		for {
+			select {
+			case <-s.read:
+			default:
+				return
+			}
+		}
+	}
+
 	s.pty, err = term.OpenPTY()
 	if err != nil {
 		return err
@@ -93,6 +106,9 @@ func (s *serialPortStruct) init(devName string) (err error) {
 		return err
 	}
 	log.Print("opened ", n, " as ", s.symlink)
+
+	s.write = make(chan []byte)
+	s.read = make(chan []byte)
 
 	s.readLoopDeinitNeededChan = make(chan bool)
 	s.readLoopDeinitFinishedChan = make(chan bool)
