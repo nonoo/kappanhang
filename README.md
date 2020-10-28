@@ -78,6 +78,25 @@ If the `-s` command line argument is specified, then kappanhang will create a
 the transceiver directly. Look at the app log to find out the name of the
 virtual serial port.
 
+### Status log
+
+kappanhang displays a "realtime" status log (when the audio/serial connection
+is up) with the following info:
+
+- `up`: how long the audio/serial connection is active
+- `rtt`: roundtrip communication latency with the server
+- `up/down`: currently used upload/download bandwidth (only considering UDP
+  payload to/from the server)
+- `retx`: audio/serial retransmit request count to/from the server
+- `lost`: lost audio/serial packet count from the server
+
+`retx` and `lost` are displayed in a 1 minute window, which means they will be
+reset to 0 if they don't increase for 1 minute. A `retx` value other than 0
+indicates issues with the connection (probably a poor Wi-Fi connection), but
+if `loss` stays 0 then the issues were fixed using packet retransmission.
+`loss` indicates failed retransmit sequences, so packet loss. This can cause
+audio and serial communication disruptions.
+
 If the status log interval (can be changed with the `-i` command line
 argument) is equal to or above 1 second, then the realtime status log will be
 disabled and all status log lines will be written as new console lines.
