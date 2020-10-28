@@ -163,7 +163,6 @@ func (p *pkt0Type) loop(s *streamCommon) {
 }
 
 func (p *pkt0Type) startPeriodicSend(s *streamCommon) {
-	p.sendSeq = 1
 	p.sendTicker = time.NewTicker(100 * time.Millisecond)
 
 	p.periodicStopNeededChan = make(chan bool)
@@ -180,4 +179,8 @@ func (p *pkt0Type) stopPeriodicSend() {
 	<-p.periodicStopFinishedChan
 
 	p.sendTicker.Stop()
+}
+
+func (p *pkt0Type) init(s *streamCommon) {
+	p.sendSeq = 1
 }

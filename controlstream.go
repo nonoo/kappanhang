@@ -148,9 +148,11 @@ func (s *controlStream) handleRead(r []byte) error {
 			if r[21] == 0x05 && !s.serialAndAudioStreamOpened { // Answer for our second auth?
 				s.secondAuthTimer.Stop()
 
-				if err := s.sendRequestSerialAndAudio(); err != nil {
-					reportError(err)
-				}
+				time.AfterFunc(300*time.Millisecond, func() {
+					if err := s.sendRequestSerialAndAudio(); err != nil {
+						reportError(err)
+					}
+				})
 			}
 		}
 	case 80:
@@ -279,9 +281,7 @@ func (s *controlStream) init() error {
 		return err
 	}
 
-	s.common.pkt7.startPeriodicSend(&s.common, 2, false)
-	s.common.pkt0.startPeriodicSend(&s.common)
-
+	s.common.pkt0.init(&s.common)
 	if err := s.sendPktLogin(); err != nil {
 		return err
 	}
@@ -313,6 +313,9 @@ func (s *controlStream) init() error {
 		return err
 	}
 	log.Debug("login ok, first auth sent...")
+
+	s.common.pkt7.startPeriodicSend(&s.common, 2, false)
+	s.common.pkt0.startPeriodicSend(&s.common)
 
 	s.requestSerialAndAudioTimeout = time.AfterFunc(5*time.Second, func() {
 		reportError(errors.New("login/serial/audio request timeout"))
