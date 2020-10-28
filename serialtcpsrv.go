@@ -79,9 +79,9 @@ func (s *serialTCPSrv) loop() {
 		writeErrChan := make(chan error)
 		go s.writeLoop(writeErrChan)
 
-		b := make([]byte, maxSerialFrameLength)
 		connected := true
 		for connected {
+			b := make([]byte, maxSerialFrameLength)
 			n, err := s.client.Read(b)
 			if err != nil {
 				break
