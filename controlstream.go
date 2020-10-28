@@ -148,7 +148,7 @@ func (s *controlStream) handleRead(r []byte) error {
 			if r[21] == 0x05 && !s.serialAndAudioStreamOpened { // Answer for our second auth?
 				s.secondAuthTimer.Stop()
 
-				time.AfterFunc(300*time.Millisecond, func() {
+				time.AfterFunc(time.Second, func() {
 					if err := s.sendRequestSerialAndAudio(); err != nil {
 						reportError(err)
 					}
