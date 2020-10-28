@@ -143,6 +143,8 @@ func (s *serialTCPSrvStruct) deinit() {
 	}
 
 	s.disconnectClient()
-	s.deinitNeededChan <- true
-	<-s.deinitFinishedChan
+	if s.deinitNeededChan != nil {
+		s.deinitNeededChan <- true
+		<-s.deinitFinishedChan
+	}
 }
