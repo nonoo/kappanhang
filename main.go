@@ -42,8 +42,12 @@ func runControlStream(osSignal chan os.Signal) (shouldExit bool, exitCode int) {
 	}
 
 	select {
-	case <-gotErrChan:
+	case requireWait := <-gotErrChan:
 		ctrl.deinit()
+
+		if !requireWait {
+			return
+		}
 
 		// Need to wait before reinit because the IC-705 will disconnect our audio stream eventually if we relogin
 		// in a too short interval without a deauth...
@@ -69,9 +73,14 @@ func reportError(err error) {
 		log.ErrorC(log.GetCallerFileName(true), ": ", err)
 	}
 
+	requireWait := true
+	if strings.Contains(err.Error(), "got radio disconnected") {
+		requireWait = false
+	}
+
 	// Non-blocking notify.
 	select {
-	case gotErrChan <- false:
+	case gotErrChan <- requireWait:
 	default:
 	}
 }
