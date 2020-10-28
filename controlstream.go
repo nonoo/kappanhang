@@ -166,7 +166,11 @@ func (s *controlStream) handleRead(r []byte) error {
 			//							  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 
 			if bytes.Equal(r[48:51], []byte{0xff, 0xff, 0xff}) {
-				return errors.New("auth failed")
+				if !s.serialAndAudioStreamOpened {
+					return errors.New("auth failed, try rebooting the radio")
+				} else {
+					return errors.New("auth failed")
+				}
 			}
 			if bytes.Equal(r[48:51], []byte{0x00, 0x00, 0x00}) && r[64] == 0x01 {
 				return errors.New("got radio disconnected")
@@ -224,7 +228,7 @@ func (s *controlStream) handleRead(r []byte) error {
 func (s *controlStream) loop() {
 	netstat.reset()
 
-	s.secondAuthTimer = time.NewTimer(200 * time.Millisecond)
+	s.secondAuthTimer = time.NewTimer(time.Second)
 	s.reauthTimeoutTimer = time.NewTimer(0)
 	<-s.reauthTimeoutTimer.C
 
@@ -269,6 +273,8 @@ func (s *controlStream) init() error {
 		return err
 	}
 
+	s.common.pkt7.startPeriodicSend(&s.common, 2, false)
+
 	s.common.pkt0.init(&s.common)
 	if err := s.sendPktLogin(); err != nil {
 		return err
@@ -302,7 +308,6 @@ func (s *controlStream) init() error {
 	}
 	log.Debug("login ok, first auth sent...")
 
-	s.common.pkt7.startPeriodicSend(&s.common, 2, false)
 	s.common.pkt0.startPeriodicSend(&s.common)
 
 	s.requestSerialAndAudioTimeout = time.AfterFunc(5*time.Second, func() {
