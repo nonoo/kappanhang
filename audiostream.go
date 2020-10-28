@@ -84,18 +84,34 @@ func (s *audioStream) handleRxSeqBufEntry(e seqBufEntry) {
 	s.audio.play <- e.data
 }
 
+//var drop int
+
 func (s *audioStream) handleAudioPacket(r []byte) error {
+	gotSeq := binary.LittleEndian.Uint16(r[6:8])
+
+	// if drop == 0 && time.Now().UnixNano()%50 == 0 {
+	// 	log.Print("drop start - ", gotSeq)
+	// 	drop = 1
+	// 	return nil
+	// } else if drop > 0 {
+	// 	drop++
+	// 	if drop >= 9 {
+	// 		log.Print("drop stop - ", gotSeq)
+	// 		drop = 0
+	// 	} else {
+	// 		return nil
+	// 	}
+	// }
+
 	if s.timeoutTimer != nil {
 		s.timeoutTimer.Stop()
 		s.timeoutTimer.Reset(audioTimeoutDuration)
 	}
 
-	gotSeq := binary.LittleEndian.Uint16(r[6:8])
 	addedToFront, _ := s.rxSeqBuf.add(seqNum(gotSeq), r[24:])
-
-	// If the packet is not added to the front of the seqbuf, then it means that it was an answer for a
-	// retransmit request (or it was an out of order packet which we don't want start a retransmit).
 	if !addedToFront {
+		// If the packet is not added to the front of the seqbuf, then it means that it was an answer for a
+		// retransmit request (or it was an out of order packet which we don't want start a retransmit request).
 		return nil
 	}
 
