@@ -46,9 +46,12 @@ func (p *pkt7Type) handle(s *streamCommon, r []byte) error {
 				p.timeoutTimer.Reset(pkt7TimeoutDuration)
 			}
 
-			// Only measure latency after the timeout has been initialized, so the auth is already done.
-			p.latency += time.Since(p.lastSendAt)
-			p.latency /= 2
+			if s.name == "control" { // Only measure latency on the control stream.
+				// Only measure latency after the timeout has been initialized, so the auth is already done.
+				p.latency += time.Since(p.lastSendAt)
+				p.latency /= 2
+				statusLog.reportRTTLatency(p.latency)
+			}
 		}
 
 		// expectedSeq := p.lastConfirmedSeq + 1

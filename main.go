@@ -10,6 +10,7 @@ import (
 )
 
 var gotErrChan = make(chan bool)
+var ctrl *controlStream
 
 func getAboutStr() string {
 	var v string
@@ -23,6 +24,10 @@ func getAboutStr() string {
 }
 
 func runControlStream(osSignal chan os.Signal) (shouldExit bool, exitCode int) {
+	defer func() {
+		ctrl = nil
+	}()
+
 	// Depleting gotErrChan.
 	var finished bool
 	for !finished {
@@ -33,17 +38,17 @@ func runControlStream(osSignal chan os.Signal) (shouldExit bool, exitCode int) {
 		}
 	}
 
-	c := controlStream{}
+	ctrl = &controlStream{}
 
-	if err := c.init(); err != nil {
+	if err := ctrl.init(); err != nil {
 		log.Error(err)
-		c.deinit()
+		ctrl.deinit()
 		return false, 0
 	}
 
 	select {
 	case <-gotErrChan:
-		c.deinit()
+		ctrl.deinit()
 
 		// Need to wait before reinit because the IC-705 will disconnect our audio stream eventually if we relogin
 		// in a too short interval without a deauth...
@@ -59,7 +64,7 @@ func runControlStream(osSignal chan os.Signal) (shouldExit bool, exitCode int) {
 		return
 	case <-osSignal:
 		log.Print("sigterm received")
-		c.deinit()
+		ctrl.deinit()
 		return true, 0
 	}
 }

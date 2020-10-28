@@ -4,15 +4,12 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"time"
 )
 
 const controlStreamPort = 50001
 const serialStreamPort = 50002
 const audioStreamPort = 50003
-
-const statusLogInterval = 3 * time.Second
 
 type controlStream struct {
 	common streamCommon
@@ -218,13 +215,13 @@ func (s *controlStream) handleRead(r []byte) error {
 			}
 
 			s.serialAndAudioStreamOpened = true
+			statusLog.startPeriodicPrint()
 		}
 	}
 	return nil
 }
 
 func (s *controlStream) loop() {
-	startTime := time.Now()
 	bandwidth.reset()
 
 	s.secondAuthTimer = time.NewTimer(200 * time.Millisecond)
@@ -232,7 +229,6 @@ func (s *controlStream) loop() {
 	<-s.reauthTimeoutTimer.C
 
 	reauthTicker := time.NewTicker(25 * time.Second)
-	statusLogTicker := time.NewTicker(statusLogInterval)
 
 	for {
 		select {
@@ -255,14 +251,6 @@ func (s *controlStream) loop() {
 			}
 		case <-s.reauthTimeoutTimer.C:
 			log.Error("auth timeout, audio/serial stream may stop")
-		case <-statusLogTicker.C:
-			if s.serialAndAudioStreamOpened {
-				up, down, loss := bandwidth.get()
-				log.Print("running for ", time.Since(startTime).Round(time.Second),
-					" rtt ", s.common.pkt7.latency.Milliseconds(), "ms up ",
-					bandwidth.formatByteCount(up), "/s down ",
-					bandwidth.formatByteCount(down), "/s loss ", fmt.Sprintf("%.2f", loss), "%")
-			}
 		case <-s.deinitNeededChan:
 			s.deinitFinishedChan <- true
 			return
@@ -330,6 +318,7 @@ func (s *controlStream) init() error {
 func (s *controlStream) deinit() {
 	s.deinitializing = true
 	s.serialAndAudioStreamOpened = false
+	statusLog.stopPeriodicPrint()
 
 	if s.deinitNeededChan != nil {
 		s.deinitNeededChan <- true

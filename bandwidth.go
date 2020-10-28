@@ -11,8 +11,12 @@ type bandwidthStruct struct {
 	toRadioPkts    int
 	fromRadioBytes int
 	fromRadioPkts  int
-	lostPkts       int
 	lastGet        time.Time
+
+	lostPkts            int
+	lastLostReset       time.Time
+	retransmits         int
+	lastRetransmitReset time.Time
 }
 
 var bandwidth bandwidthStruct
@@ -40,29 +44,56 @@ func (b *bandwidthStruct) add(toRadioBytes, fromRadioBytes int) {
 	}
 }
 
-// Call this function when a packet is sent or received.
 func (b *bandwidthStruct) reportLoss(pkts int) {
 	bandwidthMutex.Lock()
 	defer bandwidthMutex.Unlock()
 
+	if b.lostPkts == 0 {
+		b.lastLostReset = time.Now()
+	}
 	b.lostPkts += pkts
 }
 
-func (b *bandwidthStruct) get() (toRadioBytesPerSec, fromRadioBytesPerSec int, lossPercent float64) {
+func (b *bandwidthStruct) reportRetransmit(pkts int) {
+	bandwidthMutex.Lock()
+	defer bandwidthMutex.Unlock()
+
+	if b.retransmits == 0 {
+		b.lastRetransmitReset = time.Now()
+	}
+	b.retransmits += pkts
+}
+
+func (b *bandwidthStruct) get() (toRadioBytesPerSec, fromRadioBytesPerSec int, lost int, retransmits int) {
 	bandwidthMutex.Lock()
 	defer bandwidthMutex.Unlock()
 
 	secs := time.Since(b.lastGet).Seconds()
 	toRadioBytesPerSec = int(float64(b.toRadioBytes) / secs)
 	fromRadioBytesPerSec = int(float64(b.fromRadioBytes) / secs)
-	lossPercent = (float64(b.lostPkts) / float64(b.lostPkts+b.fromRadioPkts)) * 100
 
 	b.toRadioBytes = 0
 	b.toRadioPkts = 0
 	b.fromRadioBytes = 0
 	b.fromRadioPkts = 0
-	b.lostPkts = 0
 	b.lastGet = time.Now()
+
+	secs = time.Since(b.lastLostReset).Seconds()
+	lost = b.lostPkts
+	// Only resetting error reports in a longer timeframe.
+	if secs >= 60 {
+		b.lostPkts = 0
+		b.lastLostReset = time.Now()
+	}
+
+	secs = time.Since(b.lastRetransmitReset).Seconds()
+	retransmits = b.retransmits
+	// Only resetting error reports in a longer timeframe.
+	if secs >= 60 {
+		b.retransmits = 0
+		b.lastRetransmitReset = time.Now()
+	}
+
 	return
 }
 

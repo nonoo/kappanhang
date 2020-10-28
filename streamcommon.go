@@ -192,11 +192,13 @@ func (s *streamCommon) requestRetransmitIfNeeded(gotSeq uint16) error {
 		}
 		if missingPkts == 1 {
 			log.Debug(s.name+"/requesting pkt #", sr[1], " retransmit")
+			bandwidth.reportRetransmit(missingPkts)
 			if err := s.sendRetransmitRequest(sr[1]); err != nil {
 				return err
 			}
 		} else if missingPkts < 50 {
 			log.Debug(s.name+"/requesting pkt #", sr[0], "-#", sr[1], " retransmit")
+			bandwidth.reportRetransmit(missingPkts)
 			if err := s.sendRetransmitRequestForRanges([]seqNumRange{sr}); err != nil {
 				return err
 			}

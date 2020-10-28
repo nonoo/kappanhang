@@ -27,39 +27,70 @@ func (l *logger) GetCallerFileName(withLine bool) string {
 	}
 }
 
+func (l *logger) printLineClear() {
+	fmt.Printf("%c[2K", 27)
+}
+
 func (l *logger) Printf(a string, b ...interface{}) {
+	if ctrl != nil {
+		l.printLineClear()
+	}
 	l.logger.Infof(l.GetCallerFileName(false)+": "+a, b...)
 }
 
 func (l *logger) Print(a ...interface{}) {
+	if ctrl != nil {
+		l.printLineClear()
+	}
 	l.logger.Info(append([]interface{}{l.GetCallerFileName(false) + ": "}, a...)...)
 }
 
 func (l *logger) Debugf(a string, b ...interface{}) {
+	if ctrl != nil {
+		l.printLineClear()
+	}
 	l.logger.Debugf(l.GetCallerFileName(true)+": "+a, b...)
 }
 
 func (l *logger) Debug(a ...interface{}) {
+	if ctrl != nil {
+		l.printLineClear()
+	}
 	l.logger.Debug(append([]interface{}{l.GetCallerFileName(true) + ": "}, a...)...)
 }
 
 func (l *logger) Errorf(a string, b ...interface{}) {
+	if ctrl != nil {
+		l.printLineClear()
+	}
 	l.logger.Errorf(l.GetCallerFileName(true)+": "+a, b...)
 }
 
 func (l *logger) Error(a ...interface{}) {
+	if ctrl != nil {
+		l.printLineClear()
+	}
 	l.logger.Error(append([]interface{}{l.GetCallerFileName(true) + ": "}, a...)...)
 }
 
 func (l *logger) ErrorC(a ...interface{}) {
+	if ctrl != nil {
+		l.printLineClear()
+	}
 	l.logger.Error(a...)
 }
 
 func (l *logger) Fatalf(a string, b ...interface{}) {
+	if ctrl != nil {
+		l.printLineClear()
+	}
 	l.logger.Fatalf(l.GetCallerFileName(true)+": "+a, b...)
 }
 
 func (l *logger) Fatal(a ...interface{}) {
+	if ctrl != nil {
+		l.printLineClear()
+	}
 	l.logger.Fatal(append([]interface{}{l.GetCallerFileName(true) + ": "}, a...)...)
 }
 
