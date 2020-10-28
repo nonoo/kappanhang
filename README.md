@@ -78,6 +78,10 @@ If the `-s` command line argument is specified, then kappanhang will create a
 the transceiver directly. Look at the app log to find out the name of the
 virtual serial port.
 
+If the status log interval (can be changed with the `-i` command line
+argument) is equal to or above 1 second, then the realtime status log will be
+disabled and all status log lines will be written as new console lines.
+
 ## Authors
 
 - Norbert Varga HA2NON [nonoo@nonoo.hu](mailto:nonoo@nonoo.hu)
