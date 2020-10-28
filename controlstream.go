@@ -332,6 +332,9 @@ func (s *controlStream) deinit() {
 	if s.gotAuthID && s.common.gotRemoteSID && s.common.conn != nil {
 		log.Debug("sending deauth")
 		_ = s.sendPktAuth(0x01)
+		_ = s.sendPktAuth(0x01)
+		_ = s.sendPktAuth(0x01)
+		_ = s.sendPktAuth(0x01)
 	}
 
 	s.common.deinit()
