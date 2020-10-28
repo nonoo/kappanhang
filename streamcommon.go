@@ -31,7 +31,7 @@ func (s *streamCommon) send(d []byte) error {
 	if _, err := s.conn.Write(d); err != nil {
 		return err
 	}
-	bandwidth.add(len(d), 0)
+	netstat.add(len(d), 0)
 	return nil
 }
 
@@ -39,7 +39,7 @@ func (s *streamCommon) read() ([]byte, error) {
 	b := make([]byte, 1500)
 	n, _, err := s.conn.ReadFromUDP(b)
 	if err == nil {
-		bandwidth.add(0, n)
+		netstat.add(0, n)
 	}
 	return b[:n], err
 }
@@ -192,13 +192,13 @@ func (s *streamCommon) requestRetransmitIfNeeded(gotSeq uint16) error {
 		}
 		if missingPkts == 1 {
 			log.Debug(s.name+"/requesting pkt #", sr[1], " retransmit")
-			bandwidth.reportRetransmit(missingPkts)
+			netstat.reportRetransmit(missingPkts)
 			if err := s.sendRetransmitRequest(sr[1]); err != nil {
 				return err
 			}
 		} else if missingPkts < 50 {
 			log.Debug(s.name+"/requesting pkt #", sr[0], "-#", sr[1], " retransmit")
-			bandwidth.reportRetransmit(missingPkts)
+			netstat.reportRetransmit(missingPkts)
 			if err := s.sendRetransmitRequestForRanges([]seqNumRange{sr}); err != nil {
 				return err
 			}

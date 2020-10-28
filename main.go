@@ -10,7 +10,6 @@ import (
 )
 
 var gotErrChan = make(chan bool)
-var ctrl *controlStream
 
 func getAboutStr() string {
 	var v string
@@ -24,10 +23,6 @@ func getAboutStr() string {
 }
 
 func runControlStream(osSignal chan os.Signal) (shouldExit bool, exitCode int) {
-	defer func() {
-		ctrl = nil
-	}()
-
 	// Depleting gotErrChan.
 	var finished bool
 	for !finished {
@@ -38,7 +33,7 @@ func runControlStream(osSignal chan os.Signal) (shouldExit bool, exitCode int) {
 		}
 	}
 
-	ctrl = &controlStream{}
+	ctrl := &controlStream{}
 
 	if err := ctrl.init(); err != nil {
 		log.Error(err)

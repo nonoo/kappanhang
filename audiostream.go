@@ -21,6 +21,7 @@ type audioStream struct {
 	timeoutTimer    *time.Timer
 	receivedAudio   bool
 	lastReceivedSeq uint16
+	serverAudioTime time.Time
 
 	rxSeqBuf          seqBuf
 	rxSeqBufEntryChan chan seqBufEntry
@@ -74,28 +75,33 @@ func (s *audioStream) handleRxSeqBufEntry(e seqBufEntry) {
 			} else {
 				missingPkts = int(gotSeq) + 65536 - int(expectedSeq)
 			}
-			bandwidth.reportLoss(missingPkts)
+			netstat.reportLoss(missingPkts)
 			log.Error("lost ", missingPkts, " audio packets")
+			s.serverAudioTime = s.serverAudioTime.Add(time.Duration(10*missingPkts) * time.Millisecond)
 		}
+		s.serverAudioTime = s.serverAudioTime.Add(10 * time.Millisecond)
+	} else {
+		s.serverAudioTime = time.Now()
 	}
+	statusLog.reportServerAudioTime(s.serverAudioTime)
 	s.lastReceivedSeq = gotSeq
 	s.receivedAudio = true
 
 	s.audio.play <- e.data
 }
 
-//var drop int
+// var drop int
 
 func (s *audioStream) handleAudioPacket(r []byte) error {
 	gotSeq := binary.LittleEndian.Uint16(r[6:8])
 
-	// if drop == 0 && time.Now().UnixNano()%50 == 0 {
+	// if drop == 0 && time.Now().UnixNano()%10 == 0 {
 	// 	log.Print("drop start - ", gotSeq)
 	// 	drop = 1
 	// 	return nil
 	// } else if drop > 0 {
 	// 	drop++
-	// 	if drop >= 9 {
+	// 	if drop >= int(time.Now().UnixNano()%10) {
 	// 		log.Print("drop stop - ", gotSeq)
 	// 		drop = 0
 	// 	} else {

@@ -36,7 +36,7 @@ func (p *pkt0Type) retransmitRange(s *streamCommon, start, end uint16) error {
 
 	log.Debug("got retransmit request for #", start, "-", end)
 	for {
-		bandwidth.reportRetransmit(1)
+		netstat.reportRetransmit(1)
 		d := p.txSeqBuf.get(seqNum(start))
 		if d != nil {
 			log.Debug(s.name+"/retransmitting #", start)
@@ -70,7 +70,7 @@ func (p *pkt0Type) handle(s *streamCommon, r []byte) error {
 		d := p.txSeqBuf.get(seqNum(seq))
 		if d != nil {
 			log.Debug(s.name+"/retransmitting #", seq)
-			bandwidth.reportRetransmit(1)
+			netstat.reportRetransmit(1)
 			if err := s.send(d); err != nil {
 				return err
 			}

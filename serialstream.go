@@ -82,7 +82,7 @@ func (s *serialStream) handleRxSeqBufEntry(e seqBufEntry) {
 			} else {
 				missingPkts = int(gotSeq) + 65536 - int(expectedSeq)
 			}
-			bandwidth.reportLoss(missingPkts)
+			netstat.reportLoss(missingPkts)
 			log.Error("lost ", missingPkts, " packets")
 		}
 	}

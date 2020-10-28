@@ -222,7 +222,7 @@ func (s *controlStream) handleRead(r []byte) error {
 }
 
 func (s *controlStream) loop() {
-	bandwidth.reset()
+	netstat.reset()
 
 	s.secondAuthTimer = time.NewTimer(200 * time.Millisecond)
 	s.reauthTimeoutTimer = time.NewTimer(0)
