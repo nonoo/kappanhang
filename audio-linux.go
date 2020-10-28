@@ -13,7 +13,10 @@ import (
 )
 
 const audioSampleRate = 48000
-const audioBufferLength = 100 * time.Millisecond
+const audioSampleBytes = 2
+const pulseAudioBufferLength = 100 * time.Millisecond
+const audioFrameSize = 1920 // 20ms
+const maxPlayBufferSize = audioFrameSize * 5
 
 type audioStruct struct {
 	source papipes.Source
@@ -43,12 +46,12 @@ func (a *audioStruct) playLoop(deinitNeededChan, deinitFinishedChan chan bool) {
 
 		for {
 			a.mutex.Lock()
-			if a.playBuf.Len() < 1920 {
+			if a.playBuf.Len() < audioFrameSize {
 				a.mutex.Unlock()
 				break
 			}
 
-			d := make([]byte, 1920)
+			d := make([]byte, audioFrameSize)
 			bytesToWrite, err := a.playBuf.Read(d)
 			a.mutex.Unlock()
 			if err != nil {
@@ -83,7 +86,7 @@ func (a *audioStruct) recLoop(deinitNeededChan, deinitFinishedChan chan bool) {
 		deinitFinishedChan <- true
 	}()
 
-	frameBuf := make([]byte, 1920)
+	frameBuf := make([]byte, audioFrameSize)
 	buf := bytes.NewBuffer([]byte{})
 
 	for {
@@ -151,6 +154,11 @@ func (a *audioStruct) loop() {
 		}
 
 		a.mutex.Lock()
+		free := maxPlayBufferSize - a.playBuf.Len()
+		if free < len(d) {
+			b := make([]byte, len(d)-free)
+			_, _ = a.playBuf.Read(b)
+		}
 		a.playBuf.Write(d)
 		a.mutex.Unlock()
 
@@ -163,7 +171,7 @@ func (a *audioStruct) loop() {
 }
 
 func (a *audioStruct) init(devName string) error {
-	bufferSizeInBits := (audioSampleRate * 16) / 1000 * audioBufferLength.Milliseconds()
+	bufferSizeInBits := (audioSampleRate * audioSampleBytes * 8) / 1000 * pulseAudioBufferLength.Milliseconds()
 
 	a.source.Name = "kappanhang-" + devName
 	a.source.Filename = "/tmp/kappanhang-" + devName + ".source"
