@@ -232,6 +232,7 @@ func (s *serialStream) init(devName string) error {
 	}
 
 	s.common.pkt7.startPeriodicSend(&s.common, 1, false)
+	s.common.pkt0.init(&s.common)
 	s.common.pkt0.startPeriodicSend(&s.common)
 
 	if err := s.sendOpenClose(false); err != nil {
