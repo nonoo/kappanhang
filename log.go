@@ -47,6 +47,10 @@ func (l *logger) Print(a ...interface{}) {
 	l.logger.Info(append([]interface{}{l.GetCallerFileName(false) + ": "}, a...)...)
 }
 
+func (l *logger) PrintStatusLog(a ...interface{}) {
+	l.logger.Info(append([]interface{}{l.GetCallerFileName(false) + ": "}, a...)...)
+}
+
 func (l *logger) Debugf(a string, b ...interface{}) {
 	if statusLog.isRealtime() {
 		l.printLineClear()

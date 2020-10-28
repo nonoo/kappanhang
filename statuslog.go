@@ -35,7 +35,7 @@ func (s *statusLogStruct) print() {
 		log.printLineClear()
 		fmt.Print(s.line)
 	} else {
-		log.Print(s.line)
+		log.PrintStatusLog(s.line)
 	}
 }
 
