@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
-	"math"
 	"sync"
 	"time"
 )
@@ -29,11 +28,6 @@ func (p *pkt0Type) sendSeqUnlock() {
 }
 
 func (p *pkt0Type) retransmitRange(s *streamCommon, start, end uint16) error {
-	if int(math.Abs(float64(start)-float64(end))) > len(p.txSeqBuf.entries) {
-		log.Debug(s.name+"/can't retransmit #", start, "-", end, " - range too big")
-		return nil
-	}
-
 	log.Debug(s.name+"got retransmit request for #", start, "-", end)
 	for {
 		netstat.reportRetransmit(1)
