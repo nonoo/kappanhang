@@ -36,7 +36,7 @@ func (s *txSeqBufStruct) get(seq seqNum) (d []byte) {
 	// Searching from backwards, as we expect most queries for latest entries.
 	for i := len(s.entries) - 1; i >= 0; i-- {
 		if s.entries[i].seq == seq {
-			d := make([]byte, len(s.entries[i].data))
+			d = make([]byte, len(s.entries[i].data))
 			copy(d, s.entries[i].data)
 			break
 		}
