@@ -38,7 +38,13 @@ func runControlStream(osSignal chan os.Signal) (shouldExit bool, exitCode int) {
 	if err := ctrl.init(); err != nil {
 		log.Error(err)
 		ctrl.deinit()
-		return false, 0
+		t := time.NewTimer(time.Second)
+		select {
+		case <-t.C:
+			return false, 0
+		case <-osSignal:
+			return true, 0
+		}
 	}
 
 	select {
