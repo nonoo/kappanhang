@@ -10,30 +10,36 @@ import (
 	"github.com/mattn/go-isatty"
 )
 
+type statusLogData struct {
+	line1 string
+	line2 string
+
+	stateStr  string
+	frequency float64
+	mode      string
+	filter    string
+
+	startTime  time.Time
+	rttLatency time.Duration
+}
+
 type statusLogStruct struct {
 	ticker           *time.Ticker
 	stopChan         chan bool
 	stopFinishedChan chan bool
 	mutex            sync.Mutex
 
-	line1 string
-	line2 string
-
-	state struct {
-		rxStr   string
-		txStr   string
-		tuneStr string
-	}
-	stateStr  string
-	frequency float64
-	mode      string
-	filter    string
-
 	retransmitsColor *color.Color
 	lostColor        *color.Color
 
-	startTime  time.Time
-	rttLatency time.Duration
+	stateStr struct {
+		unknown string
+		rx      string
+		tx      string
+		tune    string
+	}
+
+	data *statusLogData
 }
 
 var statusLog statusLogStruct
@@ -42,34 +48,46 @@ func (s *statusLogStruct) reportRTTLatency(l time.Duration) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	s.rttLatency = l
+	if s.data == nil {
+		return
+	}
+	s.data.rttLatency = l
 }
 
 func (s *statusLogStruct) reportFrequency(f float64) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	s.frequency = f
+	if s.data == nil {
+		return
+	}
+	s.data.frequency = f
 }
 
 func (s *statusLogStruct) reportMode(mode, filter string) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	s.mode = mode
-	s.filter = filter
+	if s.data == nil {
+		return
+	}
+	s.data.mode = mode
+	s.data.filter = filter
 }
 
 func (s *statusLogStruct) reportPTT(ptt, tune bool) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
+	if s.data == nil {
+		return
+	}
 	if tune {
-		s.stateStr = s.state.tuneStr
+		s.data.stateStr = s.stateStr.tune
 	} else if ptt {
-		s.stateStr = s.state.txStr
+		s.data.stateStr = s.stateStr.tx
 	} else {
-		s.stateStr = s.state.rxStr
+		s.data.stateStr = s.stateStr.rx
 	}
 }
 
@@ -90,11 +108,11 @@ func (s *statusLogStruct) print() {
 
 	if s.isRealtimeInternal() {
 		s.clearInternal()
-		fmt.Println(s.line1)
+		fmt.Println(s.data.line1)
 		s.clearInternal()
-		fmt.Printf(s.line2+"%c[1A", 27)
+		fmt.Printf(s.data.line2+"%c[1A", 27)
 	} else {
-		log.PrintStatusLog(s.line2)
+		log.PrintStatusLog(s.data.line2)
 	}
 }
 
@@ -103,14 +121,15 @@ func (s *statusLogStruct) update() {
 	defer s.mutex.Unlock()
 
 	var modeStr string
-	if s.mode != "" {
-		modeStr = " " + s.mode
+	if s.data.mode != "" {
+		modeStr = " " + s.data.mode
 	}
 	var filterStr string
-	if s.filter != "" {
-		filterStr = " " + s.filter
+	if s.data.filter != "" {
+		filterStr = " " + s.data.filter
 	}
-	s.line1 = fmt.Sprint("state ", s.stateStr, " freq: ", fmt.Sprintf("%f", s.frequency/1000000), modeStr, filterStr)
+	s.data.line1 = fmt.Sprint("state ", s.data.stateStr, " freq: ", fmt.Sprintf("%f", s.data.frequency/1000000),
+		modeStr, filterStr)
 
 	up, down, lost, retransmits := netstat.get()
 	lostStr := "0"
@@ -122,15 +141,15 @@ func (s *statusLogStruct) update() {
 		retransmitsStr = s.retransmitsColor.Sprint(" ", retransmits, " ")
 	}
 
-	s.line2 = fmt.Sprint("up ", time.Since(s.startTime).Round(time.Second),
-		" rtt ", s.rttLatency.Milliseconds(), "ms up ",
+	s.data.line2 = fmt.Sprint("up ", time.Since(s.data.startTime).Round(time.Second),
+		" rtt ", s.data.rttLatency.Milliseconds(), "ms up ",
 		netstat.formatByteCount(up), "/s down ",
 		netstat.formatByteCount(down), "/s retx ", retransmitsStr, "/1m lost ", lostStr, "/1m\r")
 
 	if s.isRealtimeInternal() {
 		t := time.Now().Format("2006-01-02T15:04:05.000Z0700")
-		s.line1 = fmt.Sprint(t, " ", s.line1)
-		s.line2 = fmt.Sprint(t, " ", s.line2)
+		s.data.line1 = fmt.Sprint(t, " ", s.data.line1)
+		s.data.line2 = fmt.Sprint(t, " ", s.data.line2)
 	}
 }
 
@@ -169,27 +188,13 @@ func (s *statusLogStruct) startPeriodicPrint() {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	if !isatty.IsTerminal(os.Stdout.Fd()) && statusLogInterval < time.Second {
-		statusLogInterval = time.Second
+	s.initIfNeeded()
+
+	s.data = &statusLogData{
+		stateStr:  s.stateStr.unknown,
+		startTime: time.Now(),
 	}
 
-	c := color.New(color.FgHiWhite)
-	c.Add(color.BgWhite)
-	s.stateStr = c.Sprint("  ??  ")
-	c = color.New(color.FgHiWhite)
-	c.Add(color.BgGreen)
-	s.state.rxStr = c.Sprint("  RX  ")
-	c = color.New(color.FgHiWhite, color.BlinkRapid)
-	c.Add(color.BgRed)
-	s.state.txStr = c.Sprint("  TX  ")
-	s.state.tuneStr = c.Sprint(" TUNE ")
-
-	s.retransmitsColor = color.New(color.FgHiWhite)
-	s.retransmitsColor.Add(color.BgYellow)
-	s.lostColor = color.New(color.FgHiWhite)
-	s.lostColor.Add(color.BgRed)
-
-	s.startTime = time.Now()
 	s.stopChan = make(chan bool)
 	s.stopFinishedChan = make(chan bool)
 	s.ticker = time.NewTicker(statusLogInterval)
@@ -209,4 +214,30 @@ func (s *statusLogStruct) stopPeriodicPrint() {
 	fmt.Println()
 	fmt.Println()
 	fmt.Println()
+}
+
+func (s *statusLogStruct) initIfNeeded() {
+	if s.data != nil { // Already initialized?
+		return
+	}
+
+	if !isatty.IsTerminal(os.Stdout.Fd()) && statusLogInterval < time.Second {
+		statusLogInterval = time.Second
+	}
+
+	c := color.New(color.FgHiWhite)
+	c.Add(color.BgWhite)
+	s.stateStr.unknown = c.Sprint("  ??  ")
+	c = color.New(color.FgHiWhite)
+	c.Add(color.BgGreen)
+	s.stateStr.rx = c.Sprint("  RX  ")
+	c = color.New(color.FgHiWhite, color.BlinkRapid)
+	c.Add(color.BgRed)
+	s.stateStr.tx = c.Sprint("  TX  ")
+	s.stateStr.tune = c.Sprint(" TUNE ")
+
+	s.retransmitsColor = color.New(color.FgHiWhite)
+	s.retransmitsColor.Add(color.BgYellow)
+	s.lostColor = color.New(color.FgHiWhite)
+	s.lostColor.Add(color.BgRed)
 }
