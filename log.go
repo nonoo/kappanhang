@@ -27,13 +27,9 @@ func (l *logger) GetCallerFileName(withLine bool) string {
 	}
 }
 
-func (l *logger) printLineClear() {
-	fmt.Printf("%c[2K", 27)
-}
-
 func (l *logger) Printf(a string, b ...interface{}) {
 	if statusLog.isRealtime() {
-		l.printLineClear()
+		statusLog.clear()
 		defer statusLog.print()
 	}
 	l.logger.Infof(l.GetCallerFileName(false)+": "+a, b...)
@@ -41,7 +37,7 @@ func (l *logger) Printf(a string, b ...interface{}) {
 
 func (l *logger) Print(a ...interface{}) {
 	if statusLog.isRealtime() {
-		l.printLineClear()
+		statusLog.clear()
 		defer statusLog.print()
 	}
 	l.logger.Info(append([]interface{}{l.GetCallerFileName(false) + ": "}, a...)...)
@@ -53,7 +49,7 @@ func (l *logger) PrintStatusLog(a ...interface{}) {
 
 func (l *logger) Debugf(a string, b ...interface{}) {
 	if statusLog.isRealtime() {
-		l.printLineClear()
+		statusLog.clear()
 		defer statusLog.print()
 	}
 	l.logger.Debugf(l.GetCallerFileName(true)+": "+a, b...)
@@ -61,7 +57,7 @@ func (l *logger) Debugf(a string, b ...interface{}) {
 
 func (l *logger) Debug(a ...interface{}) {
 	if statusLog.isRealtime() {
-		l.printLineClear()
+		statusLog.clear()
 		defer statusLog.print()
 	}
 	l.logger.Debug(append([]interface{}{l.GetCallerFileName(true) + ": "}, a...)...)
@@ -69,7 +65,7 @@ func (l *logger) Debug(a ...interface{}) {
 
 func (l *logger) Errorf(a string, b ...interface{}) {
 	if statusLog.isRealtime() {
-		l.printLineClear()
+		statusLog.clear()
 		defer statusLog.print()
 	}
 	l.logger.Errorf(l.GetCallerFileName(true)+": "+a, b...)
@@ -77,7 +73,7 @@ func (l *logger) Errorf(a string, b ...interface{}) {
 
 func (l *logger) Error(a ...interface{}) {
 	if statusLog.isRealtime() {
-		l.printLineClear()
+		statusLog.clear()
 		defer statusLog.print()
 	}
 	l.logger.Error(append([]interface{}{l.GetCallerFileName(true) + ": "}, a...)...)
@@ -85,7 +81,7 @@ func (l *logger) Error(a ...interface{}) {
 
 func (l *logger) ErrorC(a ...interface{}) {
 	if statusLog.isRealtime() {
-		l.printLineClear()
+		statusLog.clear()
 		defer statusLog.print()
 	}
 	l.logger.Error(a...)
@@ -93,7 +89,7 @@ func (l *logger) ErrorC(a ...interface{}) {
 
 func (l *logger) Fatalf(a string, b ...interface{}) {
 	if statusLog.isRealtime() {
-		l.printLineClear()
+		statusLog.clear()
 		defer statusLog.print()
 	}
 	l.logger.Fatalf(l.GetCallerFileName(true)+": "+a, b...)
@@ -101,7 +97,7 @@ func (l *logger) Fatalf(a string, b ...interface{}) {
 
 func (l *logger) Fatal(a ...interface{}) {
 	if statusLog.isRealtime() {
-		l.printLineClear()
+		statusLog.clear()
 		defer statusLog.print()
 	}
 	l.logger.Fatal(append([]interface{}{l.GetCallerFileName(true) + ": "}, a...)...)

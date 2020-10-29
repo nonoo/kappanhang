@@ -19,6 +19,7 @@ type serialStream struct {
 
 	receivedSerialData bool
 	lastReceivedSeq    uint16
+	civDecoder         civDecoderStruct
 
 	readFromSerialPort struct {
 		buf          bytes.Buffer
@@ -91,6 +92,8 @@ func (s *serialStream) handleRxSeqBufEntry(e seqBufEntry) {
 	}
 
 	e.data = e.data[21:]
+
+	s.civDecoder.decode(e.data)
 
 	if serialPort.write != nil {
 		serialPort.write <- e.data
@@ -249,6 +252,10 @@ func (s *serialStream) init(devName string) error {
 
 	s.readFromSerialPort.frameTimeout = time.NewTimer(0)
 	<-s.readFromSerialPort.frameTimeout.C
+
+	if err := s.civDecoder.query(s); err != nil {
+		return err
+	}
 
 	go s.loop()
 	return nil

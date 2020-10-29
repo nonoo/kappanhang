@@ -78,17 +78,25 @@ If the `-s` command line argument is specified, then kappanhang will create a
 the transceiver directly. Look at the app log to find out the name of the
 virtual serial port.
 
-### Status log
+### Status bar
 
-kappanhang displays a "realtime" status log (when the audio/serial connection
+kappanhang displays a "realtime" status bar (when the audio/serial connection
 is up) with the following info:
 
-- `up`: how long the audio/serial connection is active
-- `rtt`: roundtrip communication latency with the server
-- `up/down`: currently used upload/download bandwidth (only considering UDP
-  payload to/from the server)
-- `retx`: audio/serial retransmit request count to/from the server
-- `lost`: lost audio/serial packet count from the server
+- First status bar line:
+  - `state`: RX/TX/TUNE depending on the PTT status
+  - `freq`: operating frequency in MHz, mode (LSB/USB/FM...), active filter
+
+- Second status bar line:
+  - `up`: how long the audio/serial connection is active
+  - `rtt`: roundtrip communication latency with the server
+  - `up/down`: currently used upload/download bandwidth (only considering UDP
+    payload to/from the server)
+  - `retx`: audio/serial retransmit request count to/from the server
+  - `lost`: lost audio/serial packet count from the server
+
+Data for the first status bar line is acquired by monitoring CiV traffic in
+the serial stream.
 
 `retx` and `lost` are displayed in a 1 minute window, which means they will be
 reset to 0 if they don't increase for 1 minute. A `retx` value other than 0
@@ -97,9 +105,11 @@ if `loss` stays 0 then the issues were fixed using packet retransmission.
 `loss` indicates failed retransmit sequences, so packet loss. This can cause
 audio and serial communication disruptions.
 
-If the status log interval (can be changed with the `-i` command line
-argument) is equal to or above 1 second, then the realtime status log will be
-disabled and all status log lines will be written as new console lines.
+If status bar interval (can be changed with the `-i` command line
+argument) is equal to or above 1 second, then the realtime status bar will be
+disabled and the contents of the second line of the status bar will be written
+as new console log lines. This is also the case if a Unix/VT100 terminal is
+not available.
 
 ## Authors
 
