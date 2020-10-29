@@ -29,6 +29,9 @@ type statusLogStruct struct {
 	mode      string
 	filter    string
 
+	retransmitsColor *color.Color
+	lostColor        *color.Color
+
 	startTime  time.Time
 	rttLatency time.Duration
 }
@@ -110,10 +113,19 @@ func (s *statusLogStruct) update() {
 	s.line1 = fmt.Sprint("state ", s.stateStr, " freq: ", fmt.Sprintf("%f", s.frequency/1000000), modeStr, filterStr)
 
 	up, down, lost, retransmits := netstat.get()
+	lostStr := "0"
+	if lost > 0 {
+		lostStr = s.lostColor.Sprint(" ", lost, " ")
+	}
+	retransmitsStr := "0"
+	if retransmits > 0 {
+		retransmitsStr = s.retransmitsColor.Sprint(" ", retransmits, " ")
+	}
+
 	s.line2 = fmt.Sprint("up ", time.Since(s.startTime).Round(time.Second),
 		" rtt ", s.rttLatency.Milliseconds(), "ms up ",
 		netstat.formatByteCount(up), "/s down ",
-		netstat.formatByteCount(down), "/s retx ", retransmits, " /1m lost ", lost, " /1m\r")
+		netstat.formatByteCount(down), "/s retx ", retransmitsStr, "/1m lost ", lostStr, "/1m\r")
 
 	if s.isRealtimeInternal() {
 		t := time.Now().Format("2006-01-02T15:04:05.000Z0700")
@@ -171,6 +183,11 @@ func (s *statusLogStruct) startPeriodicPrint() {
 	c.Add(color.BgRed)
 	s.state.txStr = c.Sprint("  TX  ")
 	s.state.tuneStr = c.Sprint(" TUNE ")
+
+	s.retransmitsColor = color.New(color.FgHiWhite)
+	s.retransmitsColor.Add(color.BgYellow)
+	s.lostColor = color.New(color.FgHiWhite)
+	s.lostColor.Add(color.BgRed)
 
 	s.startTime = time.Now()
 	s.stopChan = make(chan bool)
