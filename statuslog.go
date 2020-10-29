@@ -213,9 +213,12 @@ func (s *statusLogStruct) stopPeriodicPrint() {
 	s.stopChan <- true
 	<-s.stopFinishedChan
 
-	fmt.Println()
-	fmt.Println()
-	fmt.Println()
+	if s.isRealtimeInternal() {
+		s.clearInternal()
+		fmt.Println()
+		s.clearInternal()
+		fmt.Println()
+	}
 }
 
 func (s *statusLogStruct) initIfNeeded() {
