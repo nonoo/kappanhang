@@ -73,10 +73,25 @@ After it is connected and logged in:
   open WSJT-X settings, go to the *Radio* tab, set the *rig type* to `Hamlib NET
   rigctl`, and the *Network server* to `127.0.0.1:4532`.
 
+### Icom IC-705 Wi-Fi notes
+
 If the `-s` command line argument is specified, then kappanhang will create a
 **virtual serial port**, so other apps which don't support Hamlib can access
 the transceiver directly. Look at the app log to find out the name of the
 virtual serial port.
+
+Note that the built-in Wi-Fi in the Icom IC-705 has **very limited range**,
+and **sensitive to interference**. If you see a lot of retransmits in the log,
+or packet loss, then:
+
+- Place the IC-705 close to your Wi-Fi AP/router
+- Make sure the Wi-Fi bandwith is set to max. 20Mhz in the Wi-Fi router (see
+explanation [here](https://superuser.com/questions/542191/does-moving-my-router-from-20mhz-to-40-mhz-increase-my-wireless-speed)
+- Try switching Wi-Fi channel on your Wi-Fi router. Only channels 1, 6 or 11
+should be used (see explanation [here](https://www.metageek.com/training/resources/why-channels-1-6-11.html)
+
+Sometimes rebooting the transceiver helps, as the network stack in the IC-705
+is not quite free of bugs. :)
 
 ### Status bar
 
