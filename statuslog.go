@@ -112,6 +112,10 @@ func (s *statusLogStruct) print() {
 }
 
 func (s *statusLogStruct) padLeft(str string, length int) string {
+	if !s.isRealtimeInternal() {
+		return str
+	}
+
 	for len(str) < length {
 		str = " " + str
 	}
