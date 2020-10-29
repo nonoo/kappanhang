@@ -96,6 +96,8 @@ func (s *controlStream) sendPktAuth(magic byte) error {
 func (s *controlStream) sendRequestSerialAndAudio() error {
 	log.Debug("requesting serial and audio stream")
 
+	txSeqBufLengthMs := uint16(txSeqBufLength.Milliseconds())
+
 	p := []byte{0x90, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
 		byte(s.common.remoteSID >> 24), byte(s.common.remoteSID >> 16), byte(s.common.remoteSID >> 8), byte(s.common.remoteSID),
@@ -114,8 +116,8 @@ func (s *controlStream) sendRequestSerialAndAudio() error {
 		0x01, 0x01, 0x04, 0x04, 0x00, 0x00, byte(audioSampleRate >> 8), byte(audioSampleRate & 0xff),
 		0x00, 0x00, byte(audioSampleRate >> 8), byte(audioSampleRate & 0xff),
 		0x00, 0x00, byte(serialStreamPort >> 8), byte(serialStreamPort & 0xff),
-		0x00, 0x00, byte(audioStreamPort >> 8), byte(audioStreamPort & 0xff), 0x00, 0x00, 0x00, 0xa0,
-		0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
+		0x00, 0x00, byte(audioStreamPort >> 8), byte(audioStreamPort & 0xff), 0x00, 0x00,
+		byte(txSeqBufLengthMs >> 8), byte(txSeqBufLengthMs & 0xff), 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
 	if err := s.common.pkt0.sendTrackedPacket(&s.common, p); err != nil {
 		return err
 	}
