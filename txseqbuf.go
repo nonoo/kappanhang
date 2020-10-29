@@ -2,7 +2,7 @@ package main
 
 import "time"
 
-const txSeqBufLength = 500 * time.Millisecond
+const txSeqBufLength = 300 * time.Millisecond
 
 type txSeqBufStruct struct {
 	entries []seqBufEntry
@@ -18,7 +18,7 @@ func (s *txSeqBufStruct) add(seq seqNum, p []byte) {
 }
 
 func (s *txSeqBufStruct) purgeOldEntries() {
-	for len(s.entries) > 0 && time.Since(s.entries[0].addedAt) > txSeqBufLength {
+	for len(s.entries) > 0 && time.Since(s.entries[0].addedAt) > txSeqBufLength*2 {
 		s.entries = s.entries[1:]
 	}
 }

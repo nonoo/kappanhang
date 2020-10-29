@@ -8,7 +8,7 @@ import (
 )
 
 const audioTimeoutDuration = 3 * time.Second
-const audioRxSeqBufLength = 120 * time.Millisecond
+const audioRxSeqBufLength = 300 * time.Millisecond
 
 type audioStream struct {
 	common streamCommon
