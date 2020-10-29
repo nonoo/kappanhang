@@ -10,6 +10,7 @@ import (
 )
 
 const expectTimeoutDuration = time.Second
+const maxRetransmitRequestPacketCount = 10
 
 type streamCommon struct {
 	name                    string
@@ -196,7 +197,7 @@ func (s *streamCommon) requestRetransmitIfNeeded(gotSeq uint16) error {
 			if err := s.sendRetransmitRequest(sr[1]); err != nil {
 				return err
 			}
-		} else if missingPkts < 50 {
+		} else if missingPkts <= maxRetransmitRequestPacketCount {
 			log.Debug(s.name+"/requesting pkt #", sr[0], "-#", sr[1], " retransmit")
 			netstat.reportRetransmit(missingPkts)
 			if err := s.sendRetransmitRequestForRanges([]seqNumRange{sr}); err != nil {
