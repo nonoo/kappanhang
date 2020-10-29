@@ -142,7 +142,7 @@ func (s *statusLogStruct) update() {
 		retransmitsStr = s.preGenerated.retransmitsColor.Sprint(" ", retransmits, " ")
 	}
 
-	s.data.line2 = fmt.Sprint("up ", s.padLeft(time.Since(s.data.startTime).Round(time.Second), 9),
+	s.data.line2 = fmt.Sprint("up ", s.padLeft(fmt.Sprint(time.Since(s.data.startTime).Round(time.Second)), 9),
 		" rtt ", s.padLeft(s.data.rttStr, 3), "ms up ",
 		s.padLeft(netstat.formatByteCount(up), 8), "/s down ",
 		s.padLeft(netstat.formatByteCount(down), 8), "/s retx ", retransmitsStr, "/1m lost ", lostStr, "/1m\r")
