@@ -97,13 +97,6 @@ func (s *statusLogStruct) clearInternal() {
 	fmt.Printf("%c[2K", 27)
 }
 
-func (s *statusLogStruct) clear() {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
-	s.clearInternal()
-}
-
 func (s *statusLogStruct) print() {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()

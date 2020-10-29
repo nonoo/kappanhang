@@ -259,6 +259,8 @@ func (s *controlStream) handleRead(r []byte) error {
 
 			s.serialAndAudioStreamOpened = true
 			statusLog.startPeriodicPrint()
+
+			startCmdIfNeeded()
 		}
 	}
 	return nil

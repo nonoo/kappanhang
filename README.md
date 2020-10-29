@@ -59,11 +59,11 @@ After it is connected and logged in:
   transmit your voice.
 - Starts a **TCP server** on port `4533` for exposing the **serial port**.
   This can be used for controlling the server (the transceiver) with
-  [Hamlib](https://hamlib.github.io/):
-
-  ```
-  rigctld -m 3085 -r 127.0.0.1:4533
-  ```
+  [Hamlib](https://hamlib.github.io/) (`rigctld`).
+- Runs the command `rigctld -m 3085 -r :4533` which starts `rigctld` and
+  connects it to kappanhang's TCP serial port server. You can specify a custom
+  command with the `-r` command line argument. Running any command can be
+  disabled with `-r -`.
 
   3085 is the model number for the Icom IC-705. `rigctld` will connect to
   kappanhang's TCP serial port server, and waits connections on it's default
@@ -84,7 +84,8 @@ Note that the built-in Wi-Fi in the Icom IC-705 has **very limited range**,
 and **sensitive to interference**. If you see a lot of retransmits in the log,
 or packet loss, then:
 
-- Place the IC-705 close to your Wi-Fi AP/router
+- Place the IC-705 close to your Wi-Fi AP/router, or use a Wi-Fi range
+  extender device.
 - Make sure the Wi-Fi bandwith is set to max. 20Mhz in the Wi-Fi router (see
 explanation [here](https://superuser.com/questions/542191/does-moving-my-router-from-20mhz-to-40-mhz-increase-my-wireless-speed))
 - Try switching Wi-Fi channel on your Wi-Fi router. Only channels 1, 6 or 11

@@ -27,18 +27,14 @@ func (l *logger) GetCallerFileName(withLine bool) string {
 	}
 }
 
-func (l *logger) Printf(a string, b ...interface{}) {
-	if statusLog.isRealtime() {
-		statusLog.clear()
-		defer statusLog.print()
-	}
-	l.logger.Infof(l.GetCallerFileName(false)+": "+a, b...)
-}
-
 func (l *logger) Print(a ...interface{}) {
 	if statusLog.isRealtime() {
-		statusLog.clear()
-		defer statusLog.print()
+		statusLog.mutex.Lock()
+		statusLog.clearInternal()
+		defer func() {
+			statusLog.mutex.Unlock()
+			statusLog.print()
+		}()
 	}
 	l.logger.Info(append([]interface{}{l.GetCallerFileName(false) + ": "}, a...)...)
 }
@@ -47,60 +43,40 @@ func (l *logger) PrintStatusLog(a ...interface{}) {
 	l.logger.Info(append([]interface{}{l.GetCallerFileName(false) + ": "}, a...)...)
 }
 
-func (l *logger) Debugf(a string, b ...interface{}) {
-	if statusLog.isRealtime() {
-		statusLog.clear()
-		defer statusLog.print()
-	}
-	l.logger.Debugf(l.GetCallerFileName(true)+": "+a, b...)
-}
-
 func (l *logger) Debug(a ...interface{}) {
 	if statusLog.isRealtime() {
-		statusLog.clear()
-		defer statusLog.print()
+		statusLog.mutex.Lock()
+		statusLog.clearInternal()
+		defer func() {
+			statusLog.mutex.Unlock()
+			statusLog.print()
+		}()
 	}
 	l.logger.Debug(append([]interface{}{l.GetCallerFileName(true) + ": "}, a...)...)
 }
 
-func (l *logger) Errorf(a string, b ...interface{}) {
-	if statusLog.isRealtime() {
-		statusLog.clear()
-		defer statusLog.print()
-	}
-	l.logger.Errorf(l.GetCallerFileName(true)+": "+a, b...)
-}
-
 func (l *logger) Error(a ...interface{}) {
 	if statusLog.isRealtime() {
-		statusLog.clear()
-		defer statusLog.print()
+		statusLog.mutex.Lock()
+		statusLog.clearInternal()
+		defer func() {
+			statusLog.mutex.Unlock()
+			statusLog.print()
+		}()
 	}
 	l.logger.Error(append([]interface{}{l.GetCallerFileName(true) + ": "}, a...)...)
 }
 
 func (l *logger) ErrorC(a ...interface{}) {
 	if statusLog.isRealtime() {
-		statusLog.clear()
-		defer statusLog.print()
+		statusLog.mutex.Lock()
+		statusLog.clearInternal()
+		defer func() {
+			statusLog.mutex.Unlock()
+			statusLog.print()
+		}()
 	}
 	l.logger.Error(a...)
-}
-
-func (l *logger) Fatalf(a string, b ...interface{}) {
-	if statusLog.isRealtime() {
-		statusLog.clear()
-		defer statusLog.print()
-	}
-	l.logger.Fatalf(l.GetCallerFileName(true)+": "+a, b...)
-}
-
-func (l *logger) Fatal(a ...interface{}) {
-	if statusLog.isRealtime() {
-		statusLog.clear()
-		defer statusLog.print()
-	}
-	l.logger.Fatal(append([]interface{}{l.GetCallerFileName(true) + ": "}, a...)...)
 }
 
 func (l *logger) Init() {
