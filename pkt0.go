@@ -28,7 +28,7 @@ func (p *pkt0Type) sendSeqUnlock() {
 }
 
 func (p *pkt0Type) retransmitRange(s *streamCommon, start, end uint16) error {
-	log.Debug(s.name+"got retransmit request for #", start, "-", end)
+	log.Debug(s.name+"/got retransmit request for #", start, "-", end)
 	for {
 		netstat.reportRetransmit(1)
 		d := p.txSeqBuf.get(seqNum(start))
@@ -62,7 +62,7 @@ func (p *pkt0Type) handle(s *streamCommon, r []byte) error {
 	if bytes.Equal(r[:6], []byte{0x10, 0x00, 0x00, 0x00, 0x01, 0x00}) {
 		seq := binary.LittleEndian.Uint16(r[6:8])
 		d := p.txSeqBuf.get(seqNum(seq))
-		log.Debug(s.name+"got retransmit request for #", seq)
+		log.Debug(s.name+"/got retransmit request for #", seq)
 		if d != nil {
 			log.Debug(s.name+"/retransmitting #", seq)
 			netstat.reportRetransmit(1)
