@@ -85,7 +85,7 @@ and **sensitive to interference**. If you see a lot of retransmits in the log,
 or packet loss, then:
 
 - Place the IC-705 close to your Wi-Fi AP/router, or use a Wi-Fi range
-  extender device.
+  extender device
 - Make sure the Wi-Fi bandwith is set to max. 20Mhz in the Wi-Fi router (see
 explanation [here](https://superuser.com/questions/542191/does-moving-my-router-from-20mhz-to-40-mhz-increase-my-wireless-speed))
 - Try switching Wi-Fi channel on your Wi-Fi router. Only channels 1, 6 or 11
