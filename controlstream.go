@@ -340,6 +340,8 @@ func (s *controlStream) deinit() {
 		_ = s.sendPktAuth(0x01)
 		_ = s.sendPktAuth(0x01)
 		_ = s.sendPktAuth(0x01)
+		// Waiting a little bit to make sure the radio can send retransmit requests.
+		time.Sleep(500 * time.Millisecond)
 	}
 
 	s.common.deinit()
