@@ -29,14 +29,16 @@ type statusLogStruct struct {
 	stopFinishedChan chan bool
 	mutex            sync.Mutex
 
-	retransmitsColor *color.Color
-	lostColor        *color.Color
+	preGenerated struct {
+		retransmitsColor *color.Color
+		lostColor        *color.Color
 
-	stateStr struct {
-		unknown string
-		rx      string
-		tx      string
-		tune    string
+		stateStr struct {
+			unknown string
+			rx      string
+			tx      string
+			tune    string
+		}
 	}
 
 	data *statusLogData
@@ -83,11 +85,11 @@ func (s *statusLogStruct) reportPTT(ptt, tune bool) {
 		return
 	}
 	if tune {
-		s.data.stateStr = s.stateStr.tune
+		s.data.stateStr = s.preGenerated.stateStr.tune
 	} else if ptt {
-		s.data.stateStr = s.stateStr.tx
+		s.data.stateStr = s.preGenerated.stateStr.tx
 	} else {
-		s.data.stateStr = s.stateStr.rx
+		s.data.stateStr = s.preGenerated.stateStr.rx
 	}
 }
 
@@ -134,11 +136,11 @@ func (s *statusLogStruct) update() {
 	up, down, lost, retransmits := netstat.get()
 	lostStr := "0"
 	if lost > 0 {
-		lostStr = s.lostColor.Sprint(" ", lost, " ")
+		lostStr = s.preGenerated.lostColor.Sprint(" ", lost, " ")
 	}
 	retransmitsStr := "0"
 	if retransmits > 0 {
-		retransmitsStr = s.retransmitsColor.Sprint(" ", retransmits, " ")
+		retransmitsStr = s.preGenerated.retransmitsColor.Sprint(" ", retransmits, " ")
 	}
 
 	s.data.line2 = fmt.Sprint("up ", time.Since(s.data.startTime).Round(time.Second),
@@ -191,7 +193,7 @@ func (s *statusLogStruct) startPeriodicPrint() {
 	s.initIfNeeded()
 
 	s.data = &statusLogData{
-		stateStr:  s.stateStr.unknown,
+		stateStr:  s.preGenerated.stateStr.unknown,
 		startTime: time.Now(),
 	}
 
@@ -227,17 +229,17 @@ func (s *statusLogStruct) initIfNeeded() {
 
 	c := color.New(color.FgHiWhite)
 	c.Add(color.BgWhite)
-	s.stateStr.unknown = c.Sprint("  ??  ")
+	s.preGenerated.stateStr.unknown = c.Sprint("  ??  ")
 	c = color.New(color.FgHiWhite)
 	c.Add(color.BgGreen)
-	s.stateStr.rx = c.Sprint("  RX  ")
+	s.preGenerated.stateStr.rx = c.Sprint("  RX  ")
 	c = color.New(color.FgHiWhite, color.BlinkRapid)
 	c.Add(color.BgRed)
-	s.stateStr.tx = c.Sprint("  TX  ")
-	s.stateStr.tune = c.Sprint(" TUNE ")
+	s.preGenerated.stateStr.tx = c.Sprint("  TX  ")
+	s.preGenerated.stateStr.tune = c.Sprint(" TUNE ")
 
-	s.retransmitsColor = color.New(color.FgHiWhite)
-	s.retransmitsColor.Add(color.BgYellow)
-	s.lostColor = color.New(color.FgHiWhite)
-	s.lostColor.Add(color.BgRed)
+	s.preGenerated.retransmitsColor = color.New(color.FgHiWhite)
+	s.preGenerated.retransmitsColor.Add(color.BgYellow)
+	s.preGenerated.lostColor = color.New(color.FgHiWhite)
+	s.preGenerated.lostColor.Add(color.BgRed)
 }
