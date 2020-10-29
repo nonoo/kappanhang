@@ -111,6 +111,12 @@ func (s *statusLogStruct) print() {
 	}
 }
 
+func (s *statusLogStruct) padLeft(str string, length int) string {
+	for len(str) < length {
+		str = " " + str
+	}
+	return str
+}
 func (s *statusLogStruct) update() {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -136,10 +142,10 @@ func (s *statusLogStruct) update() {
 		retransmitsStr = s.preGenerated.retransmitsColor.Sprint(" ", retransmits, " ")
 	}
 
-	s.data.line2 = fmt.Sprint("up ", time.Since(s.data.startTime).Round(time.Second),
-		" rtt ", s.data.rttStr, "ms up ",
-		netstat.formatByteCount(up), "/s down ",
-		netstat.formatByteCount(down), "/s retx ", retransmitsStr, "/1m lost ", lostStr, "/1m\r")
+	s.data.line2 = fmt.Sprint("up ", s.padLeft(time.Since(s.data.startTime).Round(time.Second), 9),
+		" rtt ", s.padLeft(s.data.rttStr, 3), "ms up ",
+		s.padLeft(netstat.formatByteCount(up), 8), "/s down ",
+		s.padLeft(netstat.formatByteCount(down), 8), "/s retx ", retransmitsStr, "/1m lost ", lostStr, "/1m\r")
 
 	if s.isRealtimeInternal() {
 		t := time.Now().Format("2006-01-02T15:04:05.000Z0700")
