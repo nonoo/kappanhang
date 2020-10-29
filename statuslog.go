@@ -19,8 +19,8 @@ type statusLogData struct {
 	mode      string
 	filter    string
 
-	startTime  time.Time
-	rttLatency time.Duration
+	startTime time.Time
+	rttStr    string
 }
 
 type statusLogStruct struct {
@@ -53,7 +53,7 @@ func (s *statusLogStruct) reportRTTLatency(l time.Duration) {
 	if s.data == nil {
 		return
 	}
-	s.data.rttLatency = l
+	s.data.rttStr = fmt.Sprint(l.Milliseconds())
 }
 
 func (s *statusLogStruct) reportFrequency(f float64) {
@@ -144,7 +144,7 @@ func (s *statusLogStruct) update() {
 	}
 
 	s.data.line2 = fmt.Sprint("up ", time.Since(s.data.startTime).Round(time.Second),
-		" rtt ", s.data.rttLatency.Milliseconds(), "ms up ",
+		" rtt ", s.data.rttStr, "ms up ",
 		netstat.formatByteCount(up), "/s down ",
 		netstat.formatByteCount(down), "/s retx ", retransmitsStr, "/1m lost ", lostStr, "/1m\r")
 
@@ -195,6 +195,7 @@ func (s *statusLogStruct) startPeriodicPrint() {
 	s.data = &statusLogData{
 		stateStr:  s.preGenerated.stateStr.unknown,
 		startTime: time.Now(),
+		rttStr:    "?",
 	}
 
 	s.stopChan = make(chan bool)

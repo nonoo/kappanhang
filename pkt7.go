@@ -8,6 +8,9 @@ import (
 	"time"
 )
 
+// This is sent every 100ms by the server, but as this seems to be only a ping-line packet,
+// it is also fine to send it in a longer interval.
+const pkt7SendInterval = 3 * time.Second
 const pkt7TimeoutDuration = 3 * time.Second
 
 type pkt7Type struct {
@@ -145,7 +148,7 @@ func (p *pkt7Type) startPeriodicSend(s *streamCommon, firstSeqNo uint16, checkPi
 	p.innerSendSeq = 0x8304
 	// p.lastConfirmedSeq = p.sendSeq - 1
 
-	p.sendTicker = time.NewTicker(100 * time.Millisecond)
+	p.sendTicker = time.NewTicker(pkt7SendInterval)
 	if checkPingTimeout {
 		p.timeoutTimer = time.NewTimer(pkt7TimeoutDuration)
 	}
