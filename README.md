@@ -8,7 +8,8 @@ protocol are implemented including packet retransmission on packet loss.
 <p align="center"><img src="demo.gif?raw=true"/></p>
 
 kappanhang currently only supports Linux, but support for other platforms can
-be easily added if anyone is interested (volunteers needed).
+be easily added if anyone is interested and has the skills (volunteers
+needed, as I'm only developing the Linux version).
 
 ## Compiling
 
@@ -21,22 +22,22 @@ go install https://github.com/nonoo/kappanhang
 
 ## Required settings on the RS-BA1 server (the transceiver)
 
-You can find these settings on the Icom IC-705 in: `Menu -> Set -> WLAN set ->
-Remote settings`.
-
-- Make sure **Network control** is turned on.
-- Set the **Network user 1** username to `beer` and the password to
-  `beerbeer`. These are fixed as the password encoding of the RS-BA1
-  protocol has not been decrypted yet. See [passcode.txt](passcode.txt) for
-  more information.
-- Leave the **UDP ports** on their default values:
-  - Control port: `50001`
-  - Serial port: `50002`
-  - Audio port: `50003`
-- Leave the **Internet access line** on the default `FTTH` value.
-
-Make sure the **DATA MOD** (you can find this setting on the Icom IC-705 in:
-`Menu -> Set -> Connectors -> MOD Input -> DATA MOD`) is set to `WLAN`.
+- Make sure network settings (on the Icom IC-705 in: `Menu -> Set ->
+  WLAN set -> Remote settings`) are the following:
+  - **Network control** is turned on.
+  - **Network user 1** username is `beer` and the password is `beerbeer`.
+    These are fixed as the password encoding of the RS-BA1 protocol has not
+    been decrypted yet. See [passcode.txt](passcode.txt) for more information.
+  - **UDP ports** are on their default values:
+    - Control port: `50001`
+    - Serial port: `50002`
+    - Audio port: `50003`
+  - **Internet access line** is on the default `FTTH` value.
+- Make sure the following settings are set:
+  - **DATA MOD** is set to `WLAN` (on the Icom IC-705 in: `Menu -> Set ->
+    Connectors -> MOD Input -> DATA MOD`)
+  - **CI-V Address** is on the default `A4h` value (on the Icom IC-705 in:
+    `Menu -> Set -> Connectors -> CI-V`.
 
 ## Running
 
@@ -63,20 +64,21 @@ After it is connected and logged in:
 - Runs the command `rigctld -m 3085 -r :4533` which starts `rigctld` and
   connects it to kappanhang's TCP serial port server. You can specify a custom
   command with the `-r` command line argument. Running any command can be
-  disabled with `-r -`.
+  disabled with `-r -`. The command is only executed once, as the TCP serial
+  port server will stay on even if the RS-BA1 server disconnects.
 
-  3085 is the model number for the Icom IC-705. `rigctld` will connect to
+  3085 is the model number of the Icom IC-705. `rigctld` will connect to
   kappanhang's TCP serial port server, and waits connections on it's default
   TCP port `4532`.
 
   To use this with for example [WSJT-X](https://physics.princeton.edu/pulsar/K1JT/wsjtx.html),
   open WSJT-X settings, go to the *Radio* tab, set the *rig type* to `Hamlib NET
-  rigctl`, and the *Network server* to `127.0.0.1:4532`.
+  rigctl`, and the *Network server* to `localhost`.
 
 If the `-s` command line argument is specified, then kappanhang will create a
 **virtual serial port**, so other apps which don't support Hamlib can access
 the transceiver directly. Look at the app log to find out the name of the
-virtual serial port.
+virtual serial port. It will be something like `/tmp/kappanhang-IC-705.pty`
 
 ### Icom IC-705 Wi-Fi notes
 
