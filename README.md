@@ -145,11 +145,18 @@ not available.
 
 ### Hotkeys
 
-Currently the only supported hotkey is `l` (listen), which toggles audio
-stream playback to the default sound device. This is useful for quickly
-listening into the audio stream coming from the server (the transceiver).
-Note that audio will be played to the previously created virtual sound card
-regardless of this setting.
+- `l` (listen): toggles audio stream playback to the default sound device
+
+  This is useful for quickly listening into the audio stream coming from the
+  server (the transceiver).
+
+  Note that audio will be played to the previously created virtual sound card
+  regardless of this setting.
+- `space`: toggles PTT and audio stream recording from the default sound
+  device.
+
+  You can transmit your own voice using a mic attached to your computer for
+  example.
 
 ## Authors
 
