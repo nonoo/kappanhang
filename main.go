@@ -99,7 +99,9 @@ func main() {
 	osSignal := make(chan os.Signal, 1)
 	signal.Notify(osSignal, os.Interrupt, syscall.SIGTERM)
 
-	keyboard.init()
+	if statusLog.isRealtime() {
+		keyboard.init()
+	}
 
 	var shouldExit bool
 	var exitCode int
@@ -122,7 +124,10 @@ func main() {
 	audio.deinit()
 	serialTCPSrv.deinit()
 	serialPort.deinit()
-	keyboard.deinit()
+
+	if statusLog.isRealtime() {
+		keyboard.deinit()
+	}
 
 	log.Print("exiting")
 	os.Exit(exitCode)
