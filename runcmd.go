@@ -9,6 +9,7 @@ import (
 const startCmdDelay = time.Second
 
 var startedCmd *exec.Cmd
+var serialPortStartedCmd *exec.Cmd
 
 func doStartCmd() {
 	c := strings.Split(runCmd, " ")
@@ -17,7 +18,7 @@ func doStartCmd() {
 	if err == nil {
 		log.Print("cmd started: ", runCmd)
 	} else {
-		log.Error("error starting ", runCmd, " - ", err)
+		log.Error("error starting ", runCmd, ": ", err)
 		startedCmd = nil
 	}
 }
@@ -30,11 +31,35 @@ func startCmdIfNeeded() {
 	time.AfterFunc(startCmdDelay, doStartCmd)
 }
 
-func stopCmd() {
-	if startedCmd == nil {
+func doSerialPortStartCmd() {
+	c := strings.Split(runCmdOnSerialPortCreated, " ")
+	serialPortStartedCmd = exec.Command(c[0], c[1:]...)
+	err := serialPortStartedCmd.Start()
+	if err == nil {
+		log.Print("cmd started: ", runCmdOnSerialPortCreated)
+	} else {
+		log.Error("error starting ", runCmdOnSerialPortCreated, ": ", err)
+		serialPortStartedCmd = nil
+	}
+}
+
+func startSerialPortCmdIfNeeded() {
+	if serialPortStartedCmd != nil || runCmdOnSerialPortCreated == "-" {
 		return
 	}
-	if err := startedCmd.Process.Kill(); err != nil {
-		log.Error("failed to stop cmd ", runCmd)
+
+	time.AfterFunc(startCmdDelay, doSerialPortStartCmd)
+}
+
+func stopCmd() {
+	if startedCmd != nil {
+		if err := startedCmd.Process.Kill(); err != nil {
+			log.Error("failed to stop cmd ", runCmd, ": ", err)
+		}
+	}
+	if serialPortStartedCmd != nil {
+		if err := serialPortStartedCmd.Process.Kill(); err != nil {
+			log.Error("failed to stop cmd ", runCmdOnSerialPortCreated, ": ", err)
+		}
 	}
 }

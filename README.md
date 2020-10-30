@@ -82,6 +82,14 @@ If the `-s` command line argument is specified, then kappanhang will create a
 **virtual serial port**, so other apps which don't support Hamlib can access
 the transceiver directly. Look at the app log to find out the name of the
 virtual serial port. It will be something like `/tmp/kappanhang-IC-705.pty`
+(the server's name appended to the string *kappanhang*). After the virtual
+serial port is created, the command specified with `-o` will be ran, which is
+`socat /tmp/kappanhang-IC-705.pty /tmp/vmware.pty` by default. Running the
+command can be disabled with `-o -`. The command is only executed once, as the
+virtual serial port will stay opened even if the RS-BA1 server disconnects.
+I use this command to link a COM port in a Windows OS running in VMware to
+the virtual serial port, so I can use the original RS-BA1 software remote
+control GUI.
 
 ### Icom IC-705 Wi-Fi notes
 
