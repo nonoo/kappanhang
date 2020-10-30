@@ -107,6 +107,7 @@ is up) with the following info:
 - First status bar line:
   - `state`: RX/TX/TUNE depending on the PTT status
   - `freq`: operating frequency in MHz, mode (LSB/USB/FM...), active filter
+  - `txpwr`: current transmit power setting in percent
 
 - Second status bar line:
   - `up`: how long the audio/serial connection is active
