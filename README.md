@@ -11,6 +11,9 @@ kappanhang currently only supports Linux, but support for other platforms can
 be easily added if anyone is interested and has the skills (volunteers
 needed, as I'm only developing the Linux version).
 
+You can find pre-built versions for Linux/x64 on the GitHub project page of
+kappanhang.
+
 ## Compiling
 
 You'll need Go installed on your computer.
