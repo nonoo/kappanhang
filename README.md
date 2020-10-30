@@ -158,6 +158,8 @@ not available.
   You can transmit your own voice using a mic attached to your computer for
   example.
 - `t`: toggles the tune process
+- `+`: increase TX power
+- `-`: decrease TX power
 
 ## Authors
 

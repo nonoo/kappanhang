@@ -24,6 +24,18 @@ func (s *keyboardStruct) handleKey(k byte) {
 				log.Error("can't toggle tune: ", err)
 			}
 		}
+	case '+':
+		if civControl != nil {
+			if err := civControl.incPwr(); err != nil {
+				log.Error("can't increase power: ", err)
+			}
+		}
+	case '-':
+		if civControl != nil {
+			if err := civControl.decPwr(); err != nil {
+				log.Error("can't decrease power: ", err)
+			}
+		}
 	}
 }
 

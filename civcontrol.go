@@ -11,8 +11,9 @@ type civControlStruct struct {
 	st *serialStream
 
 	state struct {
-		ptt  bool
-		tune bool
+		ptt        bool
+		tune       bool
+		pwrPercent int
 	}
 }
 
@@ -129,9 +130,9 @@ func (s *civControlStruct) decodePower(d []byte) {
 	}
 
 	hex := uint16(d[1])<<8 | uint16(d[2])
-	percent := int(math.Round((float64(hex) / 0x0255) * 100))
+	s.state.pwrPercent = int(math.Round((float64(hex) / 0x0255) * 100))
 
-	statusLog.reportTxPower(percent)
+	statusLog.reportTxPower(s.state.pwrPercent)
 }
 
 func (s *civControlStruct) decodeTransmitStatus(d []byte) {
@@ -159,6 +160,27 @@ func (s *civControlStruct) decodeTransmitStatus(d []byte) {
 		}
 	}
 	statusLog.reportPTT(s.state.ptt, s.state.tune)
+}
+
+func (s *civControlStruct) setPwr(percent int) error {
+	v := uint16(0x0255 * (float64(percent) / 100))
+	return s.st.send([]byte{254, 254, civAddress, 224, 0x14, 0x0a, byte(v >> 8), byte(v & 0xff), 253})
+}
+
+func (s *civControlStruct) incPwr() error {
+	if s.state.pwrPercent < 100 {
+		s.state.pwrPercent++
+		return s.setPwr(s.state.pwrPercent)
+	}
+	return nil
+}
+
+func (s *civControlStruct) decPwr() error {
+	if s.state.pwrPercent > 0 {
+		s.state.pwrPercent--
+		return s.setPwr(s.state.pwrPercent)
+	}
+	return nil
 }
 
 func (s *civControlStruct) setPTT(enable bool) error {
