@@ -5,7 +5,10 @@ import "math"
 const civAddress = 0xa4
 
 type civControlStruct struct {
+	st *serialStream
 }
+
+var civControl *civControlStruct
 
 func (s *civControlStruct) decode(d []byte) {
 	if len(d) < 6 || d[0] != 0xfe || d[1] != 0xfe || d[len(d)-1] != 0xfd {
@@ -26,7 +29,7 @@ func (s *civControlStruct) decode(d []byte) {
 	case 0x14:
 		s.decodePower(payload)
 	case 0x1c:
-		s.decodePTT(payload)
+		s.decodeTransmitStatus(payload)
 	}
 }
 
@@ -98,7 +101,7 @@ func (s *civControlStruct) decodePower(d []byte) {
 	statusLog.reportTxPower(percent)
 }
 
-func (s *civControlStruct) decodePTT(d []byte) {
+func (s *civControlStruct) decodeTransmitStatus(d []byte) {
 	if len(d) < 2 {
 		return
 	}
@@ -118,21 +121,31 @@ func (s *civControlStruct) decodePTT(d []byte) {
 	statusLog.reportPTT(ptt, tune)
 }
 
-func (s *civControlStruct) query(st *serialStream) error {
+func (s *civControlStruct) setPTT(enable bool) error {
+	var b byte
+	if enable {
+		b = 1
+	}
+	return s.st.send([]byte{254, 254, civAddress, 224, 0x1c, 0, b, 253})
+}
+
+func (s *civControlStruct) init(st *serialStream) error {
+	s.st = st
+
 	// Querying frequency.
-	if err := st.send([]byte{254, 254, civAddress, 224, 3, 253}); err != nil {
+	if err := s.st.send([]byte{254, 254, civAddress, 224, 3, 253}); err != nil {
 		return err
 	}
 	// Querying mode.
-	if err := st.send([]byte{254, 254, civAddress, 224, 4, 253}); err != nil {
+	if err := s.st.send([]byte{254, 254, civAddress, 224, 4, 253}); err != nil {
 		return err
 	}
 	// Querying power.
-	if err := st.send([]byte{254, 254, civAddress, 224, 0x14, 0x0a, 253}); err != nil {
+	if err := s.st.send([]byte{254, 254, civAddress, 224, 0x14, 0x0a, 253}); err != nil {
 		return err
 	}
 	// Querying PTT.
-	if err := st.send([]byte{254, 254, civAddress, 224, 0x1c, 0, 253}); err != nil {
+	if err := s.st.send([]byte{254, 254, civAddress, 224, 0x1c, 0, 253}); err != nil {
 		return err
 	}
 	return nil

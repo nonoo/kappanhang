@@ -41,7 +41,11 @@ type audioStruct struct {
 
 	defaultSoundcardStream struct {
 		togglePlaybackChan chan bool
-		stream             *pulse.Stream
+		playStream         *pulse.Stream
+		recStream          *pulse.Stream
+
+		recLoopDeinitNeededChan   chan bool
+		recLoopDeinitFinishedChan chan bool
 
 		mutex   sync.Mutex
 		playBuf *bytes.Buffer
@@ -51,10 +55,20 @@ type audioStruct struct {
 
 var audio audioStruct
 
-func (a *audioStruct) defaultSoundCardStreamDeinit() {
-	_ = a.defaultSoundcardStream.stream.Drain()
-	a.defaultSoundcardStream.stream.Free()
-	a.defaultSoundcardStream.stream = nil
+func (a *audioStruct) defaultSoundCardPlayStreamDeinit() {
+	_ = a.defaultSoundcardStream.playStream.Drain()
+	a.defaultSoundcardStream.playStream.Free()
+	a.defaultSoundcardStream.playStream = nil
+}
+
+func (a *audioStruct) defaultSoundCardRecStreamDeinit() {
+	if a.defaultSoundcardStream.recStream == nil {
+		return
+	}
+	a.defaultSoundcardStream.recLoopDeinitNeededChan <- true
+	<-a.defaultSoundcardStream.recLoopDeinitFinishedChan
+	a.defaultSoundcardStream.recStream.Free()
+	a.defaultSoundcardStream.recStream = nil
 }
 
 func (a *audioStruct) togglePlaybackToDefaultSoundcard() {
@@ -69,14 +83,50 @@ func (a *audioStruct) togglePlaybackToDefaultSoundcard() {
 	}
 }
 
+func (a *audioStruct) toggleRecFromDefaultSoundcard() {
+	if civControl == nil {
+		return
+	}
+
+	if a.defaultSoundcardStream.recStream == nil {
+		ss := pulse.SampleSpec{Format: pulse.SAMPLE_S16LE, Rate: audioSampleRate, Channels: 1}
+		battr := pulse.NewBufferAttr()
+		battr.Fragsize = audioFrameSize
+		var err error
+		a.defaultSoundcardStream.recStream, err = pulse.NewStream("", "kappanhang", pulse.STREAM_RECORD, "", a.devName,
+			&ss, nil, battr)
+		if err == nil {
+			a.defaultSoundcardStream.recLoopDeinitNeededChan = make(chan bool)
+			a.defaultSoundcardStream.recLoopDeinitFinishedChan = make(chan bool)
+			go a.recLoopFromDefaultSoundcard()
+			log.Print("turned on audio rec")
+			statusLog.reportAudioRec(true)
+
+			if err := civControl.setPTT(true); err != nil {
+				log.Error("can't turn on ptt: ", err)
+			}
+		} else {
+			log.Error("can't turn on rec: ", err)
+			a.defaultSoundcardStream.recStream = nil
+		}
+	} else {
+		a.defaultSoundCardRecStreamDeinit()
+		statusLog.reportAudioRec(false)
+		log.Print("turned off audio rec")
+		if err := civControl.setPTT(false); err != nil {
+			log.Error("can't turn off ptt: ", err)
+		}
+	}
+}
+
 func (a *audioStruct) doTogglePlaybackToDefaultSoundcard() {
-	if a.defaultSoundcardStream.stream == nil {
+	if a.defaultSoundcardStream.playStream == nil {
 		log.Print("turned on audio playback")
 		statusLog.reportAudioMon(true)
-		ss := pulse.SampleSpec{Format: pulse.SAMPLE_S16LE, Rate: 48000, Channels: 1}
-		a.defaultSoundcardStream.stream, _ = pulse.Playback("kappanhang", a.devName, &ss)
+		ss := pulse.SampleSpec{Format: pulse.SAMPLE_S16LE, Rate: audioSampleRate, Channels: 1}
+		a.defaultSoundcardStream.playStream, _ = pulse.Playback("kappanhang", a.devName, &ss)
 	} else {
-		a.defaultSoundCardStreamDeinit()
+		a.defaultSoundCardPlayStreamDeinit()
 		log.Print("turned off audio playback")
 		statusLog.reportAudioMon(false)
 	}
@@ -112,8 +162,8 @@ func (a *audioStruct) playLoopToDefaultSoundcard(deinitNeededChan, deinitFinishe
 				break
 			}
 
-			for len(d) > 0 && a.defaultSoundcardStream.stream != nil {
-				written, err := a.defaultSoundcardStream.stream.Write(d)
+			for len(d) > 0 && a.defaultSoundcardStream.playStream != nil {
+				written, err := a.defaultSoundcardStream.playStream.Write(d)
 				if err != nil {
 					if _, ok := err.(*os.PathError); !ok {
 						reportError(err)
@@ -121,6 +171,54 @@ func (a *audioStruct) playLoopToDefaultSoundcard(deinitNeededChan, deinitFinishe
 					break
 				}
 				d = d[written:]
+			}
+		}
+	}
+}
+
+func (a *audioStruct) recLoopFromDefaultSoundcard() {
+	defer func() {
+		a.defaultSoundcardStream.recLoopDeinitFinishedChan <- true
+	}()
+
+	frameBuf := make([]byte, audioFrameSize)
+	buf := bytes.NewBuffer([]byte{})
+
+	for {
+		select {
+		case <-a.defaultSoundcardStream.recLoopDeinitNeededChan:
+			return
+		default:
+		}
+
+		n, err := a.defaultSoundcardStream.recStream.Read(frameBuf)
+		if err != nil {
+			if _, ok := err.(*os.PathError); !ok {
+				reportError(err)
+			}
+		}
+
+		// Do not send silence frames to the radio unnecessarily
+		if isAllZero(frameBuf[:n]) {
+			continue
+		}
+		buf.Write(frameBuf[:n])
+
+		for buf.Len() >= len(frameBuf) {
+			// We need to create a new []byte slice for each chunk to be able to send it through the rec chan.
+			b := make([]byte, len(frameBuf))
+			n, err = buf.Read(b)
+			if err != nil {
+				reportError(err)
+			}
+			if n != len(frameBuf) {
+				reportError(errors.New("audio buffer read error"))
+			}
+
+			select {
+			case a.rec <- b:
+			case <-a.defaultSoundcardStream.recLoopDeinitNeededChan:
+				return
 			}
 		}
 	}
@@ -240,8 +338,8 @@ func (a *audioStruct) loop() {
 			playLoopToVirtualSoundcardDeinitNeededChan <- true
 			<-playLoopToVirtualSoundcardDeinitFinishedChan
 
-			if a.defaultSoundcardStream.stream != nil {
-				a.defaultSoundCardStreamDeinit()
+			if a.defaultSoundcardStream.playStream != nil {
+				a.defaultSoundCardPlayStreamDeinit()
 			}
 
 			playLoopToDefaultSoundcardDeinitNeededChan <- true
@@ -266,7 +364,7 @@ func (a *audioStruct) loop() {
 		default:
 		}
 
-		if a.defaultSoundcardStream.stream != nil {
+		if a.defaultSoundcardStream.playStream != nil {
 			a.defaultSoundcardStream.mutex.Lock()
 			free := maxPlayBufferSize - a.defaultSoundcardStream.playBuf.Len()
 			if free < len(d) {
@@ -378,6 +476,7 @@ func (a *audioStruct) closeIfNeeded() {
 }
 
 func (a *audioStruct) deinit() {
+	a.defaultSoundCardRecStreamDeinit()
 	a.closeIfNeeded()
 
 	if a.deinitNeededChan != nil {

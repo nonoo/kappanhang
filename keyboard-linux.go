@@ -12,14 +12,21 @@ type keyboardStruct struct {
 
 var keyboard keyboardStruct
 
+func (s *keyboardStruct) handleKey(k byte) {
+	switch k {
+	case 'l':
+		audio.togglePlaybackToDefaultSoundcard()
+	case ' ':
+		audio.toggleRecFromDefaultSoundcard()
+	}
+}
+
 func (s *keyboardStruct) loop() {
 	var b []byte = make([]byte, 1)
 	for {
 		n, err := os.Stdin.Read(b)
 		if n > 0 && err == nil {
-			if b[0] == 'l' {
-				audio.togglePlaybackToDefaultSoundcard()
-			}
+			s.handleKey(b[0])
 		}
 	}
 }

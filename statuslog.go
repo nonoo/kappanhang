@@ -20,9 +20,12 @@ type statusLogData struct {
 	filter     string
 	txPowerStr string
 
-	startTime   time.Time
-	rttStr      string
-	audioMonStr string
+	startTime time.Time
+	rttStr    string
+
+	audioMonOn    bool
+	audioRecOn    bool
+	audioStateStr string
 }
 
 type statusLogStruct struct {
@@ -41,9 +44,10 @@ type statusLogStruct struct {
 			tx      string
 			tune    string
 		}
-		audioMon struct {
-			on  string
-			off string
+		audioStateStr struct {
+			off   string
+			monOn string
+			rec   string
 		}
 	}
 
@@ -62,6 +66,16 @@ func (s *statusLogStruct) reportRTTLatency(l time.Duration) {
 	s.data.rttStr = fmt.Sprint(l.Milliseconds())
 }
 
+func (s *statusLogStruct) updateAudioStateStr() {
+	if s.data.audioRecOn {
+		s.data.audioStateStr = s.preGenerated.audioStateStr.rec
+	} else if s.data.audioMonOn {
+		s.data.audioStateStr = s.preGenerated.audioStateStr.monOn
+	} else {
+		s.data.audioStateStr = s.preGenerated.audioStateStr.off
+	}
+}
+
 func (s *statusLogStruct) reportAudioMon(enabled bool) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -69,11 +83,19 @@ func (s *statusLogStruct) reportAudioMon(enabled bool) {
 	if s.data == nil {
 		return
 	}
-	if enabled {
-		s.data.audioMonStr = s.preGenerated.audioMon.on
-	} else {
-		s.data.audioMonStr = s.preGenerated.audioMon.off
+	s.data.audioMonOn = enabled
+	s.updateAudioStateStr()
+}
+
+func (s *statusLogStruct) reportAudioRec(enabled bool) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	if s.data == nil {
+		return
 	}
+	s.data.audioRecOn = enabled
+	s.updateAudioStateStr()
 }
 
 func (s *statusLogStruct) reportFrequency(f float64) {
@@ -168,7 +190,7 @@ func (s *statusLogStruct) update() {
 		txPowerStr = " txpwr " + s.data.txPowerStr
 	}
 	s.data.line1 = fmt.Sprint("state ", s.data.stateStr, " freq: ", fmt.Sprintf("%f", s.data.frequency/1000000),
-		modeStr, filterStr, txPowerStr, " audiomon ", s.data.audioMonStr)
+		modeStr, filterStr, txPowerStr, " audio ", s.data.audioStateStr)
 
 	up, down, lost, retransmits := netstat.get()
 	lostStr := "0"
@@ -230,10 +252,10 @@ func (s *statusLogStruct) startPeriodicPrint() {
 	s.initIfNeeded()
 
 	s.data = &statusLogData{
-		stateStr:    s.preGenerated.stateStr.unknown,
-		startTime:   time.Now(),
-		rttStr:      "?",
-		audioMonStr: s.preGenerated.audioMon.off,
+		stateStr:      s.preGenerated.stateStr.unknown,
+		startTime:     time.Now(),
+		rttStr:        "?",
+		audioStateStr: s.preGenerated.audioStateStr.off,
 	}
 
 	s.stopChan = make(chan bool)
@@ -272,17 +294,18 @@ func (s *statusLogStruct) initIfNeeded() {
 	c := color.New(color.FgHiWhite)
 	c.Add(color.BgWhite)
 	s.preGenerated.stateStr.unknown = c.Sprint("  ??  ")
-	s.preGenerated.audioMon.off = c.Sprint("  OFF  ")
+	s.preGenerated.audioStateStr.off = c.Sprint("  OFF  ")
 
 	c = color.New(color.FgHiWhite)
 	c.Add(color.BgGreen)
 	s.preGenerated.stateStr.rx = c.Sprint("  RX  ")
-	s.preGenerated.audioMon.on = c.Sprint("  ON   ")
+	s.preGenerated.audioStateStr.monOn = c.Sprint("  MON  ")
 
 	c = color.New(color.FgHiWhite, color.BlinkRapid)
 	c.Add(color.BgRed)
 	s.preGenerated.stateStr.tx = c.Sprint("  TX  ")
 	s.preGenerated.stateStr.tune = c.Sprint(" TUNE ")
+	s.preGenerated.audioStateStr.rec = c.Sprint("  REC  ")
 
 	s.preGenerated.retransmitsColor = color.New(color.FgHiWhite)
 	s.preGenerated.retransmitsColor.Add(color.BgYellow)

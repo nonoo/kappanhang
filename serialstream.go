@@ -19,7 +19,6 @@ type serialStream struct {
 
 	receivedSerialData bool
 	lastReceivedSeq    uint16
-	civControl         civControlStruct
 
 	readFromSerialPort struct {
 		buf          bytes.Buffer
@@ -93,7 +92,7 @@ func (s *serialStream) handleRxSeqBufEntry(e seqBufEntry) {
 
 	e.data = e.data[21:]
 
-	s.civControl.decode(e.data)
+	civControl.decode(e.data)
 
 	if serialPort.write != nil {
 		serialPort.write <- e.data
@@ -253,7 +252,8 @@ func (s *serialStream) init(devName string) error {
 	s.readFromSerialPort.frameTimeout = time.NewTimer(0)
 	<-s.readFromSerialPort.frameTimeout.C
 
-	if err := s.civControl.query(s); err != nil {
+	civControl = &civControlStruct{}
+	if err := civControl.init(s); err != nil {
 		return err
 	}
 
@@ -270,6 +270,7 @@ func (s *serialStream) deinit() {
 		s.deinitNeededChan <- true
 		<-s.deinitFinishedChan
 	}
+	civControl = nil
 	s.common.deinit()
 	s.rxSeqBuf.deinit()
 }

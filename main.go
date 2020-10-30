@@ -99,7 +99,7 @@ func main() {
 	osSignal := make(chan os.Signal, 1)
 	signal.Notify(osSignal, os.Interrupt, syscall.SIGTERM)
 
-	if statusLog.isRealtime() {
+	if statusLog.isRealtimeInternal() {
 		keyboard.init()
 	}
 
@@ -125,7 +125,7 @@ func main() {
 	serialTCPSrv.deinit()
 	serialPort.deinit()
 
-	if statusLog.isRealtime() {
+	if statusLog.isRealtimeInternal() {
 		keyboard.deinit()
 	}
 
