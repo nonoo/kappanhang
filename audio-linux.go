@@ -52,11 +52,13 @@ func (a *audioStruct) defaultSoundCardStreamDeinit() {
 func (a *audioStruct) togglePlaybackToDefaultSoundcard() {
 	if a.defaultSoundCardStream == nil {
 		log.Print("turned on audio playback")
+		statusLog.reportAudioMon(true)
 		ss := pulse.SampleSpec{Format: pulse.SAMPLE_S16LE, Rate: 48000, Channels: 1}
 		a.defaultSoundCardStream, _ = pulse.Playback("kappanhang", a.devName, &ss)
 	} else {
 		a.defaultSoundCardStreamDeinit()
 		log.Print("turned off audio playback")
+		statusLog.reportAudioMon(false)
 	}
 }
 

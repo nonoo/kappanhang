@@ -20,8 +20,9 @@ type statusLogData struct {
 	filter     string
 	txPowerStr string
 
-	startTime time.Time
-	rttStr    string
+	startTime   time.Time
+	rttStr      string
+	audioMonStr string
 }
 
 type statusLogStruct struct {
@@ -40,6 +41,10 @@ type statusLogStruct struct {
 			tx      string
 			tune    string
 		}
+		audioMon struct {
+			on  string
+			off string
+		}
 	}
 
 	data *statusLogData
@@ -55,6 +60,20 @@ func (s *statusLogStruct) reportRTTLatency(l time.Duration) {
 		return
 	}
 	s.data.rttStr = fmt.Sprint(l.Milliseconds())
+}
+
+func (s *statusLogStruct) reportAudioMon(enabled bool) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	if s.data == nil {
+		return
+	}
+	if enabled {
+		s.data.audioMonStr = s.preGenerated.audioMon.on
+	} else {
+		s.data.audioMonStr = s.preGenerated.audioMon.off
+	}
 }
 
 func (s *statusLogStruct) reportFrequency(f float64) {
@@ -149,7 +168,7 @@ func (s *statusLogStruct) update() {
 		txPowerStr = " txpwr " + s.data.txPowerStr
 	}
 	s.data.line1 = fmt.Sprint("state ", s.data.stateStr, " freq: ", fmt.Sprintf("%f", s.data.frequency/1000000),
-		modeStr, filterStr, txPowerStr)
+		modeStr, filterStr, txPowerStr, " audiomon ", s.data.audioMonStr)
 
 	up, down, lost, retransmits := netstat.get()
 	lostStr := "0"
@@ -211,9 +230,10 @@ func (s *statusLogStruct) startPeriodicPrint() {
 	s.initIfNeeded()
 
 	s.data = &statusLogData{
-		stateStr:  s.preGenerated.stateStr.unknown,
-		startTime: time.Now(),
-		rttStr:    "?",
+		stateStr:    s.preGenerated.stateStr.unknown,
+		startTime:   time.Now(),
+		rttStr:      "?",
+		audioMonStr: s.preGenerated.audioMon.off,
 	}
 
 	s.stopChan = make(chan bool)
@@ -252,9 +272,13 @@ func (s *statusLogStruct) initIfNeeded() {
 	c := color.New(color.FgHiWhite)
 	c.Add(color.BgWhite)
 	s.preGenerated.stateStr.unknown = c.Sprint("  ??  ")
+	s.preGenerated.audioMon.off = c.Sprint("  OFF  ")
+
 	c = color.New(color.FgHiWhite)
 	c.Add(color.BgGreen)
 	s.preGenerated.stateStr.rx = c.Sprint("  RX  ")
+	s.preGenerated.audioMon.on = c.Sprint("  ON   ")
+
 	c = color.New(color.FgHiWhite, color.BlinkRapid)
 	c.Add(color.BgRed)
 	s.preGenerated.stateStr.tx = c.Sprint("  TX  ")
