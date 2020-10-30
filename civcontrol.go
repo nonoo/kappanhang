@@ -11,6 +11,7 @@ type civControlStruct struct {
 	st *serialStream
 
 	state struct {
+		freq       float64
 		ptt        bool
 		tune       bool
 		pwrPercent int
@@ -55,7 +56,8 @@ func (s *civControlStruct) decodeFreq(d []byte) {
 		f += float64(s2) * math.Pow(10, float64(pos))
 		pos++
 	}
-	statusLog.reportFrequency(f)
+	s.state.freq = f
+	statusLog.reportFrequency(s.state.freq)
 }
 
 func (s *civControlStruct) decodeFilterValue(v byte) string {
@@ -169,18 +171,56 @@ func (s *civControlStruct) setPwr(percent int) error {
 
 func (s *civControlStruct) incPwr() error {
 	if s.state.pwrPercent < 100 {
-		s.state.pwrPercent++
-		return s.setPwr(s.state.pwrPercent)
+		return s.setPwr(s.state.pwrPercent + 1)
 	}
 	return nil
 }
 
 func (s *civControlStruct) decPwr() error {
 	if s.state.pwrPercent > 0 {
-		s.state.pwrPercent--
-		return s.setPwr(s.state.pwrPercent)
+		return s.setPwr(s.state.pwrPercent - 1)
 	}
 	return nil
+}
+
+func (s *civControlStruct) getDigit(v float64, n int) byte {
+	for n > 0 {
+		v /= 10
+		n--
+	}
+	return byte(uint64(v) % 10)
+}
+
+func (s *civControlStruct) incFreq(v float64) error {
+	return s.setFreq(s.state.freq + v)
+}
+
+func (s *civControlStruct) decFreq(v float64) error {
+	return s.setFreq(s.state.freq - v)
+}
+
+func (s *civControlStruct) setFreq(f float64) error {
+	var b [5]byte
+	v0 := s.getDigit(f, 9)
+	v1 := s.getDigit(f, 8)
+	b[4] = v0<<4 | v1
+	v0 = s.getDigit(f, 7)
+	v1 = s.getDigit(f, 6)
+	b[3] = v0<<4 | v1
+	v0 = s.getDigit(f, 5)
+	v1 = s.getDigit(f, 4)
+	b[2] = v0<<4 | v1
+	v0 = s.getDigit(f, 3)
+	v1 = s.getDigit(f, 2)
+	b[1] = v0<<4 | v1
+	v0 = s.getDigit(f, 1)
+	v1 = s.getDigit(f, 0)
+	b[0] = v0<<4 | v1
+	if err := s.st.send([]byte{254, 254, civAddress, 224, 5, b[0], b[1], b[2], b[3], b[4], 253}); err != nil {
+		return err
+	}
+	// The transceiver does not send the new freq automatically.
+	return s.getFreq()
 }
 
 func (s *civControlStruct) setPTT(enable bool) error {
@@ -205,6 +245,10 @@ func (s *civControlStruct) toggleTune() error {
 	return s.st.send([]byte{254, 254, civAddress, 224, 0x1c, 1, b, 253})
 }
 
+func (s *civControlStruct) getFreq() error {
+	return s.st.send([]byte{254, 254, civAddress, 224, 3, 253})
+}
+
 func (s *civControlStruct) getDataMode() error {
 	return s.st.send([]byte{254, 254, civAddress, 224, 0x1a, 0x06, 253})
 }
@@ -219,8 +263,7 @@ func (s *civControlStruct) getTransmitStatus() error {
 func (s *civControlStruct) init(st *serialStream) error {
 	s.st = st
 
-	// Querying frequency.
-	if err := s.st.send([]byte{254, 254, civAddress, 224, 3, 253}); err != nil {
+	if err := s.getFreq(); err != nil {
 		return err
 	}
 	// Querying mode.

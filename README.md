@@ -160,6 +160,12 @@ not available.
 - `t`: toggles the tune process
 - `+`: increase TX power
 - `-`: decrease TX power
+- `<`, `>`: decrease, increase frequency 1Hz
+- `,`, `.`: decrease, increase frequency 10Hz
+- `:`, `"`: decrease, increase frequency 100Hz
+- `;`, `'`: decrease, increase frequency 1kHz
+- `{`, `}`: decrease, increase frequency 10kHz
+- `[`, `]`: decrease, increase frequency 100kHz
 
 ## Authors
 
