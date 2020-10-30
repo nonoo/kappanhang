@@ -16,13 +16,7 @@ func (s *keyboardStruct) loop() {
 		n, err := os.Stdin.Read(b)
 		if n > 0 && err == nil {
 			if b[0] == 'l' {
-				if audio.togglePlaybackToDefaultSoundcardChan != nil {
-					// Non-blocking send to channel.
-					select {
-					case audio.togglePlaybackToDefaultSoundcardChan <- true:
-					default:
-					}
-				}
+				audio.togglePlaybackToDefaultSoundcard()
 			}
 		}
 	}
