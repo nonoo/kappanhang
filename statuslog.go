@@ -14,10 +14,11 @@ type statusLogData struct {
 	line1 string
 	line2 string
 
-	stateStr  string
-	frequency float64
-	mode      string
-	filter    string
+	stateStr   string
+	frequency  float64
+	mode       string
+	filter     string
+	txPowerStr string
 
 	startTime time.Time
 	rttStr    string
@@ -93,6 +94,16 @@ func (s *statusLogStruct) reportPTT(ptt, tune bool) {
 	}
 }
 
+func (s *statusLogStruct) reportTxPower(percent int) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	if s.data == nil {
+		return
+	}
+	s.data.txPowerStr = fmt.Sprint(percent, "%")
+}
+
 func (s *statusLogStruct) clearInternal() {
 	fmt.Printf("%c[2K", 27)
 }
@@ -133,8 +144,12 @@ func (s *statusLogStruct) update() {
 	if s.data.filter != "" {
 		filterStr = " " + s.data.filter
 	}
+	var txPowerStr string
+	if s.data.txPowerStr != "" {
+		txPowerStr = " txpwr " + s.data.txPowerStr
+	}
 	s.data.line1 = fmt.Sprint("state ", s.data.stateStr, " freq: ", fmt.Sprintf("%f", s.data.frequency/1000000),
-		modeStr, filterStr)
+		modeStr, filterStr, txPowerStr)
 
 	up, down, lost, retransmits := netstat.get()
 	lostStr := "0"

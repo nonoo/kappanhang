@@ -23,6 +23,8 @@ func (s *civDecoderStruct) decode(d []byte) {
 		s.decodeFreq(payload)
 	case 0x04:
 		s.decodeMode(payload)
+	case 0x14:
+		s.decodePower(payload)
 	case 0x1c:
 		s.decodePTT(payload)
 	}
@@ -85,6 +87,17 @@ func (s *civDecoderStruct) decodeMode(d []byte) {
 	statusLog.reportMode(mode, filter)
 }
 
+func (s *civDecoderStruct) decodePower(d []byte) {
+	if len(d) < 3 || d[0] != 0x0a {
+		return
+	}
+
+	hex := uint16(d[1])<<8 | uint16(d[2])
+	percent := int(math.Round((float64(hex) / 0x0255) * 100))
+
+	statusLog.reportTxPower(percent)
+}
+
 func (s *civDecoderStruct) decodePTT(d []byte) {
 	if len(d) < 2 {
 		return
@@ -112,6 +125,10 @@ func (s *civDecoderStruct) query(st *serialStream) error {
 	}
 	// Querying mode.
 	if err := st.send([]byte{254, 254, civAddress, 224, 4, 253}); err != nil {
+		return err
+	}
+	// Querying power.
+	if err := st.send([]byte{254, 254, civAddress, 224, 0x14, 0x0a, 253}); err != nil {
 		return err
 	}
 	// Querying PTT.
