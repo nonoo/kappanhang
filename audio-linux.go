@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/akosmarton/papipes"
+	"github.com/mesilliac/pulse-simple"
 )
 
 const audioSampleRate = 48000
@@ -19,6 +20,8 @@ const audioFrameSize = 1920 // 20ms
 const maxPlayBufferSize = audioFrameSize * 5
 
 type audioStruct struct {
+	devName string
+
 	source papipes.Source
 	sink   papipes.Sink
 
@@ -33,14 +36,58 @@ type audioStruct struct {
 	mutex   sync.Mutex
 	playBuf *bytes.Buffer
 	canPlay chan bool
+
+	togglePlaybackToDefaultSoundcardChan chan bool
+	defaultSoundCardStream               *pulse.Stream
 }
 
 var audio audioStruct
+
+func (a *audioStruct) togglePlaybackToDefaultSoundcard() {
+	if a.defaultSoundCardStream == nil {
+		log.Print("turned on audio playback")
+		ss := pulse.SampleSpec{Format: pulse.SAMPLE_S16LE, Rate: 48000, Channels: 1}
+		a.defaultSoundCardStream, _ = pulse.Playback("kappanhang", a.devName, &ss)
+	} else {
+		_ = a.defaultSoundCardStream.Drain()
+		a.defaultSoundCardStream.Free()
+		a.defaultSoundCardStream = nil
+		log.Print("turned off audio playback")
+	}
+}
+
+func (a *audioStruct) playToVirtualSoundcard(d []byte) {
+	for len(d) > 0 {
+		written, err := a.source.Write(d)
+		if err != nil {
+			if _, ok := err.(*os.PathError); !ok {
+				reportError(err)
+			}
+			break
+		}
+		d = d[written:]
+	}
+}
+
+func (a *audioStruct) playToDefaultSoundcard(d []byte) {
+	for len(d) > 0 {
+		written, err := a.defaultSoundCardStream.Write(d)
+		if err != nil {
+			if _, ok := err.(*os.PathError); !ok {
+				reportError(err)
+			}
+			break
+		}
+		d = d[written:]
+	}
+}
 
 func (a *audioStruct) playLoop(deinitNeededChan, deinitFinishedChan chan bool) {
 	for {
 		select {
 		case <-a.canPlay:
+		case <-a.togglePlaybackToDefaultSoundcardChan:
+			a.togglePlaybackToDefaultSoundcard()
 		case <-deinitNeededChan:
 			deinitFinishedChan <- true
 			return
@@ -65,19 +112,9 @@ func (a *audioStruct) playLoop(deinitNeededChan, deinitFinishedChan chan bool) {
 				break
 			}
 
-			for {
-				written, err := a.source.Write(d)
-				if err != nil {
-					if _, ok := err.(*os.PathError); !ok {
-						reportError(err)
-					}
-					break
-				}
-				bytesToWrite -= written
-				if bytesToWrite == 0 {
-					break
-				}
-				d = d[written:]
+			a.playToVirtualSoundcard(d[:bytesToWrite])
+			if a.defaultSoundCardStream != nil {
+				a.playToDefaultSoundcard(d[:bytesToWrite])
 			}
 		}
 	}
@@ -175,16 +212,17 @@ func (a *audioStruct) loop() {
 // We only init the audio once, with the first device name we acquire, so apps using the virtual sound card
 // won't have issues with the interface going down while the app is running.
 func (a *audioStruct) initIfNeeded(devName string) error {
+	a.devName = devName
 	bufferSizeInBits := (audioSampleRate * audioSampleBytes * 8) / 1000 * pulseAudioBufferLength.Milliseconds()
 
 	if !a.source.IsOpen() {
-		a.source.Name = "kappanhang-" + devName
-		a.source.Filename = "/tmp/kappanhang-" + devName + ".source"
+		a.source.Name = "kappanhang-" + a.devName
+		a.source.Filename = "/tmp/kappanhang-" + a.devName + ".source"
 		a.source.Rate = audioSampleRate
 		a.source.Format = "s16le"
 		a.source.Channels = 1
 		a.source.SetProperty("device.buffering.buffer_size", bufferSizeInBits)
-		a.source.SetProperty("device.description", "kappanhang: "+devName)
+		a.source.SetProperty("device.description", "kappanhang: "+a.devName)
 
 		// Cleanup previous pipes.
 		sources, err := papipes.GetActiveSources()
@@ -202,14 +240,14 @@ func (a *audioStruct) initIfNeeded(devName string) error {
 	}
 
 	if !a.sink.IsOpen() {
-		a.sink.Name = "kappanhang-" + devName
-		a.sink.Filename = "/tmp/kappanhang-" + devName + ".sink"
+		a.sink.Name = "kappanhang-" + a.devName
+		a.sink.Filename = "/tmp/kappanhang-" + a.devName + ".sink"
 		a.sink.Rate = audioSampleRate
 		a.sink.Format = "s16le"
 		a.sink.Channels = 1
 		a.sink.UseSystemClockForTiming = true
 		a.sink.SetProperty("device.buffering.buffer_size", bufferSizeInBits)
-		a.sink.SetProperty("device.description", "kappanhang: "+devName)
+		a.sink.SetProperty("device.description", "kappanhang: "+a.devName)
 
 		// Cleanup previous pipes.
 		sinks, err := papipes.GetActiveSinks()
@@ -233,6 +271,7 @@ func (a *audioStruct) initIfNeeded(devName string) error {
 		a.play = make(chan []byte)
 		a.canPlay = make(chan bool)
 		a.rec = make(chan []byte)
+		a.togglePlaybackToDefaultSoundcardChan = make(chan bool)
 		a.deinitNeededChan = make(chan bool)
 		a.deinitFinishedChan = make(chan bool)
 		go a.loop()
