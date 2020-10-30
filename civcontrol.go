@@ -4,10 +4,10 @@ import "math"
 
 const civAddress = 0xa4
 
-type civDecoderStruct struct {
+type civControlStruct struct {
 }
 
-func (s *civDecoderStruct) decode(d []byte) {
+func (s *civControlStruct) decode(d []byte) {
 	if len(d) < 6 || d[0] != 0xfe || d[1] != 0xfe || d[len(d)-1] != 0xfd {
 		return
 	}
@@ -30,7 +30,7 @@ func (s *civDecoderStruct) decode(d []byte) {
 	}
 }
 
-func (s *civDecoderStruct) decodeFreq(d []byte) {
+func (s *civControlStruct) decodeFreq(d []byte) {
 	var f float64
 	var pos int
 	for _, v := range d {
@@ -44,7 +44,7 @@ func (s *civDecoderStruct) decodeFreq(d []byte) {
 	statusLog.reportFrequency(f)
 }
 
-func (s *civDecoderStruct) decodeMode(d []byte) {
+func (s *civControlStruct) decodeMode(d []byte) {
 	if len(d) < 1 {
 		return
 	}
@@ -87,7 +87,7 @@ func (s *civDecoderStruct) decodeMode(d []byte) {
 	statusLog.reportMode(mode, filter)
 }
 
-func (s *civDecoderStruct) decodePower(d []byte) {
+func (s *civControlStruct) decodePower(d []byte) {
 	if len(d) < 3 || d[0] != 0x0a {
 		return
 	}
@@ -98,7 +98,7 @@ func (s *civDecoderStruct) decodePower(d []byte) {
 	statusLog.reportTxPower(percent)
 }
 
-func (s *civDecoderStruct) decodePTT(d []byte) {
+func (s *civControlStruct) decodePTT(d []byte) {
 	if len(d) < 2 {
 		return
 	}
@@ -118,7 +118,7 @@ func (s *civDecoderStruct) decodePTT(d []byte) {
 	statusLog.reportPTT(ptt, tune)
 }
 
-func (s *civDecoderStruct) query(st *serialStream) error {
+func (s *civControlStruct) query(st *serialStream) error {
 	// Querying frequency.
 	if err := st.send([]byte{254, 254, civAddress, 224, 3, 253}); err != nil {
 		return err
