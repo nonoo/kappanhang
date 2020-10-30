@@ -22,9 +22,8 @@ func (l *logger) GetCallerFileName(withLine bool) string {
 	extension := filepath.Ext(filename)
 	if withLine {
 		return fmt.Sprint(filename[l.filenameTrimChars:len(filename)-len(extension)], "@", line)
-	} else {
-		return filename[l.filenameTrimChars : len(filename)-len(extension)]
 	}
+	return filename[l.filenameTrimChars : len(filename)-len(extension)]
 }
 
 func (l *logger) Print(a ...interface{}) {

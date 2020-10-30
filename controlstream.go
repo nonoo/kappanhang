@@ -207,9 +207,8 @@ func (s *controlStream) handleRead(r []byte) error {
 			if bytes.Equal(r[48:51], []byte{0xff, 0xff, 0xff}) {
 				if !s.serialAndAudioStreamOpened {
 					return errors.New("auth failed, try rebooting the radio")
-				} else {
-					return errors.New("auth failed")
 				}
+				return errors.New("auth failed")
 			}
 			if bytes.Equal(r[48:51], []byte{0x00, 0x00, 0x00}) && r[64] == 0x01 {
 				return errors.New("got radio disconnected")

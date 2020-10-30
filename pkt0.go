@@ -150,9 +150,8 @@ func (p *pkt0Type) sendIdle(s *streamCommon, tracked bool, seqIfUntracked uint16
 		byte(s.remoteSID >> 24), byte(s.remoteSID >> 16), byte(s.remoteSID >> 8), byte(s.remoteSID)}
 	if tracked {
 		return p.sendTrackedPacket(s, d)
-	} else {
-		return s.send(d)
 	}
+	return s.send(d)
 }
 
 func (p *pkt0Type) loop(s *streamCommon) {
