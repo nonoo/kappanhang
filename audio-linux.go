@@ -126,7 +126,7 @@ func (a *audioStruct) playLoopToDefaultSoundcard(deinitNeededChan, deinitFinishe
 	}
 }
 
-func (a *audioStruct) playLoop(deinitNeededChan, deinitFinishedChan chan bool) {
+func (a *audioStruct) playLoopToVirtualSoundcard(deinitNeededChan, deinitFinishedChan chan bool) {
 	for {
 		select {
 		case <-a.virtualSoundcardStream.canPlay:
@@ -219,10 +219,11 @@ func (a *audioStruct) recLoop(deinitNeededChan, deinitFinishedChan chan bool) {
 func (a *audioStruct) loop() {
 	playLoopDeinitNeededChan := make(chan bool)
 	playLoopDeinitFinishedChan := make(chan bool)
-	go a.playLoop(playLoopDeinitNeededChan, playLoopDeinitFinishedChan)
+	go a.playLoopToVirtualSoundcard(playLoopDeinitNeededChan, playLoopDeinitFinishedChan)
 	playLoopToDefaultSoundcardDeinitNeededChan := make(chan bool)
 	playLoopToDefaultSoundcardDeinitFinishedChan := make(chan bool)
 	go a.playLoopToDefaultSoundcard(playLoopToDefaultSoundcardDeinitNeededChan, playLoopToDefaultSoundcardDeinitFinishedChan)
+
 	recLoopDeinitNeededChan := make(chan bool)
 	recLoopDeinitFinishedChan := make(chan bool)
 	go a.recLoop(recLoopDeinitNeededChan, recLoopDeinitFinishedChan)
@@ -342,13 +343,15 @@ func (a *audioStruct) initIfNeeded(devName string) error {
 	if a.virtualSoundcardStream.playBuf == nil {
 		log.Print("opened device " + a.virtualSoundcardStream.source.Name)
 
+		a.play = make(chan []byte)
+		a.rec = make(chan []byte)
+
 		a.virtualSoundcardStream.playBuf = bytes.NewBuffer([]byte{})
 		a.defaultSoundcardStream.playBuf = bytes.NewBuffer([]byte{})
-		a.play = make(chan []byte)
 		a.virtualSoundcardStream.canPlay = make(chan bool)
 		a.defaultSoundcardStream.canPlay = make(chan bool)
-		a.rec = make(chan []byte)
 		a.defaultSoundcardStream.togglePlaybackChan = make(chan bool)
+
 		a.deinitNeededChan = make(chan bool)
 		a.deinitFinishedChan = make(chan bool)
 		go a.loop()
