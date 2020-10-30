@@ -168,7 +168,7 @@ func (a *audioStruct) playLoopToVirtualSoundcard(deinitNeededChan, deinitFinishe
 	}
 }
 
-func (a *audioStruct) recLoop(deinitNeededChan, deinitFinishedChan chan bool) {
+func (a *audioStruct) recLoopFromVirtualSoundcard(deinitNeededChan, deinitFinishedChan chan bool) {
 	defer func() {
 		deinitFinishedChan <- true
 	}()
@@ -217,16 +217,16 @@ func (a *audioStruct) recLoop(deinitNeededChan, deinitFinishedChan chan bool) {
 }
 
 func (a *audioStruct) loop() {
-	playLoopDeinitNeededChan := make(chan bool)
-	playLoopDeinitFinishedChan := make(chan bool)
-	go a.playLoopToVirtualSoundcard(playLoopDeinitNeededChan, playLoopDeinitFinishedChan)
+	playLoopToVirtualSoundcardDeinitNeededChan := make(chan bool)
+	playLoopToVirtualSoundcardDeinitFinishedChan := make(chan bool)
+	go a.playLoopToVirtualSoundcard(playLoopToVirtualSoundcardDeinitNeededChan, playLoopToVirtualSoundcardDeinitFinishedChan)
 	playLoopToDefaultSoundcardDeinitNeededChan := make(chan bool)
 	playLoopToDefaultSoundcardDeinitFinishedChan := make(chan bool)
 	go a.playLoopToDefaultSoundcard(playLoopToDefaultSoundcardDeinitNeededChan, playLoopToDefaultSoundcardDeinitFinishedChan)
 
-	recLoopDeinitNeededChan := make(chan bool)
-	recLoopDeinitFinishedChan := make(chan bool)
-	go a.recLoop(recLoopDeinitNeededChan, recLoopDeinitFinishedChan)
+	recLoopFromVirtualSoundcardDeinitNeededChan := make(chan bool)
+	recLoopFromVirtualSoundcardDeinitFinishedChan := make(chan bool)
+	go a.recLoopFromVirtualSoundcard(recLoopFromVirtualSoundcardDeinitNeededChan, recLoopFromVirtualSoundcardDeinitFinishedChan)
 
 	var d []byte
 	for {
@@ -235,10 +235,10 @@ func (a *audioStruct) loop() {
 		case <-a.deinitNeededChan:
 			a.closeIfNeeded()
 
-			recLoopDeinitNeededChan <- true
-			<-recLoopDeinitFinishedChan
-			playLoopDeinitNeededChan <- true
-			<-playLoopDeinitFinishedChan
+			recLoopFromVirtualSoundcardDeinitNeededChan <- true
+			<-recLoopFromVirtualSoundcardDeinitFinishedChan
+			playLoopToVirtualSoundcardDeinitNeededChan <- true
+			<-playLoopToVirtualSoundcardDeinitFinishedChan
 
 			if a.defaultSoundcardStream.stream != nil {
 				a.defaultSoundCardStreamDeinit()
