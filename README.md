@@ -116,6 +116,8 @@ is up) with the following info:
   - `state`: RX/TX/TUNE depending on the PTT status
   - `freq`: operating frequency in MHz, mode (LSB/USB/FM...), active filter
   - `txpwr`: current transmit power setting in percent
+  - `audiomon`: current status of the audio monitor (see the *Hotkeys* section
+    in this README for more information about this feature)
 
 - Second status bar line:
   - `up`: how long the audio/serial connection is active
