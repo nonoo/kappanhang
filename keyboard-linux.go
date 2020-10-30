@@ -18,6 +18,12 @@ func (s *keyboardStruct) handleKey(k byte) {
 		audio.togglePlaybackToDefaultSoundcard()
 	case ' ':
 		audio.toggleRecFromDefaultSoundcard()
+	case 't':
+		if civControl != nil {
+			if err := civControl.toggleTune(); err != nil {
+				log.Error("can't toggle tune: ", err)
+			}
+		}
 	}
 }
 

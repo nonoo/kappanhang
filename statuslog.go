@@ -17,6 +17,7 @@ type statusLogData struct {
 	stateStr   string
 	frequency  float64
 	mode       string
+	dataMode   string
 	filter     string
 	txPowerStr string
 
@@ -119,6 +120,19 @@ func (s *statusLogStruct) reportMode(mode, filter string) {
 	s.data.filter = filter
 }
 
+func (s *statusLogStruct) reportDataMode(dataMode, filter string) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	if s.data == nil {
+		return
+	}
+	s.data.dataMode = dataMode
+	if dataMode != "" {
+		s.data.filter = filter
+	}
+}
+
 func (s *statusLogStruct) reportPTT(ptt, tune bool) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -179,7 +193,7 @@ func (s *statusLogStruct) update() {
 
 	var modeStr string
 	if s.data.mode != "" {
-		modeStr = " " + s.data.mode
+		modeStr = " " + s.data.mode + s.data.dataMode
 	}
 	var filterStr string
 	if s.data.filter != "" {

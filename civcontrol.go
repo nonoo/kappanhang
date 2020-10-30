@@ -1,11 +1,19 @@
 package main
 
-import "math"
+import (
+	"math"
+	"time"
+)
 
 const civAddress = 0xa4
 
 type civControlStruct struct {
 	st *serialStream
+
+	state struct {
+		ptt  bool
+		tune bool
+	}
 }
 
 var civControl *civControlStruct
@@ -26,6 +34,8 @@ func (s *civControlStruct) decode(d []byte) {
 		s.decodeFreq(payload)
 	case 0x04:
 		s.decodeMode(payload)
+	case 0x1a:
+		s.decodeDataMode(payload)
 	case 0x14:
 		s.decodePower(payload)
 	case 0x1c:
@@ -45,6 +55,18 @@ func (s *civControlStruct) decodeFreq(d []byte) {
 		pos++
 	}
 	statusLog.reportFrequency(f)
+}
+
+func (s *civControlStruct) decodeFilterValue(v byte) string {
+	switch v {
+	case 0x01:
+		return "FIL1"
+	case 0x02:
+		return "FIL2"
+	case 0x03:
+		return "FIL3"
+	}
+	return ""
 }
 
 func (s *civControlStruct) decodeMode(d []byte) {
@@ -78,16 +100,27 @@ func (s *civControlStruct) decodeMode(d []byte) {
 
 	var filter string
 	if len(d) > 1 {
-		switch d[1] {
-		case 0x01:
-			filter = "FIL1"
-		case 0x02:
-			filter = "FIL2"
-		case 0x03:
-			filter = "FIL3"
-		}
+		filter = s.decodeFilterValue(d[1])
 	}
 	statusLog.reportMode(mode, filter)
+
+	// The transceiver does not send the data mode setting automatically.
+	_ = s.getDataMode()
+}
+
+func (s *civControlStruct) decodeDataMode(d []byte) {
+	if len(d) < 3 || d[0] != 0x06 {
+		return
+	}
+
+	var dataMode string
+	var filter string
+	if d[1] == 1 {
+		dataMode = "-D"
+		filter = s.decodeFilterValue(d[2])
+	}
+
+	statusLog.reportDataMode(dataMode, filter)
 }
 
 func (s *civControlStruct) decodePower(d []byte) {
@@ -106,19 +139,26 @@ func (s *civControlStruct) decodeTransmitStatus(d []byte) {
 		return
 	}
 
-	var ptt bool
-	var tune bool
 	switch d[0] {
 	case 0:
 		if d[1] == 1 {
-			ptt = true
+			s.state.ptt = true
+		} else {
+			s.state.ptt = false
 		}
 	case 1:
 		if d[1] == 2 {
-			tune = true
+			s.state.tune = true
+
+			// The transceiver does not send the tune state after it's finished.
+			time.AfterFunc(time.Second, func() {
+				_ = s.getTransmitStatus()
+			})
+		} else {
+			s.state.tune = false
 		}
 	}
-	statusLog.reportPTT(ptt, tune)
+	statusLog.reportPTT(s.state.ptt, s.state.tune)
 }
 
 func (s *civControlStruct) setPTT(enable bool) error {
@@ -127,6 +167,31 @@ func (s *civControlStruct) setPTT(enable bool) error {
 		b = 1
 	}
 	return s.st.send([]byte{254, 254, civAddress, 224, 0x1c, 0, b, 253})
+}
+
+func (s *civControlStruct) toggleTune() error {
+	if s.state.ptt {
+		return nil
+	}
+
+	var b byte
+	if !s.state.tune {
+		b = 2
+	} else {
+		b = 1
+	}
+	return s.st.send([]byte{254, 254, civAddress, 224, 0x1c, 1, b, 253})
+}
+
+func (s *civControlStruct) getDataMode() error {
+	return s.st.send([]byte{254, 254, civAddress, 224, 0x1a, 0x06, 253})
+}
+
+func (s *civControlStruct) getTransmitStatus() error {
+	if err := s.st.send([]byte{254, 254, civAddress, 224, 0x1c, 0, 253}); err != nil {
+		return err
+	}
+	return s.st.send([]byte{254, 254, civAddress, 224, 0x1c, 1, 253})
 }
 
 func (s *civControlStruct) init(st *serialStream) error {
@@ -140,12 +205,14 @@ func (s *civControlStruct) init(st *serialStream) error {
 	if err := s.st.send([]byte{254, 254, civAddress, 224, 4, 253}); err != nil {
 		return err
 	}
+	if err := s.getDataMode(); err != nil {
+		return err
+	}
 	// Querying power.
 	if err := s.st.send([]byte{254, 254, civAddress, 224, 0x14, 0x0a, 253}); err != nil {
 		return err
 	}
-	// Querying PTT.
-	if err := s.st.send([]byte{254, 254, civAddress, 224, 0x1c, 0, 253}); err != nil {
+	if err := s.getTransmitStatus(); err != nil {
 		return err
 	}
 	return nil

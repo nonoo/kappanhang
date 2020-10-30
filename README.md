@@ -153,10 +153,11 @@ not available.
   Note that audio will be played to the previously created virtual sound card
   regardless of this setting.
 - `space`: toggles PTT and audio stream recording from the default sound
-  device.
+  device
 
   You can transmit your own voice using a mic attached to your computer for
   example.
+- `t`: toggles the tune process
 
 ## Authors
 
