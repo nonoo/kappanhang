@@ -38,73 +38,73 @@ func (s *keyboardStruct) handleKey(k byte) {
 		}
 	case '>':
 		if civControl != nil {
-			if err := civControl.incFreq(1); err != nil {
+			if err := civControl.incFreq(0.000001); err != nil {
 				log.Error("can't increase freq: ", err)
 			}
 		}
 	case '<':
 		if civControl != nil {
-			if err := civControl.decFreq(1); err != nil {
+			if err := civControl.decFreq(0.000001); err != nil {
 				log.Error("can't decrease freq: ", err)
 			}
 		}
 	case '.':
 		if civControl != nil {
-			if err := civControl.incFreq(10); err != nil {
+			if err := civControl.incFreq(0.00001); err != nil {
 				log.Error("can't increase freq: ", err)
 			}
 		}
 	case ',':
 		if civControl != nil {
-			if err := civControl.decFreq(10); err != nil {
+			if err := civControl.decFreq(0.00001); err != nil {
 				log.Error("can't decrease freq: ", err)
-			}
-		}
-	case ':':
-		if civControl != nil {
-			if err := civControl.incFreq(100); err != nil {
-				log.Error("can't increase freq: ", err)
 			}
 		}
 	case '"':
 		if civControl != nil {
-			if err := civControl.decFreq(100); err != nil {
-				log.Error("can't decrease freq: ", err)
+			if err := civControl.incFreq(0.0001); err != nil {
+				log.Error("can't increase freq: ", err)
 			}
 		}
-	case ';':
+	case ':':
 		if civControl != nil {
-			if err := civControl.incFreq(1000); err != nil {
-				log.Error("can't increase freq: ", err)
+			if err := civControl.decFreq(0.0001); err != nil {
+				log.Error("can't decrease freq: ", err)
 			}
 		}
 	case '\'':
 		if civControl != nil {
-			if err := civControl.decFreq(1000); err != nil {
+			if err := civControl.incFreq(0.001); err != nil {
+				log.Error("can't increase freq: ", err)
+			}
+		}
+	case ';':
+		if civControl != nil {
+			if err := civControl.decFreq(0.001); err != nil {
 				log.Error("can't decrease freq: ", err)
 			}
 		}
 	case '}':
 		if civControl != nil {
-			if err := civControl.incFreq(10000); err != nil {
+			if err := civControl.incFreq(0.01); err != nil {
 				log.Error("can't increase freq: ", err)
 			}
 		}
 	case '{':
 		if civControl != nil {
-			if err := civControl.decFreq(10000); err != nil {
+			if err := civControl.decFreq(0.01); err != nil {
 				log.Error("can't decrease freq: ", err)
 			}
 		}
 	case ']':
 		if civControl != nil {
-			if err := civControl.incFreq(100000); err != nil {
+			if err := civControl.incFreq(0.1); err != nil {
 				log.Error("can't increase freq: ", err)
 			}
 		}
 	case '[':
 		if civControl != nil {
-			if err := civControl.decFreq(100000); err != nil {
+			if err := civControl.decFreq(0.1); err != nil {
 				log.Error("can't decrease freq: ", err)
 			}
 		}
@@ -136,6 +136,18 @@ func (s *keyboardStruct) handleKey(k byte) {
 		if civControl != nil {
 			if err := civControl.toggleDataMode(); err != nil {
 				log.Error("can't change datamode: ", err)
+			}
+		}
+	case 'b':
+		if civControl != nil {
+			if err := civControl.incBand(); err != nil {
+				log.Error("can't change band: ", err)
+			}
+		}
+	case 'v':
+		if civControl != nil {
+			if err := civControl.decBand(); err != nil {
+				log.Error("can't change band: ", err)
 			}
 		}
 	}

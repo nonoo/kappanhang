@@ -36,6 +36,30 @@ var civFilters = []civFilter{
 	{name: "FIL3", code: 0x03},
 }
 
+type civBand struct {
+	freqFrom float64
+	freqTo   float64
+	freq     float64
+}
+
+var civBands = []civBand{
+	{freqFrom: 1.800000, freqTo: 1.999999},     // 1.9
+	{freqFrom: 3.400000, freqTo: 4.099999},     // 3.5
+	{freqFrom: 6.900000, freqTo: 7.499999},     // 7
+	{freqFrom: 9.900000, freqTo: 10.499999},    // 10
+	{freqFrom: 13.900000, freqTo: 14.499999},   // 14
+	{freqFrom: 17.900000, freqTo: 18.499999},   // 18
+	{freqFrom: 20.900000, freqTo: 21.499999},   // 21
+	{freqFrom: 24.400000, freqTo: 25.099999},   // 24
+	{freqFrom: 28.000000, freqTo: 29.999999},   // 28
+	{freqFrom: 50.000000, freqTo: 54.000000},   // 50
+	{freqFrom: 74.800000, freqTo: 107.999999},  // WFM
+	{freqFrom: 108.000000, freqTo: 136.999999}, // AIR
+	{freqFrom: 144.000000, freqTo: 148.000000}, // 144
+	{freqFrom: 420.000000, freqTo: 450.000000}, // 430
+	{freqFrom: 0, freqTo: 0},                   // GENE
+}
+
 type civControlStruct struct {
 	st *serialStream
 
@@ -47,6 +71,8 @@ type civControlStruct struct {
 		operatingModeIdx int
 		filterIdx        int
 		dataMode         bool
+		bandIdx          int
+		bandChanging     bool
 	}
 }
 
@@ -88,8 +114,17 @@ func (s *civControlStruct) decodeFreq(d []byte) {
 		f += float64(s2) * math.Pow(10, float64(pos))
 		pos++
 	}
-	s.state.freq = f
+	s.state.freq = f / 1000000
 	statusLog.reportFrequency(s.state.freq)
+
+	s.state.bandIdx = len(civBands) - 1 // Set the band idx to GENE by default.
+	for i := range civBands {
+		if s.state.freq >= civBands[i].freqFrom && s.state.freq <= civBands[i].freqTo {
+			s.state.bandIdx = i
+			civBands[s.state.bandIdx].freq = s.state.freq
+			break
+		}
+	}
 }
 
 func (s *civControlStruct) decodeFilterValueToFilterIdx(v byte) int {
@@ -218,7 +253,9 @@ func (s *civControlStruct) decFreq(v float64) error {
 	return s.setFreq(s.state.freq - v)
 }
 
-func (s *civControlStruct) setFreq(f float64) error {
+func (s *civControlStruct) setFreq(freqMhz float64) error {
+	f := freqMhz * 1000000
+	f = math.Round(f*100000) / 100000
 	var b [5]byte
 	v0 := s.getDigit(f, 9)
 	v1 := s.getDigit(f, 8)
@@ -318,6 +355,32 @@ func (s *civControlStruct) toggleDataMode() error {
 		f = 0
 	}
 	return s.st.send([]byte{254, 254, civAddress, 224, 0x1a, 0x06, b, f, 253})
+}
+
+func (s *civControlStruct) incBand() error {
+	s.state.bandChanging = true
+	i := s.state.bandIdx + 1
+	if i >= len(civBands) {
+		i = 0
+	}
+	f := civBands[i].freq
+	if f == 0 {
+		f = (civBands[i].freqFrom + civBands[i].freqTo) / 2
+	}
+	return s.setFreq(f)
+}
+
+func (s *civControlStruct) decBand() error {
+	s.state.bandChanging = true
+	i := s.state.bandIdx - 1
+	if i < 0 {
+		i = len(civBands) - 1
+	}
+	f := civBands[i].freq
+	if f == 0 {
+		f = civBands[i].freqFrom
+	}
+	return s.setFreq(f)
 }
 
 func (s *civControlStruct) getFreq() error {

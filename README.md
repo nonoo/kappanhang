@@ -157,6 +157,9 @@ not available.
 
   You can transmit your own voice using a mic attached to your computer for
   example.
+
+Some basic CAT control hotkeys are also supported:
+
 - `t`: toggles the tune process
 - `+`: increase TX power
 - `-`: decrease TX power
@@ -169,6 +172,7 @@ not available.
 - `n`, `m`: cycle through operating modes
 - `d`, `f`: cycle through filters
 - `D`: toggle data mode
+- `v`, `b`: cycle through bands
 
 ## Authors
 

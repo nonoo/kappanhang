@@ -203,7 +203,7 @@ func (s *statusLogStruct) update() {
 	if s.data.txPowerStr != "" {
 		txPowerStr = " txpwr " + s.data.txPowerStr
 	}
-	s.data.line1 = fmt.Sprint("state ", s.data.stateStr, " freq: ", fmt.Sprintf("%f", s.data.frequency/1000000),
+	s.data.line1 = fmt.Sprint("state ", s.data.stateStr, " freq: ", fmt.Sprintf("%.6f", s.data.frequency),
 		modeStr, filterStr, txPowerStr, " audio ", s.data.audioStateStr)
 
 	up, down, lost, retransmits := netstat.get()
