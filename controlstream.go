@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/binary"
 	"errors"
 	"time"
@@ -30,14 +31,16 @@ type controlStream struct {
 	serialAndAudioStreamOpened bool
 	deinitializing             bool
 
-	secondAuthTimer              *time.Timer
 	requestSerialAndAudioTimeout *time.Timer
 	reauthTimeoutTimer           *time.Timer
 }
 
 func (s *controlStream) sendPktLogin() error {
 	// The reply to the auth packet will contain a 6 bytes long auth ID with the first 2 bytes set to our ID.
-	authStartID := []byte{0x63, 0x00}
+	var authStartID [2]byte
+	if _, err := rand.Read(authStartID[:]); err != nil {
+		return err
+	}
 	p := []byte{0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
 		byte(s.common.remoteSID >> 24), byte(s.common.remoteSID >> 16), byte(s.common.remoteSID >> 8), byte(s.common.remoteSID),
@@ -133,11 +136,9 @@ func (s *controlStream) sendRequestSerialAndAudio() error {
 
 func (s *controlStream) sendRequestSerialAndAudioIfPossible() {
 	if !s.serialAndAudioStreamOpened && s.authOk && s.gotA8ReplyID {
-		time.AfterFunc(time.Second, func() {
-			if err := s.sendRequestSerialAndAudio(); err != nil {
-				reportError(err)
-			}
-		})
+		if err := s.sendRequestSerialAndAudio(); err != nil {
+			reportError(err)
+		}
 	}
 }
 
@@ -187,7 +188,6 @@ func (s *controlStream) handleRead(r []byte) error {
 
 			if r[21] == 0x05 { // Answer for our second auth?
 				s.authOk = true
-				s.secondAuthTimer.Stop()
 				s.sendRequestSerialAndAudioIfPossible()
 			}
 		}
@@ -236,7 +236,6 @@ func (s *controlStream) handleRead(r []byte) error {
 			// 0x00, 0x00, 0x00, 0x00, 0xc0, 0xa8, 0x03, 0x03,
 			// 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 
-			s.secondAuthTimer.Stop()
 			s.requestSerialAndAudioTimeout.Stop()
 
 			devName := parseNullTerminatedString(r[64:])
@@ -271,7 +270,6 @@ func (s *controlStream) handleRead(r []byte) error {
 func (s *controlStream) loop() {
 	netstat.reset()
 
-	s.secondAuthTimer = time.NewTimer(time.Second)
 	s.reauthTimeoutTimer = time.NewTimer(0)
 	<-s.reauthTimeoutTimer.C
 
@@ -279,11 +277,6 @@ func (s *controlStream) loop() {
 
 	for {
 		select {
-		case <-s.secondAuthTimer.C:
-			if err := s.sendPktAuth(0x05); err != nil {
-				reportError(err)
-			}
-			log.Debug("second auth sent...")
 		case r := <-s.common.readChan:
 			if !s.deinitializing {
 				if err := s.handleRead(r); err != nil {
@@ -352,6 +345,11 @@ func (s *controlStream) init() error {
 	log.Debug("login ok, first auth sent...")
 
 	s.common.pkt0.startPeriodicSend(&s.common)
+
+	if err := s.sendPktAuth(0x05); err != nil {
+		return err
+	}
+	log.Debug("second auth sent...")
 
 	s.requestSerialAndAudioTimeout = time.AfterFunc(5*time.Second, func() {
 		reportError(errors.New("login/serial/audio request timeout"))
