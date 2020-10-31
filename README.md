@@ -166,6 +166,9 @@ not available.
 - `;`, `'`: decrease, increase frequency 1kHz
 - `{`, `}`: decrease, increase frequency 10kHz
 - `[`, `]`: decrease, increase frequency 100kHz
+- `n`, `m`: cycle through operating modes
+- `d`, `f`: cycle through filters
+- `D`: toggle data mode
 
 ## Authors
 

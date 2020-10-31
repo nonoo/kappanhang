@@ -316,8 +316,6 @@ func (s *controlStream) init() error {
 		return err
 	}
 
-	s.common.pkt7.startPeriodicSend(&s.common, 2, false)
-
 	s.common.pkt0.init(&s.common)
 	if err := s.sendPktLogin(); err != nil {
 		return err
@@ -343,6 +341,8 @@ func (s *controlStream) init() error {
 	if bytes.Equal(r[48:52], []byte{0xff, 0xff, 0xff, 0xfe}) {
 		return errors.New("invalid user/password")
 	}
+
+	s.common.pkt7.startPeriodicSend(&s.common, 2, false)
 
 	copy(s.authID[:], r[26:32])
 	s.gotAuthID = true

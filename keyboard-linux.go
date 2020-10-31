@@ -108,6 +108,36 @@ func (s *keyboardStruct) handleKey(k byte) {
 				log.Error("can't decrease freq: ", err)
 			}
 		}
+	case 'm':
+		if civControl != nil {
+			if err := civControl.incOperatingMode(); err != nil {
+				log.Error("can't change mode: ", err)
+			}
+		}
+	case 'n':
+		if civControl != nil {
+			if err := civControl.decOperatingMode(); err != nil {
+				log.Error("can't change mode: ", err)
+			}
+		}
+	case 'f':
+		if civControl != nil {
+			if err := civControl.incFilter(); err != nil {
+				log.Error("can't change filter: ", err)
+			}
+		}
+	case 'd':
+		if civControl != nil {
+			if err := civControl.decFilter(); err != nil {
+				log.Error("can't change filter: ", err)
+			}
+		}
+	case 'D':
+		if civControl != nil {
+			if err := civControl.toggleDataMode(); err != nil {
+				log.Error("can't change datamode: ", err)
+			}
+		}
 	}
 }
 

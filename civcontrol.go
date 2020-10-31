@@ -7,14 +7,46 @@ import (
 
 const civAddress = 0xa4
 
+type civOperatingMode struct {
+	name string
+	code byte
+}
+
+var civOperatingModes = []civOperatingMode{
+	{name: "LSB", code: 0x00},
+	{name: "USB", code: 0x01},
+	{name: "AM", code: 0x02},
+	{name: "CW", code: 0x03},
+	{name: "RTTY", code: 0x04},
+	{name: "FM", code: 0x05},
+	{name: "WFM", code: 0x06},
+	{name: "CW-R", code: 0x07},
+	{name: "RTTY-R", code: 0x08},
+	{name: "DV", code: 0x17},
+}
+
+type civFilter struct {
+	name string
+	code byte
+}
+
+var civFilters = []civFilter{
+	{name: "FIL1", code: 0x01},
+	{name: "FIL2", code: 0x02},
+	{name: "FIL3", code: 0x03},
+}
+
 type civControlStruct struct {
 	st *serialStream
 
 	state struct {
-		freq       float64
-		ptt        bool
-		tune       bool
-		pwrPercent int
+		freq             float64
+		ptt              bool
+		tune             bool
+		pwrPercent       int
+		operatingModeIdx int
+		filterIdx        int
+		dataMode         bool
 	}
 }
 
@@ -60,16 +92,13 @@ func (s *civControlStruct) decodeFreq(d []byte) {
 	statusLog.reportFrequency(s.state.freq)
 }
 
-func (s *civControlStruct) decodeFilterValue(v byte) string {
-	switch v {
-	case 0x01:
-		return "FIL1"
-	case 0x02:
-		return "FIL2"
-	case 0x03:
-		return "FIL3"
+func (s *civControlStruct) decodeFilterValueToFilterIdx(v byte) int {
+	for i := range civFilters {
+		if civFilters[i].code == v {
+			return i
+		}
 	}
-	return ""
+	return -1
 }
 
 func (s *civControlStruct) decodeMode(d []byte) {
@@ -78,32 +107,18 @@ func (s *civControlStruct) decodeMode(d []byte) {
 	}
 
 	var mode string
-	switch d[0] {
-	case 0x00:
-		mode = "LSB"
-	case 0x01:
-		mode = "USB"
-	case 0x02:
-		mode = "AM"
-	case 0x03:
-		mode = "CW"
-	case 0x04:
-		mode = "RTTY"
-	case 0x05:
-		mode = "FM"
-	case 0x06:
-		mode = "WFM"
-	case 0x07:
-		mode = "CW-R"
-	case 0x08:
-		mode = "RTTY-R"
-	case 0x17:
-		mode = "DV"
+	for i := range civOperatingModes {
+		if civOperatingModes[i].code == d[0] {
+			s.state.operatingModeIdx = i
+			mode = civOperatingModes[i].name
+			break
+		}
 	}
 
 	var filter string
 	if len(d) > 1 {
-		filter = s.decodeFilterValue(d[1])
+		s.state.filterIdx = s.decodeFilterValueToFilterIdx(d[1])
+		filter = civFilters[s.state.filterIdx].name
 	}
 	statusLog.reportMode(mode, filter)
 
@@ -120,7 +135,11 @@ func (s *civControlStruct) decodeDataMode(d []byte) {
 	var filter string
 	if d[1] == 1 {
 		dataMode = "-D"
-		filter = s.decodeFilterValue(d[2])
+		s.state.dataMode = true
+		s.state.filterIdx = s.decodeFilterValueToFilterIdx(d[2])
+		filter = civFilters[s.state.filterIdx].name
+	} else {
+		s.state.dataMode = false
 	}
 
 	statusLog.reportDataMode(dataMode, filter)
@@ -223,6 +242,49 @@ func (s *civControlStruct) setFreq(f float64) error {
 	return s.getFreq()
 }
 
+func (s *civControlStruct) incOperatingMode() error {
+	s.state.operatingModeIdx++
+	if s.state.operatingModeIdx >= len(civOperatingModes) {
+		s.state.operatingModeIdx = 0
+	}
+	return civControl.setOperatingModeAndFilter(civOperatingModes[s.state.operatingModeIdx].code,
+		civFilters[s.state.filterIdx].code)
+}
+
+func (s *civControlStruct) decOperatingMode() error {
+	s.state.operatingModeIdx--
+	if s.state.operatingModeIdx < 0 {
+		s.state.operatingModeIdx = len(civOperatingModes) - 1
+	}
+	return civControl.setOperatingModeAndFilter(civOperatingModes[s.state.operatingModeIdx].code,
+		civFilters[s.state.filterIdx].code)
+}
+
+func (s *civControlStruct) incFilter() error {
+	s.state.filterIdx++
+	if s.state.filterIdx >= len(civFilters) {
+		s.state.filterIdx = 0
+	}
+	return civControl.setOperatingModeAndFilter(civOperatingModes[s.state.operatingModeIdx].code,
+		civFilters[s.state.filterIdx].code)
+}
+
+func (s *civControlStruct) decFilter() error {
+	s.state.filterIdx--
+	if s.state.filterIdx < 0 {
+		s.state.filterIdx = len(civFilters) - 1
+	}
+	return civControl.setOperatingModeAndFilter(civOperatingModes[s.state.operatingModeIdx].code,
+		civFilters[s.state.filterIdx].code)
+}
+
+func (s *civControlStruct) setOperatingModeAndFilter(modeCode, filterCode byte) error {
+	if err := s.st.send([]byte{254, 254, civAddress, 224, 0x06, modeCode, filterCode, 253}); err != nil {
+		return err
+	}
+	return s.getMode()
+}
+
 func (s *civControlStruct) setPTT(enable bool) error {
 	var b byte
 	if enable {
@@ -245,8 +307,25 @@ func (s *civControlStruct) toggleTune() error {
 	return s.st.send([]byte{254, 254, civAddress, 224, 0x1c, 1, b, 253})
 }
 
+func (s *civControlStruct) toggleDataMode() error {
+	var b byte
+	var f byte
+	if !s.state.dataMode {
+		b = 1
+		f = 1
+	} else {
+		b = 0
+		f = 0
+	}
+	return s.st.send([]byte{254, 254, civAddress, 224, 0x1a, 0x06, b, f, 253})
+}
+
 func (s *civControlStruct) getFreq() error {
 	return s.st.send([]byte{254, 254, civAddress, 224, 3, 253})
+}
+
+func (s *civControlStruct) getMode() error {
+	return s.st.send([]byte{254, 254, civAddress, 224, 4, 253})
 }
 
 func (s *civControlStruct) getDataMode() error {
@@ -266,8 +345,7 @@ func (s *civControlStruct) init(st *serialStream) error {
 	if err := s.getFreq(); err != nil {
 		return err
 	}
-	// Querying mode.
-	if err := s.st.send([]byte{254, 254, civAddress, 224, 4, 253}); err != nil {
+	if err := s.getMode(); err != nil {
 		return err
 	}
 	if err := s.getDataMode(); err != nil {
