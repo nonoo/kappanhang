@@ -145,6 +145,7 @@ not available.
 
 ### Hotkeys
 
+- `q` (quit): closes the app
 - `l` (listen): toggles audio stream playback to the default sound device
 
   This is useful for quickly listening into the audio stream coming from the
@@ -161,18 +162,18 @@ not available.
 Some basic CAT control hotkeys are also supported:
 
 - `t`: toggles the tune process
-- `+`: increase TX power
-- `-`: decrease TX power
-- `<`, `>`: decrease, increase frequency 1Hz
-- `,`, `.`: decrease, increase frequency 10Hz
-- `:`, `"`: decrease, increase frequency 100Hz
-- `;`, `'`: decrease, increase frequency 1kHz
-- `{`, `}`: decrease, increase frequency 10kHz
-- `[`, `]`: decrease, increase frequency 100kHz
-- `n`, `m`: cycle through operating modes
-- `d`, `f`: cycle through filters
-- `D`: toggle data mode
-- `v`, `b`: cycle through bands
+- `+`: increases TX power
+- `-`: decreases TX power
+- `<`, `>`: decreases, increases frequency 1Hz
+- `,`, `.`: decreases, increases frequency 10Hz
+- `:`, `"`: decreases, increases frequency 100Hz
+- `;`, `'`: decreases, increases frequency 1kHz
+- `{`, `}`: decreases, increases frequency 10kHz
+- `[`, `]`: decreases, increases frequency 100kHz
+- `n`, `m`: cycles through operating modes
+- `d`, `f`: cycles through filters
+- `D`: toggles data mode
+- `v`, `b`: cycles through bands
 
 ## Authors
 

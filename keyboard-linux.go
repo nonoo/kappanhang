@@ -150,6 +150,8 @@ func (s *keyboardStruct) handleKey(k byte) {
 				log.Error("can't change band: ", err)
 			}
 		}
+	case 'q':
+		quitChan <- true
 	}
 }
 

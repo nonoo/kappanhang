@@ -10,6 +10,7 @@ import (
 )
 
 var gotErrChan = make(chan bool)
+var quitChan = make(chan bool)
 
 func getAboutStr() string {
 	var v string
@@ -43,6 +44,9 @@ func runControlStream(osSignal chan os.Signal) (shouldExit bool, exitCode int) {
 		case <-t.C:
 			return false, 0
 		case <-osSignal:
+			log.Print("sigterm received")
+			return true, 0
+		case <-quitChan:
 			return true, 0
 		}
 	}
@@ -63,12 +67,18 @@ func runControlStream(osSignal chan os.Signal) (shouldExit bool, exitCode int) {
 			select {
 			case <-t.C:
 			case <-osSignal:
+				log.Print("sigterm received")
+				return true, 0
+			case <-quitChan:
 				return true, 0
 			}
 		}
 		return
 	case <-osSignal:
 		log.Print("sigterm received")
+		ctrl.deinit()
+		return true, 0
+	case <-quitChan:
 		ctrl.deinit()
 		return true, 0
 	}
@@ -111,6 +121,8 @@ func main() {
 		select {
 		case <-osSignal:
 			log.Print("sigterm received")
+			shouldExit = true
+		case <-quitChan:
 			shouldExit = true
 		default:
 		}
