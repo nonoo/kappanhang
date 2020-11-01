@@ -16,7 +16,6 @@ var runCmd string
 var disableReRunCmd bool
 var runCmdOnSerialPortCreated string
 var statusLogInterval time.Duration
-var disableAutoSWRRead bool
 
 func parseArgs() {
 	h := getopt.BoolLong("help", 'h', "display help")
@@ -28,7 +27,6 @@ func parseArgs() {
 	e := getopt.BoolLong("disable-rerun", 'e', "Disable re-execing the cmd on TCP serial port disconnect")
 	o := getopt.StringLong("run-serial", 'o', "socat /tmp/kappanhang-IC-705.pty /tmp/vmware.pty", "Exec cmd when virtual serial port is created, set to - to disable")
 	i := getopt.Uint16Long("log-interval", 'i', 100, "Status bar/log interval in milliseconds")
-	w := getopt.BoolLong("disable-auto-swr-read", 'w', "Disable auto SWR read after PTT off")
 
 	getopt.Parse()
 
@@ -46,5 +44,4 @@ func parseArgs() {
 	disableReRunCmd = *e
 	runCmdOnSerialPortCreated = *o
 	statusLogInterval = time.Duration(*i) * time.Millisecond
-	disableAutoSWRRead = *w
 }

@@ -118,8 +118,6 @@ is up) with the following info:
   - `state`: RX/TX/TUNE depending on the PTT status
   - `freq`: operating frequency in MHz, mode (LSB/USB/FM...), active filter
   - `txpwr`: current transmit power setting in percent
-  - `swr`: current SWR, this is automatically read after a TX unless disabled
-    with the `-w` command line argument
   - `audiomon`: current status of the audio monitor (see the *Hotkeys* section
     in this README for more information about this feature)
 
