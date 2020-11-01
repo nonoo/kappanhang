@@ -37,34 +37,34 @@ var civFilters = []civFilter{
 }
 
 type civBand struct {
-	freqFrom float64
-	freqTo   float64
-	freq     float64
+	freqFrom uint
+	freqTo   uint
+	freq     uint
 }
 
 var civBands = []civBand{
-	{freqFrom: 1.800000, freqTo: 1.999999},     // 1.9
-	{freqFrom: 3.400000, freqTo: 4.099999},     // 3.5
-	{freqFrom: 6.900000, freqTo: 7.499999},     // 7
-	{freqFrom: 9.900000, freqTo: 10.499999},    // 10
-	{freqFrom: 13.900000, freqTo: 14.499999},   // 14
-	{freqFrom: 17.900000, freqTo: 18.499999},   // 18
-	{freqFrom: 20.900000, freqTo: 21.499999},   // 21
-	{freqFrom: 24.400000, freqTo: 25.099999},   // 24
-	{freqFrom: 28.000000, freqTo: 29.999999},   // 28
-	{freqFrom: 50.000000, freqTo: 54.000000},   // 50
-	{freqFrom: 74.800000, freqTo: 107.999999},  // WFM
-	{freqFrom: 108.000000, freqTo: 136.999999}, // AIR
-	{freqFrom: 144.000000, freqTo: 148.000000}, // 144
-	{freqFrom: 420.000000, freqTo: 450.000000}, // 430
-	{freqFrom: 0, freqTo: 0},                   // GENE
+	{freqFrom: 1800000, freqTo: 1999999},     // 1.9
+	{freqFrom: 3400000, freqTo: 4099999},     // 3.5
+	{freqFrom: 6900000, freqTo: 7499999},     // 7
+	{freqFrom: 9900000, freqTo: 10499999},    // 10
+	{freqFrom: 13900000, freqTo: 14499999},   // 14
+	{freqFrom: 17900000, freqTo: 18499999},   // 18
+	{freqFrom: 20900000, freqTo: 21499999},   // 21
+	{freqFrom: 24400000, freqTo: 25099999},   // 24
+	{freqFrom: 28000000, freqTo: 29999999},   // 28
+	{freqFrom: 50000000, freqTo: 54000000},   // 50
+	{freqFrom: 74800000, freqTo: 107999999},  // WFM
+	{freqFrom: 108000000, freqTo: 136999999}, // AIR
+	{freqFrom: 144000000, freqTo: 148000000}, // 144
+	{freqFrom: 420000000, freqTo: 450000000}, // 430
+	{freqFrom: 0, freqTo: 0},                 // GENE
 }
 
 type civControlStruct struct {
 	st *serialStream
 
 	state struct {
-		freq             float64
+		freq             uint
 		ptt              bool
 		tune             bool
 		pwrPercent       int
@@ -104,17 +104,17 @@ func (s *civControlStruct) decode(d []byte) {
 }
 
 func (s *civControlStruct) decodeFreq(d []byte) {
-	var f float64
+	var f uint
 	var pos int
 	for _, v := range d {
 		s1 := v & 0x0f
 		s2 := v >> 4
-		f += float64(s1) * math.Pow(10, float64(pos))
+		f += uint(s1) * uint(math.Pow(10, float64(pos)))
 		pos++
-		f += float64(s2) * math.Pow(10, float64(pos))
+		f += uint(s2) * uint(math.Pow(10, float64(pos)))
 		pos++
 	}
-	s.state.freq = f / 1000000
+	s.state.freq = f
 	statusLog.reportFrequency(s.state.freq)
 
 	s.state.bandIdx = len(civBands) - 1 // Set the band idx to GENE by default.
@@ -237,25 +237,24 @@ func (s *civControlStruct) decPwr() error {
 	return nil
 }
 
-func (s *civControlStruct) getDigit(v float64, n int) byte {
+func (s *civControlStruct) getDigit(v uint, n int) byte {
+	f := float64(v)
 	for n > 0 {
-		v /= 10
+		f /= 10
 		n--
 	}
-	return byte(uint64(v) % 10)
+	return byte(uint(f) % 10)
 }
 
-func (s *civControlStruct) incFreq(v float64) error {
+func (s *civControlStruct) incFreq(v uint) error {
 	return s.setFreq(s.state.freq + v)
 }
 
-func (s *civControlStruct) decFreq(v float64) error {
+func (s *civControlStruct) decFreq(v uint) error {
 	return s.setFreq(s.state.freq - v)
 }
 
-func (s *civControlStruct) setFreq(freqMhz float64) error {
-	f := freqMhz * 1000000
-	f = math.Round(f*100000) / 100000
+func (s *civControlStruct) setFreq(f uint) error {
 	var b [5]byte
 	v0 := s.getDigit(f, 9)
 	v1 := s.getDigit(f, 8)

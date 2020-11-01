@@ -15,7 +15,7 @@ type statusLogData struct {
 	line2 string
 
 	stateStr   string
-	frequency  float64
+	frequency  uint
 	mode       string
 	dataMode   string
 	filter     string
@@ -99,7 +99,7 @@ func (s *statusLogStruct) reportAudioRec(enabled bool) {
 	s.updateAudioStateStr()
 }
 
-func (s *statusLogStruct) reportFrequency(f float64) {
+func (s *statusLogStruct) reportFrequency(f uint) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -203,7 +203,7 @@ func (s *statusLogStruct) update() {
 	if s.data.txPowerStr != "" {
 		txPowerStr = " txpwr " + s.data.txPowerStr
 	}
-	s.data.line1 = fmt.Sprint("state ", s.data.stateStr, " freq: ", fmt.Sprintf("%.6f", s.data.frequency),
+	s.data.line1 = fmt.Sprint("state ", s.data.stateStr, " freq: ", fmt.Sprintf("%.6f", float64(s.data.frequency)/1000000),
 		modeStr, filterStr, txPowerStr, " audio ", s.data.audioStateStr)
 
 	up, down, lost, retransmits := netstat.get()
