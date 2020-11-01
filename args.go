@@ -13,6 +13,7 @@ var connectAddress string
 var serialTCPPort uint16
 var enableSerialDevice bool
 var runCmd string
+var disableReRunCmd bool
 var runCmdOnSerialPortCreated string
 var statusLogInterval time.Duration
 
@@ -23,6 +24,7 @@ func parseArgs() {
 	t := getopt.Uint16Long("serial-tcp-port", 'p', 4533, "Expose radio's serial port on this TCP port")
 	s := getopt.BoolLong("enable-serial-device", 's', "Expose radio's serial port as a virtual serial port")
 	r := getopt.StringLong("run", 'r', "rigctld -m 3085 -r :4533", "Exec cmd when connected, set to - to disable")
+	e := getopt.BoolLong("disable-rerun", 'e', "Disable re-execing the cmd on TCP serial port disconnect")
 	o := getopt.StringLong("run-serial", 'o', "socat /tmp/kappanhang-IC-705.pty /tmp/vmware.pty", "Exec cmd when virtual serial port is created, set to - to disable")
 	i := getopt.Uint16Long("log-interval", 'i', 100, "Status bar/log interval in milliseconds")
 
@@ -39,6 +41,7 @@ func parseArgs() {
 	serialTCPPort = *t
 	enableSerialDevice = *s
 	runCmd = *r
+	disableReRunCmd = *e
 	runCmdOnSerialPortCreated = *o
 	statusLogInterval = time.Duration(*i) * time.Millisecond
 }

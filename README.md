@@ -68,7 +68,9 @@ After it is connected and logged in:
   connects it to kappanhang's TCP serial port server. You can specify a custom
   command with the `-r` command line argument. Running any command can be
   disabled with `-r -`. The command is only executed once, as the TCP serial
-  port server will stay on even if the RS-BA1 server disconnects.
+  port server will stay on even if the RS-BA1 server disconnects. If the TCP
+  serial port client disconnects (rigctld hangs) then the command will be
+  automatically restarted. This can be disabled with the `-e`.
 
   3085 is the model number of the Icom IC-705. `rigctld` will connect to
   kappanhang's TCP serial port server, and waits connections on it's default

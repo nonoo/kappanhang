@@ -56,10 +56,15 @@ func stopCmd() {
 		if err := startedCmd.Process.Kill(); err != nil {
 			log.Error("failed to stop cmd ", runCmd, ": ", err)
 		}
+		startedCmd = nil
 	}
+}
+
+func stopSerialPortCmd() {
 	if serialPortStartedCmd != nil {
 		if err := serialPortStartedCmd.Process.Kill(); err != nil {
 			log.Error("failed to stop cmd ", runCmdOnSerialPortCreated, ": ", err)
 		}
+		serialPortStartedCmd = nil
 	}
 }

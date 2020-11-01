@@ -133,6 +133,7 @@ func main() {
 	}
 
 	stopCmd()
+	stopSerialPortCmd()
 	audio.deinit()
 	serialTCPSrv.deinit()
 	serialPort.deinit()
