@@ -20,6 +20,7 @@ type statusLogData struct {
 	dataMode   string
 	filter     string
 	txPowerStr string
+	swrStr     string
 
 	startTime time.Time
 	rttStr    string
@@ -36,8 +37,8 @@ type statusLogStruct struct {
 	mutex            sync.Mutex
 
 	preGenerated struct {
-		retransmitsColor *color.Color
-		lostColor        *color.Color
+		warningColor *color.Color
+		errorColor   *color.Color
 
 		stateStr struct {
 			unknown string
@@ -159,6 +160,26 @@ func (s *statusLogStruct) reportTxPower(percent int) {
 	s.data.txPowerStr = fmt.Sprint(percent, "%")
 }
 
+func (s *statusLogStruct) reportSWR(swr float64) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	if s.data == nil {
+		return
+	}
+	if swr < 0 {
+		s.data.swrStr = s.preGenerated.errorColor.Sprint(" 3.0+ ")
+	} else {
+		if swr <= 2 {
+			s.data.swrStr = fmt.Sprintf("%.1f", swr)
+		} else if swr < 3 {
+			s.data.swrStr = s.preGenerated.warningColor.Sprintf(" %.1f ", swr)
+		} else {
+			s.data.swrStr = s.preGenerated.errorColor.Sprintf(" %.1f ", swr)
+		}
+	}
+}
+
 func (s *statusLogStruct) clearInternal() {
 	fmt.Printf("%c[2K", 27)
 }
@@ -203,17 +224,21 @@ func (s *statusLogStruct) update() {
 	if s.data.txPowerStr != "" {
 		txPowerStr = " txpwr " + s.data.txPowerStr
 	}
+	var swrStr string
+	if s.data.swrStr != "" {
+		swrStr = " swr " + s.data.swrStr
+	}
 	s.data.line1 = fmt.Sprint("state ", s.data.stateStr, " freq: ", fmt.Sprintf("%.6f", float64(s.data.frequency)/1000000),
-		modeStr, filterStr, txPowerStr, " audio ", s.data.audioStateStr)
+		modeStr, filterStr, txPowerStr, swrStr, " audio ", s.data.audioStateStr)
 
 	up, down, lost, retransmits := netstat.get()
 	lostStr := "0"
 	if lost > 0 {
-		lostStr = s.preGenerated.lostColor.Sprint(" ", lost, " ")
+		lostStr = s.preGenerated.errorColor.Sprint(" ", lost, " ")
 	}
 	retransmitsStr := "0"
 	if retransmits > 0 {
-		retransmitsStr = s.preGenerated.retransmitsColor.Sprint(" ", retransmits, " ")
+		retransmitsStr = s.preGenerated.warningColor.Sprint(" ", retransmits, " ")
 	}
 
 	s.data.line2 = fmt.Sprint("up ", s.padLeft(fmt.Sprint(time.Since(s.data.startTime).Round(time.Second)), 6),
@@ -321,8 +346,8 @@ func (s *statusLogStruct) initIfNeeded() {
 	s.preGenerated.stateStr.tune = c.Sprint(" TUNE ")
 	s.preGenerated.audioStateStr.rec = c.Sprint("  REC  ")
 
-	s.preGenerated.retransmitsColor = color.New(color.FgHiWhite)
-	s.preGenerated.retransmitsColor.Add(color.BgYellow)
-	s.preGenerated.lostColor = color.New(color.FgHiWhite)
-	s.preGenerated.lostColor.Add(color.BgRed)
+	s.preGenerated.warningColor = color.New(color.FgHiWhite)
+	s.preGenerated.warningColor.Add(color.BgYellow)
+	s.preGenerated.errorColor = color.New(color.FgHiWhite)
+	s.preGenerated.errorColor.Add(color.BgRed)
 }

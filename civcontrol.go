@@ -98,6 +98,8 @@ func (s *civControlStruct) decode(d []byte) {
 		s.decodeDataMode(payload)
 	case 0x14:
 		s.decodePower(payload)
+	case 0x15:
+		s.decodeSWR(payload)
 	case 0x1c:
 		s.decodeTransmitStatus(payload)
 	}
@@ -191,6 +193,20 @@ func (s *civControlStruct) decodePower(d []byte) {
 	statusLog.reportTxPower(s.state.pwrPercent)
 }
 
+func (s *civControlStruct) decodeSWR(d []byte) {
+	if len(d) < 3 || d[0] != 0x12 {
+		return
+	}
+	v := uint16(d[1])<<8 | uint16(d[2])
+	var swr float64
+	if v > 0x120 {
+		swr = -1
+	} else {
+		swr = (float64(v) / 0x120) * 3
+	}
+	statusLog.reportSWR(swr)
+}
+
 func (s *civControlStruct) decodeTransmitStatus(d []byte) {
 	if len(d) < 2 {
 		return
@@ -202,6 +218,9 @@ func (s *civControlStruct) decodeTransmitStatus(d []byte) {
 			s.state.ptt = true
 		} else {
 			s.state.ptt = false
+			if !disableAutoSWRRead {
+				_ = s.getSWR()
+			}
 		}
 	case 1:
 		if d[1] == 2 {
@@ -212,6 +231,9 @@ func (s *civControlStruct) decodeTransmitStatus(d []byte) {
 				_ = s.getTransmitStatus()
 			})
 		} else {
+			if s.state.tune {
+				_ = s.getSWR()
+			}
 			s.state.tune = false
 		}
 	}
@@ -401,6 +423,10 @@ func (s *civControlStruct) getTransmitStatus() error {
 	return s.st.send([]byte{254, 254, civAddress, 224, 0x1c, 1, 253})
 }
 
+func (s *civControlStruct) getSWR() error {
+	return s.st.send([]byte{254, 254, civAddress, 224, 0x15, 0x12, 253})
+}
+
 func (s *civControlStruct) init(st *serialStream) error {
 	s.st = st
 
@@ -418,6 +444,9 @@ func (s *civControlStruct) init(st *serialStream) error {
 		return err
 	}
 	if err := s.getTransmitStatus(); err != nil {
+		return err
+	}
+	if err := s.getSWR(); err != nil {
 		return err
 	}
 	return nil
