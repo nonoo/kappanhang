@@ -114,6 +114,9 @@ func (s *civControlStruct) decodeFreq(d []byte) {
 		f += uint(s2) * uint(math.Pow(10, float64(pos)))
 		pos++
 	}
+	if f == 0 {
+		return
+	}
 	s.state.freq = f
 	statusLog.reportFrequency(s.state.freq)
 
