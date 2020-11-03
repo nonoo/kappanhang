@@ -5,6 +5,7 @@ package main
 import (
 	"bytes"
 	"errors"
+	"io"
 	"os"
 	"sync"
 	"time"
@@ -285,6 +286,10 @@ func (a *audioStruct) recLoopFromVirtualSoundcard(deinitNeededChan, deinitFinish
 		if err != nil {
 			if _, ok := err.(*os.PathError); !ok {
 				reportError(err)
+				if err == io.EOF {
+					<-deinitNeededChan
+					return
+				}
 			}
 		}
 
