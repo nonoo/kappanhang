@@ -94,6 +94,7 @@ is up) with the following info:
   - `txpwr`: current transmit power setting in percent
   - `audio`: current status of the audio monitor (see the *Hotkeys* section
     in this README for more information about this feature)
+  - `S meter`: periodically refreshed S meter value
 
 - Second status bar line:
   - `up`: how long the audio/serial connection is active

@@ -6,6 +6,7 @@ import (
 )
 
 const civAddress = 0xa4
+const sReadInterval = time.Second
 
 type civOperatingMode struct {
 	name string
@@ -61,7 +62,10 @@ var civBands = []civBand{
 }
 
 type civControlStruct struct {
-	st *serialStream
+	st              *serialStream
+	deinitNeeded    chan bool
+	deinitFinished  chan bool
+	resetSReadTimer chan bool
 
 	state struct {
 		freq             uint
@@ -102,7 +106,7 @@ func (s *civControlStruct) decode(d []byte) {
 	case 0x1c:
 		s.decodeTransmitStatus(payload)
 	case 0x15:
-		s.decodeVd(payload)
+		s.decodeVdAndS(payload)
 	case 0x16:
 		s.decodePreamp(payload)
 	}
@@ -232,16 +236,15 @@ func (s *civControlStruct) decodeTransmitStatus(d []byte) {
 	statusLog.reportPTT(s.state.ptt, s.state.tune)
 }
 
-func (s *civControlStruct) decodeVd(d []byte) {
-	if len(d) < 2 {
+func (s *civControlStruct) decodeVdAndS(d []byte) {
+	if len(d) < 3 {
 		return
 	}
 
 	switch d[0] {
+	case 0x02:
+		statusLog.reportS(int(math.Round(((float64(int(d[1])<<8) + float64(d[2])) / 0x0241) * 18)))
 	case 0x15:
-		if len(d) < 3 {
-			return
-		}
 		statusLog.reportVd(((float64(int(d[1])<<8) + float64(d[2])) / 0x0241) * 16)
 	}
 }
@@ -453,6 +456,23 @@ func (s *civControlStruct) getVd() error {
 	return s.st.send([]byte{254, 254, civAddress, 224, 0x15, 0x15, 253})
 }
 
+func (s *civControlStruct) getS() error {
+	return s.st.send([]byte{254, 254, civAddress, 224, 0x15, 0x02, 253})
+}
+
+func (s *civControlStruct) loop() {
+	for {
+		select {
+		case <-s.deinitNeeded:
+			s.deinitFinished <- true
+			return
+		case <-time.After(sReadInterval):
+			_ = s.getS()
+		case <-s.resetSReadTimer:
+		}
+	}
+}
+
 func (s *civControlStruct) init(st *serialStream) error {
 	s.st = st
 
@@ -479,5 +499,21 @@ func (s *civControlStruct) init(st *serialStream) error {
 	if err := s.getVd(); err != nil {
 		return err
 	}
+	if err := s.getS(); err != nil {
+		return err
+	}
+
+	s.deinitNeeded = make(chan bool)
+	s.deinitFinished = make(chan bool)
+	s.resetSReadTimer = make(chan bool)
+	go s.loop()
 	return nil
+}
+
+func (s *civControlStruct) deinit() {
+	if s.deinitNeeded != nil {
+		s.deinitNeeded <- true
+		<-s.deinitFinished
+	}
+	s.deinitNeeded = nil
 }

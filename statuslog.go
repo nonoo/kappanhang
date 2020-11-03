@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"sync"
 	"time"
@@ -22,6 +23,7 @@ type statusLogData struct {
 	preamp     string
 	vd         string
 	txPowerStr string
+	s          string
 
 	startTime time.Time
 	rttStr    string
@@ -155,6 +157,28 @@ func (s *statusLogStruct) reportVd(voltage float64) {
 	s.data.vd = fmt.Sprintf("%.1fV", voltage)
 }
 
+func (s *statusLogStruct) reportS(sValue int) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	if s.data == nil {
+		return
+	}
+	s.data.s = "S"
+	if sValue <= 9 {
+		s.data.s += fmt.Sprint(sValue)
+	} else {
+		s.data.s += "9+"
+
+		if sValue > 18 {
+			s.data.s += "60"
+		} else {
+			dB := (float64((sValue - 9)) / 9) * 60
+			s.data.s += fmt.Sprint(int(math.Round(dB/10) * 10))
+		}
+	}
+}
+
 func (s *statusLogStruct) reportPTT(ptt, tune bool) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -233,8 +257,12 @@ func (s *statusLogStruct) update() {
 	if s.data.txPowerStr != "" {
 		txPowerStr = " txpwr " + s.data.txPowerStr
 	}
+	var sStr string
+	if s.data.s != "" {
+		sStr = " " + s.data.s
+	}
 	s.data.line1 = fmt.Sprint(s.data.stateStr, " ", fmt.Sprintf("%.6f", float64(s.data.frequency)/1000000),
-		modeStr, filterStr, preampStr, vdStr, txPowerStr, " audio ", s.data.audioStateStr)
+		modeStr, filterStr, preampStr, vdStr, txPowerStr, " audio ", s.data.audioStateStr, sStr)
 
 	up, down, lost, retransmits := netstat.get()
 	lostStr := "0"
