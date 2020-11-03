@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"os/exec"
 	"time"
 )
 
@@ -264,7 +265,11 @@ func (s *controlStream) handleRead(r []byte) error {
 				serialCmdRunner.startIfNeeded(runCmdOnSerialPortCreated)
 			}
 			if !disableRigctld {
-				rigctldRunner.startIfNeeded(fmt.Sprint("rigctld -m ", rigctldModel, " -r :", serialTCPPort))
+				if _, err := exec.LookPath("rigctld"); err != nil {
+					log.Error("can't start rigctld: ", err)
+				} else {
+					rigctldRunner.startIfNeeded(fmt.Sprint("rigctld -m ", rigctldModel, " -r :", serialTCPPort))
+				}
 			}
 		}
 	}
