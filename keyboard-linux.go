@@ -150,6 +150,12 @@ func (s *keyboardStruct) handleKey(k byte) {
 				log.Error("can't change band: ", err)
 			}
 		}
+	case 'p':
+		if civControl != nil {
+			if err := civControl.togglePreamp(); err != nil {
+				log.Error("can't change preamp: ", err)
+			}
+		}
 	case 'q':
 		quitChan <- true
 	}

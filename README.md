@@ -86,7 +86,8 @@ is up) with the following info:
 
 - First status bar line:
   - `state`: RX/TX/TUNE depending on the PTT status
-  - `freq`: operating frequency in MHz, mode (LSB/USB/FM...), active filter
+  - `freq`: operating frequency in MHz, mode (LSB/USB/FM...), active filter,
+    preamp (PAMP0 means the preamp is off)
   - `txpwr`: current transmit power setting in percent
   - `audiomon`: current status of the audio monitor (see the *Hotkeys* section
     in this README for more information about this feature)
@@ -140,6 +141,7 @@ Some basic CAT control hotkeys are also supported:
 - `d`, `f`: cycles through filters
 - `D`: toggles data mode
 - `v`, `b`: cycles through bands
+- `p`: toggle preamp
 
 ## Icom IC-705 Wi-Fi notes
 

@@ -73,6 +73,7 @@ type civControlStruct struct {
 		dataMode         bool
 		bandIdx          int
 		bandChanging     bool
+		preamp           int
 	}
 }
 
@@ -100,6 +101,8 @@ func (s *civControlStruct) decode(d []byte) {
 		s.decodePower(payload)
 	case 0x1c:
 		s.decodeTransmitStatus(payload)
+	case 0x16:
+		s.decodePreamp(payload)
 	}
 }
 
@@ -219,6 +222,18 @@ func (s *civControlStruct) decodeTransmitStatus(d []byte) {
 		}
 	}
 	statusLog.reportPTT(s.state.ptt, s.state.tune)
+}
+
+func (s *civControlStruct) decodePreamp(d []byte) {
+	if len(d) < 2 {
+		return
+	}
+
+	switch d[0] {
+	case 0x02:
+		s.state.preamp = int(d[1])
+		statusLog.reportPreamp(s.state.preamp)
+	}
 }
 
 func (s *civControlStruct) setPwr(percent int) error {
@@ -385,6 +400,14 @@ func (s *civControlStruct) decBand() error {
 	return s.setFreq(f)
 }
 
+func (s *civControlStruct) togglePreamp() error {
+	b := byte(s.state.preamp + 1)
+	if b > 2 {
+		b = 0
+	}
+	return s.st.send([]byte{254, 254, civAddress, 224, 0x16, 0x02, b, 253})
+}
+
 func (s *civControlStruct) getFreq() error {
 	return s.st.send([]byte{254, 254, civAddress, 224, 3, 253})
 }
@@ -421,6 +444,10 @@ func (s *civControlStruct) init(st *serialStream) error {
 		return err
 	}
 	if err := s.getTransmitStatus(); err != nil {
+		return err
+	}
+	// Querying preamp.
+	if err := s.st.send([]byte{254, 254, civAddress, 224, 0x16, 0x02, 253}); err != nil {
 		return err
 	}
 	return nil
