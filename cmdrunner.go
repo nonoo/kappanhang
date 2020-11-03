@@ -22,10 +22,7 @@ var rigctldRunner cmdRunner
 func (c *cmdRunner) kill(cmd *exec.Cmd) {
 	err := cmd.Process.Kill()
 	if err != nil {
-		err = cmd.Process.Signal(syscall.SIGKILL)
-		if err != nil {
-			log.Error("can't kill ", cmd)
-		}
+		_ = cmd.Process.Signal(syscall.SIGKILL)
 	}
 }
 
