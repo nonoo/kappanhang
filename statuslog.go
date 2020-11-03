@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"math"
 	"os"
 	"sync"
 	"time"
@@ -157,26 +156,14 @@ func (s *statusLogStruct) reportVd(voltage float64) {
 	s.data.vd = fmt.Sprintf("%.1fV", voltage)
 }
 
-func (s *statusLogStruct) reportS(sValue int) {
+func (s *statusLogStruct) reportS(sValue string) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
 	if s.data == nil {
 		return
 	}
-	s.data.s = "S"
-	if sValue <= 9 {
-		s.data.s += fmt.Sprint(sValue)
-	} else {
-		s.data.s += "9+"
-
-		if sValue > 18 {
-			s.data.s += "60"
-		} else {
-			dB := (float64((sValue - 9)) / 9) * 60
-			s.data.s += fmt.Sprint(int(math.Round(dB/10) * 10))
-		}
-	}
+	s.data.s = sValue
 }
 
 func (s *statusLogStruct) reportPTT(ptt, tune bool) {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"math"
 	"time"
 )
@@ -243,7 +244,21 @@ func (s *civControlStruct) decodeVdAndS(d []byte) {
 
 	switch d[0] {
 	case 0x02:
-		statusLog.reportS(int(math.Round(((float64(int(d[1])<<8) + float64(d[2])) / 0x0241) * 18)))
+		sValue := (int(math.Round(((float64(int(d[1])<<8) + float64(d[2])) / 0x0241) * 18)))
+		sStr := "S"
+		if sValue <= 9 {
+			sStr += fmt.Sprint(sValue)
+		} else {
+			sStr += "9+"
+
+			if sValue > 18 {
+				sStr += "60"
+			} else {
+				dB := (float64((sValue - 9)) / 9) * 60
+				sStr += fmt.Sprint(int(math.Round(dB/10) * 10))
+			}
+		}
+		statusLog.reportS(sStr)
 	case 0x15:
 		statusLog.reportVd(((float64(int(d[1])<<8) + float64(d[2])) / 0x0241) * 16)
 	}
