@@ -86,10 +86,13 @@ is up) with the following info:
 
 - First status bar line:
   - `state`: RX/TX/TUNE depending on the PTT status
-  - `freq`: operating frequency in MHz, mode (LSB/USB/FM...), active filter,
-    preamp (PAMP0 means the preamp is off), Vd voltage
+  - `freq`: operating frequency in MHz
+  - `mode`: LSB/USB/FM etc.
+  - `filter`: active filter (FIL1, FIL2 etc.)
+  - `preamp`: PAMP0 means the preamp is off
+  - `voltage`: Vd voltage
   - `txpwr`: current transmit power setting in percent
-  - `audiomon`: current status of the audio monitor (see the *Hotkeys* section
+  - `audio`: current status of the audio monitor (see the *Hotkeys* section
     in this README for more information about this feature)
 
 - Second status bar line:
