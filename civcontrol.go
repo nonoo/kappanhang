@@ -481,7 +481,7 @@ func (s *civControlStruct) init(st *serialStream) error {
 	return nil
 }
 
-func (s *civControlStruct) deinit(st *serialStream) {
+func (s *civControlStruct) deinit() {
 	if s.vdReadTimer != nil {
 		s.vdReadTimer.Stop()
 		s.vdReadTimer = nil
