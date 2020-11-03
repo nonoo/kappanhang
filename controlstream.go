@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"time"
 )
 
@@ -258,9 +259,13 @@ func (s *controlStream) handleRead(r []byte) error {
 			s.serialAndAudioStreamOpened = true
 			statusLog.startPeriodicPrint()
 
-			startCmdIfNeeded()
-			startSerialPortCmdIfNeeded()
-			startRigctldCmdIfNeeded()
+			runCmdRunner.startIfNeeded(runCmd)
+			if enableSerialDevice {
+				serialCmdRunner.startIfNeeded(runCmdOnSerialPortCreated)
+			}
+			if !disableRigctld {
+				rigctldRunner.startIfNeeded(fmt.Sprint("rigctld -m ", rigctldModel, " -r :", serialTCPPort))
+			}
 		}
 	}
 	return nil
