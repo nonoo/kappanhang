@@ -61,7 +61,7 @@ func (c *cmdRunner) run(cmdLine string) {
 
 		select {
 		case <-c.restartNeeded:
-			log.Debug("restarting ", cmd)
+			// log.Debug("restarting ", cmd)
 			c.kill(cmd)
 		case err := <-finishedChan:
 			if err != nil {
