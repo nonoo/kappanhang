@@ -259,9 +259,8 @@ func (s *controlStream) handleRead(r []byte) error {
 			statusLog.startPeriodicPrint()
 
 			startCmdIfNeeded()
-			if enableSerialDevice {
-				startSerialPortCmdIfNeeded()
-			}
+			startSerialPortCmdIfNeeded()
+			startRigctldCmdIfNeeded()
 		}
 	}
 	return nil

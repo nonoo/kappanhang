@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os/exec"
 	"strings"
 	"time"
@@ -8,8 +9,48 @@ import (
 
 const startCmdDelay = time.Second
 
+var startedRigctldCmd *exec.Cmd
+var rigctldCmdStartTimer *time.Timer
 var startedCmd *exec.Cmd
+var cmdStartTimer *time.Timer
 var serialPortStartedCmd *exec.Cmd
+var serialPortCmdStartTimer *time.Timer
+
+func doStartRigctldCmd() {
+	startedRigctldCmd = exec.Command("rigctld", "-m", fmt.Sprint(rigctldModel), "-r",
+		fmt.Sprint(":", serialTCPPort))
+	err := startedRigctldCmd.Start()
+	if err == nil {
+		log.Print("rigctld started: ", startedRigctldCmd)
+	} else {
+		log.Error("error starting rigctld: ", err)
+		startedCmd = nil
+	}
+	rigctldCmdStartTimer = nil
+}
+
+func startRigctldCmdIfNeeded() {
+	if startedRigctldCmd != nil || disableRigctld {
+		return
+	}
+
+	if rigctldCmdStartTimer != nil {
+		rigctldCmdStartTimer.Stop()
+	}
+	rigctldCmdStartTimer = time.AfterFunc(startCmdDelay, doStartRigctldCmd)
+}
+
+func stopRigctldCmd() {
+	if startedRigctldCmd == nil {
+		return
+	}
+
+	if err := startedRigctldCmd.Process.Kill(); err != nil {
+		log.Error("failed to stop rigctld: ", err)
+	}
+	_ = startedRigctldCmd.Wait()
+	startedRigctldCmd = nil
+}
 
 func doStartCmd() {
 	c := strings.Split(runCmd, " ")
@@ -21,14 +62,29 @@ func doStartCmd() {
 		log.Error("error starting ", runCmd, ": ", err)
 		startedCmd = nil
 	}
+	cmdStartTimer = nil
 }
 
 func startCmdIfNeeded() {
-	if startedCmd != nil || runCmd == "-" {
+	if startedCmd != nil || runCmd == "" {
 		return
 	}
 
-	time.AfterFunc(startCmdDelay, doStartCmd)
+	if cmdStartTimer != nil {
+		cmdStartTimer.Stop()
+	}
+	cmdStartTimer = time.AfterFunc(startCmdDelay, doStartCmd)
+}
+
+func stopCmd() {
+	if startedCmd == nil {
+		return
+	}
+
+	if err := startedCmd.Process.Kill(); err != nil {
+		log.Error("failed to stop cmd ", runCmd, ": ", err)
+	}
+	startedCmd = nil
 }
 
 func doSerialPortStartCmd() {
@@ -41,30 +97,27 @@ func doSerialPortStartCmd() {
 		log.Error("error starting ", runCmdOnSerialPortCreated, ": ", err)
 		serialPortStartedCmd = nil
 	}
+	serialPortCmdStartTimer = nil
 }
 
 func startSerialPortCmdIfNeeded() {
-	if serialPortStartedCmd != nil || runCmdOnSerialPortCreated == "-" {
+	if !enableSerialDevice || serialPortStartedCmd != nil || runCmdOnSerialPortCreated == "-" {
 		return
 	}
 
-	time.AfterFunc(startCmdDelay, doSerialPortStartCmd)
-}
-
-func stopCmd() {
-	if startedCmd != nil {
-		if err := startedCmd.Process.Kill(); err != nil {
-			log.Error("failed to stop cmd ", runCmd, ": ", err)
-		}
-		startedCmd = nil
+	if serialPortCmdStartTimer != nil {
+		serialPortCmdStartTimer.Stop()
 	}
+	serialPortCmdStartTimer = time.AfterFunc(startCmdDelay, doSerialPortStartCmd)
 }
 
 func stopSerialPortCmd() {
-	if serialPortStartedCmd != nil {
-		if err := serialPortStartedCmd.Process.Kill(); err != nil {
-			log.Error("failed to stop cmd ", runCmdOnSerialPortCreated, ": ", err)
-		}
-		serialPortStartedCmd = nil
+	if serialPortStartedCmd == nil {
+		return
 	}
+
+	if err := serialPortStartedCmd.Process.Kill(); err != nil {
+		log.Error("failed to stop cmd ", runCmdOnSerialPortCreated, ": ", err)
+	}
+	serialPortStartedCmd = nil
 }

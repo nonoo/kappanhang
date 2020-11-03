@@ -12,8 +12,9 @@ var verboseLog bool
 var connectAddress string
 var serialTCPPort uint16
 var enableSerialDevice bool
+var rigctldModel uint
+var disableRigctld bool
 var runCmd string
-var disableReRunCmd bool
 var runCmdOnSerialPortCreated string
 var statusLogInterval time.Duration
 
@@ -21,11 +22,12 @@ func parseArgs() {
 	h := getopt.BoolLong("help", 'h', "display help")
 	v := getopt.BoolLong("verbose", 'v', "Enable verbose (debug) logging")
 	a := getopt.StringLong("address", 'a', "IC-705", "Connect to address")
-	t := getopt.Uint16Long("serial-tcp-port", 'p', 4533, "Expose radio's serial port on this TCP port")
+	t := getopt.Uint16Long("serial-tcp-port", 't', 4533, "Expose radio's serial port on this TCP port")
 	s := getopt.BoolLong("enable-serial-device", 's', "Expose radio's serial port as a virtual serial port")
-	r := getopt.StringLong("run", 'r', "rigctld -m 3085 -r :4533", "Exec cmd when connected, set to - to disable")
-	e := getopt.BoolLong("disable-rerun", 'e', "Disable re-execing the cmd on TCP serial port disconnect")
-	o := getopt.StringLong("run-serial", 'o', "socat /tmp/kappanhang-IC-705.pty /tmp/vmware.pty", "Exec cmd when virtual serial port is created, set to - to disable")
+	m := getopt.UintLong("rigctld-model", 'm', 3085, "rigctld model number")
+	r := getopt.BoolLong("disable-rigctld", 'r', "Disable starting rigctld")
+	e := getopt.StringLong("exec", 'e', "", "Exec cmd when connected")
+	o := getopt.StringLong("exec-serial", 'o', "socat /tmp/kappanhang-IC-705.pty /tmp/vmware.pty", "Exec cmd when virtual serial port is created, set to - to disable")
 	i := getopt.Uint16Long("log-interval", 'i', 100, "Status bar/log interval in milliseconds")
 
 	getopt.Parse()
@@ -40,8 +42,9 @@ func parseArgs() {
 	connectAddress = *a
 	serialTCPPort = *t
 	enableSerialDevice = *s
-	runCmd = *r
-	disableReRunCmd = *e
+	rigctldModel = *m
+	disableRigctld = *r
+	runCmd = *e
 	runCmdOnSerialPortCreated = *o
 	statusLogInterval = time.Duration(*i) * time.Millisecond
 }

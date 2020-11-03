@@ -53,32 +53,18 @@ host **ic-705** (ic-705.local or ic-705.localdomain).
 After it is connected and logged in:
 
 - Creates a virtual PulseAudio **sound card** (48kHz, s16le, mono). This can be
-  used to record/play audio from/to the server (the radio). You can also set
-  this sound card in [WSJT-X](https://physics.princeton.edu/pulsar/K1JT/wsjtx.html).
-
-  If you want to listen to the audio coming from this sound card in real time,
-  then you can create a [PulseAudio loopback](https://github.com/alentoghostflame/Python-Pulseaudio-Loopback-Tool)
-  between the kappanhang sound card and your real sound card. You can also
-  create a loopback for your microphone using this tool, so you'll be able to
-  transmit your voice.
+  used to record/play audio from/to the server (the transceiver). You can also
+  set this sound card in [WSJT-X](https://physics.princeton.edu/pulsar/K1JT/wsjtx.html).
 - Starts a **TCP server** on port `4533` for exposing the **serial port**.
+- Starts `rigctld` and connects it to kappanhang's TCP serial port server.
   This can be used for controlling the server (the transceiver) with
   [Hamlib](https://hamlib.github.io/) (`rigctld`).
-- Runs the command `rigctld -m 3085 -r :4533` which starts `rigctld` and
-  connects it to kappanhang's TCP serial port server. You can specify a custom
-  command with the `-r` command line argument. Running any command can be
-  disabled with `-r -`. The command is only executed once, as the TCP serial
-  port server will stay on even if the RS-BA1 server disconnects. If the TCP
-  serial port client disconnects (rigctld hangs) then the command will be
-  automatically restarted. This can be disabled with the `-e`.
-
-  3085 is the model number of the Icom IC-705. `rigctld` will connect to
-  kappanhang's TCP serial port server, and waits connections on it's default
-  TCP port `4532`.
 
   To use this with for example [WSJT-X](https://physics.princeton.edu/pulsar/K1JT/wsjtx.html),
   open WSJT-X settings, go to the *Radio* tab, set the *rig type* to `Hamlib NET
   rigctl`, and the *Network server* to `localhost`.
+
+### Notes on command line arguments
 
 If the `-s` command line argument is specified, then kappanhang will create a
 **virtual serial port**, so other apps which don't support Hamlib can access
@@ -148,18 +134,12 @@ not available.
 ### Hotkeys
 
 - `q` (quit): closes the app
-- `l` (listen): toggles audio stream playback to the default sound device
-
+- `l` (listen): toggles audio stream playback to the default sound device.
   This is useful for quickly listening into the audio stream coming from the
   server (the transceiver).
-
-  Note that audio will be played to the previously created virtual sound card
-  regardless of this setting.
 - `space`: toggles PTT and audio stream recording from the default sound
-  device
-
-  You can transmit your own voice using a mic attached to your computer for
-  example.
+  device. You can transmit your own voice using a mic attached to your
+  computer for example.
 
 Some basic CAT control hotkeys are also supported:
 

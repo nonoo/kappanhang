@@ -104,10 +104,8 @@ func (s *serialTCPSrvStruct) loop() {
 		s.disconnectClient()
 		log.Print("client ", s.client.RemoteAddr().String(), " disconnected")
 
-		if !disableReRunCmd {
-			stopCmd()
-			startCmdIfNeeded()
-		}
+		stopRigctldCmd()
+		startRigctldCmdIfNeeded()
 	}
 }
 
