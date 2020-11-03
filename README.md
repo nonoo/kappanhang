@@ -5,7 +5,6 @@ server. The app is mainly developed for connecting to the Icom IC-705
 transceiver, which has built-in Wi-Fi and RS-BA1 server. All features of the
 protocol are implemented including packet retransmission on packet loss.
 
-<p align="center"><img src="demo.gif?raw=true"/></p>
 
 kappanhang currently only supports Linux, but support for other platforms can
 be easily added if anyone is interested and has the skills (volunteers
@@ -64,7 +63,7 @@ After it is connected and logged in:
   open WSJT-X settings, go to the *Radio* tab, set the *rig type* to `Hamlib NET
   rigctl`, and the *Network server* to `localhost`.
 
-### Notes on command line arguments
+### Virtual serial port
 
 If the `-s` command line argument is specified, then kappanhang will create a
 **virtual serial port**, so other apps which don't support Hamlib can access
@@ -78,22 +77,6 @@ virtual serial port will stay opened even if the RS-BA1 server disconnects.
 I use this command to link a COM port in a Windows OS running in VMware to
 the virtual serial port, so I can use the original RS-BA1 software remote
 control GUI.
-
-### Icom IC-705 Wi-Fi notes
-
-Note that the built-in Wi-Fi in the Icom IC-705 has **very limited range**,
-and **sensitive to interference**. If you see a lot of retransmits in the log,
-or packet loss, then:
-
-- Place the IC-705 close to your Wi-Fi AP/router, or use a Wi-Fi range
-  extender device
-- Make sure the Wi-Fi bandwith is set to max. 20Mhz in the Wi-Fi router (see
-explanation [here](https://superuser.com/questions/542191/does-moving-my-router-from-20mhz-to-40-mhz-increase-my-wireless-speed))
-- Try switching Wi-Fi channel on your Wi-Fi router. Only channels 1, 6 or 11
-should be used (see explanation [here](https://www.metageek.com/training/resources/why-channels-1-6-11.html))
-
-Sometimes rebooting the transceiver helps, as the network stack in the IC-705
-is not quite free of bugs. :)
 
 ### Status bar
 
@@ -156,6 +139,22 @@ Some basic CAT control hotkeys are also supported:
 - `d`, `f`: cycles through filters
 - `D`: toggles data mode
 - `v`, `b`: cycles through bands
+
+## Icom IC-705 Wi-Fi notes
+
+Note that the built-in Wi-Fi in the Icom IC-705 has **very limited range**,
+and **sensitive to interference**. If you see a lot of retransmits in the log,
+or packet loss, then:
+
+- Place the IC-705 close to your Wi-Fi AP/router, or use a Wi-Fi range
+  extender device
+- Make sure the Wi-Fi bandwith is set to max. 20Mhz in the Wi-Fi router (see
+explanation [here](https://superuser.com/questions/542191/does-moving-my-router-from-20mhz-to-40-mhz-increase-my-wireless-speed))
+- Try switching Wi-Fi channel on your Wi-Fi router. Only channels 1, 6 or 11
+should be used (see explanation [here](https://www.metageek.com/training/resources/why-channels-1-6-11.html))
+
+Sometimes rebooting the transceiver helps, as the network stack in the IC-705
+is not quite free of bugs. :)
 
 ## Authors
 
