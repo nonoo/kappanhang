@@ -90,7 +90,7 @@ is up) with the following info:
   - `mode`: LSB/USB/FM etc.
   - `filter`: active filter (FIL1, FIL2 etc.)
   - `preamp`: PAMP0 means the preamp is off
-  - `voltage`: Vd voltage
+  - `voltage`: Vd voltage, updated when a TX/TUNE is over
   - `txpwr`: current transmit power setting in percent
   - `audio`: current status of the audio monitor (see the *Hotkeys* section
     in this README for more information about this feature)
