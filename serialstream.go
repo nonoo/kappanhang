@@ -270,6 +270,9 @@ func (s *serialStream) deinit() {
 		s.deinitNeededChan <- true
 		<-s.deinitFinishedChan
 	}
+	if civControl != nil {
+		civControl.deinit()
+	}
 	civControl = nil
 	s.common.deinit()
 	s.rxSeqBuf.deinit()

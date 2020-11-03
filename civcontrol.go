@@ -6,6 +6,7 @@ import (
 )
 
 const civAddress = 0xa4
+const vdReadInterval = time.Minute
 
 type civOperatingMode struct {
 	name string
@@ -61,7 +62,8 @@ var civBands = []civBand{
 }
 
 type civControlStruct struct {
-	st *serialStream
+	st          *serialStream
+	vdReadTimer *time.Timer
 
 	state struct {
 		freq             uint
@@ -101,6 +103,8 @@ func (s *civControlStruct) decode(d []byte) {
 		s.decodePower(payload)
 	case 0x1c:
 		s.decodeTransmitStatus(payload)
+	case 0x15:
+		s.decodeVd(payload)
 	case 0x16:
 		s.decodePreamp(payload)
 	}
@@ -222,6 +226,23 @@ func (s *civControlStruct) decodeTransmitStatus(d []byte) {
 		}
 	}
 	statusLog.reportPTT(s.state.ptt, s.state.tune)
+}
+
+func (s *civControlStruct) decodeVd(d []byte) {
+	if len(d) < 2 {
+		return
+	}
+
+	switch d[0] {
+	case 0x15:
+		if len(d) < 3 {
+			return
+		}
+		statusLog.reportVd(((float64(int(d[1])<<8) + float64(d[2])) / 0x0241) * 16)
+		s.vdReadTimer = time.AfterFunc(vdReadInterval, func() {
+			_ = s.getVd()
+		})
+	}
 }
 
 func (s *civControlStruct) decodePreamp(d []byte) {
@@ -427,6 +448,10 @@ func (s *civControlStruct) getTransmitStatus() error {
 	return s.st.send([]byte{254, 254, civAddress, 224, 0x1c, 1, 253})
 }
 
+func (s *civControlStruct) getVd() error {
+	return s.st.send([]byte{254, 254, civAddress, 224, 0x15, 0x15, 253})
+}
+
 func (s *civControlStruct) init(st *serialStream) error {
 	s.st = st
 
@@ -450,5 +475,15 @@ func (s *civControlStruct) init(st *serialStream) error {
 	if err := s.st.send([]byte{254, 254, civAddress, 224, 0x16, 0x02, 253}); err != nil {
 		return err
 	}
+	if err := s.getVd(); err != nil {
+		return err
+	}
 	return nil
+}
+
+func (s *civControlStruct) deinit(st *serialStream) {
+	if s.vdReadTimer != nil {
+		s.vdReadTimer.Stop()
+		s.vdReadTimer = nil
+	}
 }

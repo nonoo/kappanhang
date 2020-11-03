@@ -20,6 +20,7 @@ type statusLogData struct {
 	dataMode   string
 	filter     string
 	preamp     string
+	vd         string
 	txPowerStr string
 
 	startTime time.Time
@@ -144,6 +145,16 @@ func (s *statusLogStruct) reportPreamp(preamp int) {
 	s.data.preamp = fmt.Sprint("PAMP", preamp)
 }
 
+func (s *statusLogStruct) reportVd(voltage float64) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	if s.data == nil {
+		return
+	}
+	s.data.vd = fmt.Sprintf("%.1fV", voltage)
+}
+
 func (s *statusLogStruct) reportPTT(ptt, tune bool) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -214,12 +225,16 @@ func (s *statusLogStruct) update() {
 	if s.data.preamp != "" {
 		preampStr = " " + s.data.preamp
 	}
+	var vdStr string
+	if s.data.vd != "" {
+		vdStr = " " + s.data.vd
+	}
 	var txPowerStr string
 	if s.data.txPowerStr != "" {
 		txPowerStr = " txpwr " + s.data.txPowerStr
 	}
 	s.data.line1 = fmt.Sprint("state ", s.data.stateStr, " freq: ", fmt.Sprintf("%.6f", float64(s.data.frequency)/1000000),
-		modeStr, filterStr, preampStr, txPowerStr, " audio ", s.data.audioStateStr)
+		modeStr, filterStr, preampStr, vdStr, txPowerStr, " audio ", s.data.audioStateStr)
 
 	up, down, lost, retransmits := netstat.get()
 	lostStr := "0"
