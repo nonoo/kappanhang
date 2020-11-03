@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"sync"
 )
 
 type serialTCPSrvStruct struct {
@@ -18,6 +19,9 @@ type serialTCPSrvStruct struct {
 
 	deinitNeededChan   chan bool
 	deinitFinishedChan chan bool
+
+	deinitializing bool
+	mutex          sync.Mutex
 }
 
 var serialTCPSrv serialTCPSrvStruct
@@ -51,6 +55,9 @@ func (s *serialTCPSrvStruct) disconnectClient() {
 	if s.client != nil {
 		s.client.Close()
 	}
+}
+
+func (s *serialTCPSrvStruct) deinitClient() {
 	if s.writeLoopDeinitNeededChan != nil {
 		s.writeLoopDeinitNeededChan <- true
 		<-s.writeLoopDeinitFinishedChan
@@ -70,6 +77,7 @@ func (s *serialTCPSrvStruct) loop() {
 				reportError(err)
 			}
 			s.disconnectClient()
+			s.deinitClient()
 			<-s.deinitNeededChan
 			s.deinitFinishedChan <- true
 			return
@@ -96,15 +104,21 @@ func (s *serialTCPSrvStruct) loop() {
 				connected = false
 			case <-s.deinitNeededChan:
 				s.disconnectClient()
+				s.deinitClient()
 				s.deinitFinishedChan <- true
 				return
 			}
 		}
 
 		s.disconnectClient()
+		s.deinitClient()
 		log.Print("client ", s.client.RemoteAddr().String(), " disconnected")
 
-		rigctldRunner.restart()
+		s.mutex.Lock()
+		if !s.deinitializing {
+			rigctldRunner.restart()
+		}
+		s.mutex.Unlock()
 	}
 }
 
@@ -140,6 +154,10 @@ func (s *serialTCPSrvStruct) initIfNeeded() (err error) {
 }
 
 func (s *serialTCPSrvStruct) deinit() {
+	s.mutex.Lock()
+	s.deinitializing = true
+	s.mutex.Unlock()
+
 	if s.listener != nil {
 		s.listener.Close()
 	}

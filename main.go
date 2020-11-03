@@ -132,11 +132,11 @@ func main() {
 		}
 	}
 
+	serialTCPSrv.deinit()
 	runCmdRunner.stop()
 	serialCmdRunner.stop()
 	rigctldRunner.stop()
 	audio.deinit()
-	serialTCPSrv.deinit()
 	serialPort.deinit()
 
 	if statusLog.isRealtimeInternal() {
