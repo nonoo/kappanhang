@@ -6,7 +6,6 @@ import (
 )
 
 const civAddress = 0xa4
-const vdReadInterval = time.Minute
 
 type civOperatingMode struct {
 	name string
@@ -62,8 +61,7 @@ var civBands = []civBand{
 }
 
 type civControlStruct struct {
-	st          *serialStream
-	vdReadTimer *time.Timer
+	st *serialStream
 
 	state struct {
 		freq             uint
@@ -211,7 +209,10 @@ func (s *civControlStruct) decodeTransmitStatus(d []byte) {
 		if d[1] == 1 {
 			s.state.ptt = true
 		} else {
-			s.state.ptt = false
+			if s.state.ptt { // PTT released?
+				s.state.ptt = false
+				_ = s.getVd()
+			}
 		}
 	case 1:
 		if d[1] == 2 {
@@ -222,7 +223,10 @@ func (s *civControlStruct) decodeTransmitStatus(d []byte) {
 				_ = s.getTransmitStatus()
 			})
 		} else {
-			s.state.tune = false
+			if s.state.tune { // Tune finished?
+				s.state.tune = false
+				_ = s.getVd()
+			}
 		}
 	}
 	statusLog.reportPTT(s.state.ptt, s.state.tune)
@@ -239,9 +243,6 @@ func (s *civControlStruct) decodeVd(d []byte) {
 			return
 		}
 		statusLog.reportVd(((float64(int(d[1])<<8) + float64(d[2])) / 0x0241) * 16)
-		s.vdReadTimer = time.AfterFunc(vdReadInterval, func() {
-			_ = s.getVd()
-		})
 	}
 }
 
@@ -479,11 +480,4 @@ func (s *civControlStruct) init(st *serialStream) error {
 		return err
 	}
 	return nil
-}
-
-func (s *civControlStruct) deinit() {
-	if s.vdReadTimer != nil {
-		s.vdReadTimer.Stop()
-		s.vdReadTimer = nil
-	}
 }
