@@ -142,6 +142,7 @@ Some basic CAT control hotkeys are also supported:
 - `-`: decreases TX power
 - `[`, `]`: decreases, increases frequency
 - `{`, `}`: decreases, increases tuning step
+- `;`, `'`: decreases, increases RF gain
 - `n`, `m`: cycles through operating modes
 - `d`, `f`: cycles through filters
 - `D`: toggles data mode
