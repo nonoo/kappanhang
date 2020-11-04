@@ -313,6 +313,18 @@ func (s *statusLogStruct) padLeft(str string, length int) string {
 	}
 	return str
 }
+
+func (s *statusLogStruct) padRight(str string, length int) string {
+	if !s.isRealtimeInternal() {
+		return str
+	}
+
+	for len(str) < length {
+		str += " "
+	}
+	return str
+}
+
 func (s *statusLogStruct) update() {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -338,7 +350,7 @@ func (s *statusLogStruct) update() {
 			nrStr += "-"
 		}
 	}
-	s.data.line1 = fmt.Sprint(s.data.s, ovfStr, rfGainStr, sqlStr, nrStr, " audio ", s.data.audioStateStr)
+	s.data.line1 = fmt.Sprint(s.padRight(s.data.s, 5), ovfStr, rfGainStr, sqlStr, nrStr, " audio ", s.data.audioStateStr)
 
 	var tsStr string
 	if s.data.ts != "" {
