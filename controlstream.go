@@ -298,6 +298,12 @@ func (s *controlStream) loop() {
 			if err := s.sendPktAuth(0x05); err != nil {
 				reportError(err)
 			}
+			if err := s.sendPktAuth(0x05); err != nil {
+				reportError(err)
+			}
+			if err := s.sendPktAuth(0x05); err != nil {
+				reportError(err)
+			}
 		case <-s.reauthTimeoutTimer.C:
 			log.Error("auth timeout, audio/serial stream may stop")
 		case <-s.deinitNeededChan:
