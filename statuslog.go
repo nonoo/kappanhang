@@ -24,6 +24,7 @@ type statusLogData struct {
 	vd        string
 	txPower   string
 	s         string
+	ovf       bool
 	ts        string
 
 	startTime time.Time
@@ -55,6 +56,8 @@ type statusLogStruct struct {
 			monOn string
 			rec   string
 		}
+
+		ovf string
 	}
 
 	data *statusLogData
@@ -168,6 +171,16 @@ func (s *statusLogStruct) reportS(sValue string) {
 	s.data.s = sValue
 }
 
+func (s *statusLogStruct) reportOVF(ovf bool) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	if s.data == nil {
+		return
+	}
+	s.data.ovf = ovf
+}
+
 func (s *statusLogStruct) reportTS(ts uint) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -249,7 +262,11 @@ func (s *statusLogStruct) update() {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	s.data.line1 = fmt.Sprint(s.data.s)
+	var ovfStr string
+	if s.data.ovf {
+		ovfStr = " " + s.preGenerated.ovf
+	}
+	s.data.line1 = fmt.Sprint(s.data.s, ovfStr)
 
 	var tsStr string
 	if s.data.ts != "" {
@@ -395,6 +412,10 @@ func (s *statusLogStruct) initIfNeeded() {
 	s.preGenerated.stateStr.tx = c.Sprint("  TX  ")
 	s.preGenerated.stateStr.tune = c.Sprint(" TUNE ")
 	s.preGenerated.audioStateStr.rec = c.Sprint("  REC  ")
+
+	c = color.New(color.FgHiWhite)
+	c.Add(color.BgRed)
+	s.preGenerated.ovf = c.Sprint(" OVF ")
 
 	s.preGenerated.retransmitsColor = color.New(color.FgHiWhite)
 	s.preGenerated.retransmitsColor.Add(color.BgYellow)

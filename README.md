@@ -85,7 +85,8 @@ kappanhang displays a "realtime" status bar (when the audio/serial connection
 is up) with the following info:
 
 - First status bar line:
-  - `S meter`: periodically refreshed S meter value
+  - `S meter`: periodically refreshed S meter value, OVF is displayed on
+    overflow
 
 - Second status bar line:
   - `state`: RX/TX/TUNE depending on the PTT status
@@ -108,7 +109,7 @@ is up) with the following info:
   - `lost`: lost audio/serial packet count from the server
 
 Data for the first 2 status bar lines are acquired by monitoring CiV traffic
-in the serial stream. S value is queried periodically.
+in the serial stream. S value and OVF are queried periodically.
 
 `retx` and `lost` are displayed in a 1 minute window, which means they will be
 reset to 0 if they don't increase for 1 minute. A `retx` value other than 0

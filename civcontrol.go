@@ -105,7 +105,7 @@ func (s *civControlStruct) decode(d []byte) {
 	case 0x10:
 		s.decodeTS(payload)
 	case 0x1a:
-		s.decodeDataMode(payload)
+		s.decodeDataModeAndOVF(payload)
 	case 0x14:
 		s.decodePower(payload)
 	case 0x1c:
@@ -218,23 +218,35 @@ func (s *civControlStruct) decodeTS(d []byte) {
 	statusLog.reportTS(s.state.ts)
 }
 
-func (s *civControlStruct) decodeDataMode(d []byte) {
-	if len(d) < 3 || d[0] != 0x06 {
+func (s *civControlStruct) decodeDataModeAndOVF(d []byte) {
+	if len(d) < 2 {
 		return
 	}
 
-	var dataMode string
-	var filter string
-	if d[1] == 1 {
-		dataMode = "-D"
-		s.state.dataMode = true
-		s.state.filterIdx = s.decodeFilterValueToFilterIdx(d[2])
-		filter = civFilters[s.state.filterIdx].name
-	} else {
-		s.state.dataMode = false
-	}
+	switch d[0] {
+	case 0x06:
+		if len(d) < 3 {
+			return
+		}
+		var dataMode string
+		var filter string
+		if d[1] == 1 {
+			dataMode = "-D"
+			s.state.dataMode = true
+			s.state.filterIdx = s.decodeFilterValueToFilterIdx(d[2])
+			filter = civFilters[s.state.filterIdx].name
+		} else {
+			s.state.dataMode = false
+		}
 
-	statusLog.reportDataMode(dataMode, filter)
+		statusLog.reportDataMode(dataMode, filter)
+	case 0x09:
+		if d[1] != 0 {
+			statusLog.reportOVF(true)
+		} else {
+			statusLog.reportOVF(false)
+		}
+	}
 }
 
 func (s *civControlStruct) decodePower(d []byte) {
@@ -539,6 +551,10 @@ func (s *civControlStruct) getS() error {
 	return s.st.send([]byte{254, 254, civAddress, 224, 0x15, 0x02, 253})
 }
 
+func (s *civControlStruct) getOVF() error {
+	return s.st.send([]byte{254, 254, civAddress, 224, 0x1a, 0x09, 253})
+}
+
 func (s *civControlStruct) getTS() error {
 	return s.st.send([]byte{254, 254, civAddress, 224, 0x10, 253})
 }
@@ -551,6 +567,7 @@ func (s *civControlStruct) loop() {
 			return
 		case <-time.After(sReadInterval):
 			_ = s.getS()
+			_ = s.getOVF()
 		case <-s.resetSReadTimer:
 		}
 	}
@@ -583,6 +600,9 @@ func (s *civControlStruct) init(st *serialStream) error {
 		return err
 	}
 	if err := s.getS(); err != nil {
+		return err
+	}
+	if err := s.getOVF(); err != nil {
 		return err
 	}
 	if err := s.getTS(); err != nil {
