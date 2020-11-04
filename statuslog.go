@@ -13,6 +13,7 @@ import (
 type statusLogData struct {
 	line1 string
 	line2 string
+	line3 string
 
 	stateStr   string
 	frequency  uint
@@ -204,9 +205,11 @@ func (s *statusLogStruct) print() {
 		s.clearInternal()
 		fmt.Println(s.data.line1)
 		s.clearInternal()
-		fmt.Printf(s.data.line2+"%c[1A", 27)
+		fmt.Println(s.data.line2)
+		s.clearInternal()
+		fmt.Printf(s.data.line3+"%c[1A%c[1A", 27, 27)
 	} else {
-		log.PrintStatusLog(s.data.line2)
+		log.PrintStatusLog(s.data.line3)
 	}
 }
 
@@ -223,6 +226,8 @@ func (s *statusLogStruct) padLeft(str string, length int) string {
 func (s *statusLogStruct) update() {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
+
+	s.data.line1 = fmt.Sprint(s.data.s)
 
 	var modeStr string
 	if s.data.mode != "" {
@@ -244,12 +249,8 @@ func (s *statusLogStruct) update() {
 	if s.data.txPowerStr != "" {
 		txPowerStr = " txpwr " + s.data.txPowerStr
 	}
-	var sStr string
-	if s.data.s != "" {
-		sStr = " " + s.data.s
-	}
-	s.data.line1 = fmt.Sprint(s.data.stateStr, " ", fmt.Sprintf("%.6f", float64(s.data.frequency)/1000000),
-		modeStr, filterStr, preampStr, vdStr, txPowerStr, " audio ", s.data.audioStateStr, sStr)
+	s.data.line2 = fmt.Sprint(s.data.stateStr, " ", fmt.Sprintf("%.6f", float64(s.data.frequency)/1000000),
+		modeStr, filterStr, preampStr, vdStr, txPowerStr, " audio ", s.data.audioStateStr)
 
 	up, down, lost, retransmits := netstat.get()
 	lostStr := "0"
@@ -261,7 +262,7 @@ func (s *statusLogStruct) update() {
 		retransmitsStr = s.preGenerated.retransmitsColor.Sprint(" ", retransmits, " ")
 	}
 
-	s.data.line2 = fmt.Sprint("up ", s.padLeft(fmt.Sprint(time.Since(s.data.startTime).Round(time.Second)), 6),
+	s.data.line3 = fmt.Sprint("up ", s.padLeft(fmt.Sprint(time.Since(s.data.startTime).Round(time.Second)), 6),
 		" rtt ", s.padLeft(s.data.rttStr, 3), "ms up ",
 		s.padLeft(netstat.formatByteCount(up), 8), "/s down ",
 		s.padLeft(netstat.formatByteCount(down), 8), "/s retx ", retransmitsStr, "/1m lost ", lostStr, "/1m\r")
@@ -270,6 +271,7 @@ func (s *statusLogStruct) update() {
 		t := time.Now().Format("2006-01-02T15:04:05.000Z0700")
 		s.data.line1 = fmt.Sprint(t, " ", s.data.line1)
 		s.data.line2 = fmt.Sprint(t, " ", s.data.line2)
+		s.data.line3 = fmt.Sprint(t, " ", s.data.line3)
 	}
 }
 
@@ -334,6 +336,8 @@ func (s *statusLogStruct) stopPeriodicPrint() {
 	<-s.stopFinishedChan
 
 	if s.isRealtimeInternal() {
+		s.clearInternal()
+		fmt.Println()
 		s.clearInternal()
 		fmt.Println()
 		s.clearInternal()
