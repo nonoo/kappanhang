@@ -36,16 +36,34 @@ func handleHotkey(k byte) {
 				log.Error("can't decrease rf gain: ", err)
 			}
 		}
-	case '.':
+	case '"':
 		if civControl != nil {
 			if err := civControl.incSQL(); err != nil {
 				log.Error("can't increase sql: ", err)
 			}
 		}
-	case ',':
+	case ':':
 		if civControl != nil {
 			if err := civControl.decSQL(); err != nil {
 				log.Error("can't decrease sql: ", err)
+			}
+		}
+	case '.':
+		if civControl != nil {
+			if err := civControl.incNR(); err != nil {
+				log.Error("can't increase nr: ", err)
+			}
+		}
+	case ',':
+		if civControl != nil {
+			if err := civControl.decNR(); err != nil {
+				log.Error("can't decrease nr: ", err)
+			}
+		}
+	case '/':
+		if civControl != nil {
+			if err := civControl.toggleNR(); err != nil {
+				log.Error("can't toggle nr: ", err)
 			}
 		}
 	case ']':

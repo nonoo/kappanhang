@@ -89,6 +89,7 @@ is up) with the following info:
     overflow
   - `rfg`: RF gain in percent
   - `sql`: squelch level in percent
+  - `nr`: noise reduction level in percent
 
 - Second status bar line:
   - `state`: RX/TX/TUNE depending on the PTT status
@@ -144,12 +145,14 @@ Some basic CAT control hotkeys are also supported:
 - `[`, `]`: decreases, increases frequency
 - `{`, `}`: decreases, increases tuning step
 - `;`, `'`: decreases, increases RF gain
-- `,`, `.`: decreases, increases squelch level
+- `:`, `"`: decreases, increases squelch level
+- `,`, `.`: decreases, increases noise reduction level
+- `/`: toggles noise reduction
 - `n`, `m`: cycles through operating modes
 - `d`, `f`: cycles through filters
 - `D`: toggles data mode
 - `v`, `b`: cycles through bands
-- `p`: toggle preamp
+- `p`: toggles preamp
 
 ## Icom IC-705 Wi-Fi notes
 

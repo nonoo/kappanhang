@@ -25,6 +25,8 @@ type statusLogData struct {
 	txPower   string
 	rfGain    string
 	sql       string
+	nr        string
+	nrEnabled bool
 	s         string
 	ovf       bool
 	ts        string
@@ -153,6 +155,16 @@ func (s *statusLogStruct) reportPreamp(preamp int) {
 	s.data.preamp = fmt.Sprint("PAMP", preamp)
 }
 
+func (s *statusLogStruct) reportNREnabled(enabled bool) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	if s.data == nil {
+		return
+	}
+	s.data.nrEnabled = enabled
+}
+
 func (s *statusLogStruct) reportVd(voltage float64) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -250,6 +262,16 @@ func (s *statusLogStruct) reportSQL(percent int) {
 	s.data.sql = fmt.Sprint(percent, "%")
 }
 
+func (s *statusLogStruct) reportNR(percent int) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	if s.data == nil {
+		return
+	}
+	s.data.nr = fmt.Sprint(percent, "%")
+}
+
 func (s *statusLogStruct) clearInternal() {
 	fmt.Printf("%c[2K", 27)
 }
@@ -296,7 +318,16 @@ func (s *statusLogStruct) update() {
 	if s.data.sql != "" {
 		sqlStr = " sql " + s.data.sql
 	}
-	s.data.line1 = fmt.Sprint(s.data.s, ovfStr, rfGainStr, sqlStr)
+	var nrStr string
+	if s.data.nr != "" {
+		nrStr = " nr "
+		if s.data.nrEnabled {
+			nrStr += s.data.nr
+		} else {
+			nrStr += "-"
+		}
+	}
+	s.data.line1 = fmt.Sprint(s.data.s, ovfStr, rfGainStr, sqlStr, nrStr)
 
 	var tsStr string
 	if s.data.ts != "" {

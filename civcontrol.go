@@ -75,6 +75,8 @@ type civControlStruct struct {
 		pwrPercent       int
 		rfGainPercent    int
 		sqlPercent       int
+		nrPercent        int
+		nrEnabled        bool
 		operatingModeIdx int
 		filterIdx        int
 		dataMode         bool
@@ -109,13 +111,13 @@ func (s *civControlStruct) decode(d []byte) {
 	case 0x1a:
 		s.decodeDataModeAndOVF(payload)
 	case 0x14:
-		s.decodePowerRFGainSquelch(payload)
+		s.decodePowerRFGainSQLNR(payload)
 	case 0x1c:
 		s.decodeTransmitStatus(payload)
 	case 0x15:
 		s.decodeVdAndS(payload)
 	case 0x16:
-		s.decodePreamp(payload)
+		s.decodePreampAndNR(payload)
 	}
 }
 
@@ -251,7 +253,7 @@ func (s *civControlStruct) decodeDataModeAndOVF(d []byte) {
 	}
 }
 
-func (s *civControlStruct) decodePowerRFGainSquelch(d []byte) {
+func (s *civControlStruct) decodePowerRFGainSQLNR(d []byte) {
 	if len(d) < 3 {
 		return
 	}
@@ -265,6 +267,10 @@ func (s *civControlStruct) decodePowerRFGainSquelch(d []byte) {
 		hex := uint16(d[1])<<8 | uint16(d[2])
 		s.state.sqlPercent = int(math.Round((float64(hex) / 0x0255) * 100))
 		statusLog.reportSQL(s.state.sqlPercent)
+	case 0x06:
+		hex := uint16(d[1])<<8 | uint16(d[2])
+		s.state.nrPercent = int(math.Round((float64(hex) / 0x0255) * 100))
+		statusLog.reportNR(s.state.nrPercent)
 	case 0x0a:
 		hex := uint16(d[1])<<8 | uint16(d[2])
 		s.state.pwrPercent = int(math.Round((float64(hex) / 0x0255) * 100))
@@ -348,7 +354,7 @@ func (s *civControlStruct) decodeVdAndS(d []byte) {
 	}
 }
 
-func (s *civControlStruct) decodePreamp(d []byte) {
+func (s *civControlStruct) decodePreampAndNR(d []byte) {
 	if len(d) < 2 {
 		return
 	}
@@ -357,6 +363,13 @@ func (s *civControlStruct) decodePreamp(d []byte) {
 	case 0x02:
 		s.state.preamp = int(d[1])
 		statusLog.reportPreamp(s.state.preamp)
+	case 0x40:
+		if d[1] == 1 {
+			s.state.nrEnabled = true
+		} else {
+			s.state.nrEnabled = false
+		}
+		statusLog.reportNREnabled(s.state.nrEnabled)
 	}
 }
 
@@ -413,6 +426,25 @@ func (s *civControlStruct) incSQL() error {
 func (s *civControlStruct) decSQL() error {
 	if s.state.sqlPercent > 0 {
 		return s.setSQL(s.state.sqlPercent - 1)
+	}
+	return nil
+}
+
+func (s *civControlStruct) setNR(percent int) error {
+	v := uint16(0x0255 * (float64(percent) / 100))
+	return s.st.send([]byte{254, 254, civAddress, 224, 0x14, 0x06, byte(v >> 8), byte(v & 0xff), 253})
+}
+
+func (s *civControlStruct) incNR() error {
+	if s.state.nrPercent < 100 {
+		return s.setNR(s.state.nrPercent + 1)
+	}
+	return nil
+}
+
+func (s *civControlStruct) decNR() error {
+	if s.state.nrPercent > 0 {
+		return s.setNR(s.state.nrPercent - 1)
 	}
 	return nil
 }
@@ -570,6 +602,14 @@ func (s *civControlStruct) togglePreamp() error {
 	return s.st.send([]byte{254, 254, civAddress, 224, 0x16, 0x02, b, 253})
 }
 
+func (s *civControlStruct) toggleNR() error {
+	var b byte
+	if !s.state.nrEnabled {
+		b = 1
+	}
+	return s.st.send([]byte{254, 254, civAddress, 224, 0x16, 0x40, b, 253})
+}
+
 func (s *civControlStruct) incTS() error {
 	var b byte
 	if s.state.tsValue == 13 {
@@ -633,6 +673,14 @@ func (s *civControlStruct) getSQL() error {
 	return s.st.send([]byte{254, 254, civAddress, 224, 0x14, 0x03, 253})
 }
 
+func (s *civControlStruct) getNR() error {
+	return s.st.send([]byte{254, 254, civAddress, 224, 0x14, 0x06, 253})
+}
+
+func (s *civControlStruct) getNREnabled() error {
+	return s.st.send([]byte{254, 254, civAddress, 224, 0x16, 0x40, 253})
+}
+
 func (s *civControlStruct) loop() {
 	for {
 		select {
@@ -686,6 +734,12 @@ func (s *civControlStruct) init(st *serialStream) error {
 		return err
 	}
 	if err := s.getSQL(); err != nil {
+		return err
+	}
+	if err := s.getNR(); err != nil {
+		return err
+	}
+	if err := s.getNREnabled(); err != nil {
 		return err
 	}
 
