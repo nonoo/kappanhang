@@ -15,15 +15,16 @@ type statusLogData struct {
 	line2 string
 	line3 string
 
-	stateStr   string
-	frequency  uint
-	mode       string
-	dataMode   string
-	filter     string
-	preamp     string
-	vd         string
-	txPowerStr string
-	s          string
+	stateStr  string
+	frequency uint
+	mode      string
+	dataMode  string
+	filter    string
+	preamp    string
+	vd        string
+	txPower   string
+	s         string
+	ts        string
 
 	startTime time.Time
 	rttStr    string
@@ -167,6 +168,27 @@ func (s *statusLogStruct) reportS(sValue string) {
 	s.data.s = sValue
 }
 
+func (s *statusLogStruct) reportTS(ts uint) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	if s.data == nil {
+		return
+	}
+	s.data.ts = "TS"
+	if ts >= 1000 {
+		if ts%1000 == 0 {
+			s.data.ts += fmt.Sprintf("%.0fk", float64(ts)/1000)
+		} else if ts%100 == 0 {
+			s.data.ts += fmt.Sprintf("%.1fk", float64(ts)/1000)
+		} else {
+			s.data.ts += fmt.Sprintf("%.2fk", float64(ts)/1000)
+		}
+	} else {
+		s.data.ts += fmt.Sprint(ts)
+	}
+}
+
 func (s *statusLogStruct) reportPTT(ptt, tune bool) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -190,7 +212,7 @@ func (s *statusLogStruct) reportTxPower(percent int) {
 	if s.data == nil {
 		return
 	}
-	s.data.txPowerStr = fmt.Sprint(percent, "%")
+	s.data.txPower = fmt.Sprint(percent, "%")
 }
 
 func (s *statusLogStruct) clearInternal() {
@@ -229,6 +251,10 @@ func (s *statusLogStruct) update() {
 
 	s.data.line1 = fmt.Sprint(s.data.s)
 
+	var tsStr string
+	if s.data.ts != "" {
+		tsStr = " " + s.data.ts
+	}
 	var modeStr string
 	if s.data.mode != "" {
 		modeStr = " " + s.data.mode + s.data.dataMode
@@ -246,11 +272,11 @@ func (s *statusLogStruct) update() {
 		vdStr = " " + s.data.vd
 	}
 	var txPowerStr string
-	if s.data.txPowerStr != "" {
-		txPowerStr = " txpwr " + s.data.txPowerStr
+	if s.data.txPower != "" {
+		txPowerStr = " txpwr " + s.data.txPower
 	}
 	s.data.line2 = fmt.Sprint(s.data.stateStr, " ", fmt.Sprintf("%.6f", float64(s.data.frequency)/1000000),
-		modeStr, filterStr, preampStr, vdStr, txPowerStr, " audio ", s.data.audioStateStr)
+		tsStr, modeStr, filterStr, preampStr, vdStr, txPowerStr, " audio ", s.data.audioStateStr)
 
 	up, down, lost, retransmits := netstat.get()
 	lostStr := "0"

@@ -24,76 +24,28 @@ func handleHotkey(k byte) {
 				log.Error("can't decrease power: ", err)
 			}
 		}
-	case '>':
-		if civControl != nil {
-			if err := civControl.incFreq(1); err != nil {
-				log.Error("can't increase freq: ", err)
-			}
-		}
-	case '<':
-		if civControl != nil {
-			if err := civControl.decFreq(1); err != nil {
-				log.Error("can't decrease freq: ", err)
-			}
-		}
-	case '.':
-		if civControl != nil {
-			if err := civControl.incFreq(10); err != nil {
-				log.Error("can't increase freq: ", err)
-			}
-		}
-	case ',':
-		if civControl != nil {
-			if err := civControl.decFreq(10); err != nil {
-				log.Error("can't decrease freq: ", err)
-			}
-		}
-	case '"':
-		if civControl != nil {
-			if err := civControl.incFreq(100); err != nil {
-				log.Error("can't increase freq: ", err)
-			}
-		}
-	case ':':
-		if civControl != nil {
-			if err := civControl.decFreq(100); err != nil {
-				log.Error("can't decrease freq: ", err)
-			}
-		}
-	case '\'':
-		if civControl != nil {
-			if err := civControl.incFreq(1000); err != nil {
-				log.Error("can't increase freq: ", err)
-			}
-		}
-	case ';':
-		if civControl != nil {
-			if err := civControl.decFreq(1000); err != nil {
-				log.Error("can't decrease freq: ", err)
-			}
-		}
-	case '}':
-		if civControl != nil {
-			if err := civControl.incFreq(10000); err != nil {
-				log.Error("can't increase freq: ", err)
-			}
-		}
-	case '{':
-		if civControl != nil {
-			if err := civControl.decFreq(10000); err != nil {
-				log.Error("can't decrease freq: ", err)
-			}
-		}
 	case ']':
 		if civControl != nil {
-			if err := civControl.incFreq(100000); err != nil {
+			if err := civControl.incFreq(); err != nil {
 				log.Error("can't increase freq: ", err)
 			}
 		}
 	case '[':
 		if civControl != nil {
-			if err := civControl.decFreq(100000); err != nil {
+			if err := civControl.decFreq(); err != nil {
 				log.Error("can't decrease freq: ", err)
+			}
+		}
+	case '}':
+		if civControl != nil {
+			if err := civControl.incTS(); err != nil {
+				log.Error("can't increase ts: ", err)
+			}
+		}
+	case '{':
+		if civControl != nil {
+			if err := civControl.decTS(); err != nil {
+				log.Error("can't decrease ts: ", err)
 			}
 		}
 	case 'm':

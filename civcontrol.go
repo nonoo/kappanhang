@@ -79,6 +79,8 @@ type civControlStruct struct {
 		bandIdx          int
 		bandChanging     bool
 		preamp           int
+		tsValue          byte
+		ts               uint
 	}
 }
 
@@ -100,6 +102,8 @@ func (s *civControlStruct) decode(d []byte) {
 		s.decodeFreq(payload)
 	case 0x04:
 		s.decodeMode(payload)
+	case 0x10:
+		s.decodeTS(payload)
 	case 0x1a:
 		s.decodeDataMode(payload)
 	case 0x14:
@@ -172,6 +176,46 @@ func (s *civControlStruct) decodeMode(d []byte) {
 
 	// The transceiver does not send the data mode setting automatically.
 	_ = s.getDataMode()
+}
+
+func (s *civControlStruct) decodeTS(d []byte) {
+	if len(d) < 1 {
+		return
+	}
+
+	s.state.tsValue = d[0]
+
+	switch s.state.tsValue {
+	default:
+		s.state.ts = 1
+	case 1:
+		s.state.ts = 100
+	case 2:
+		s.state.ts = 500
+	case 3:
+		s.state.ts = 1000
+	case 4:
+		s.state.ts = 5000
+	case 5:
+		s.state.ts = 6250
+	case 6:
+		s.state.ts = 8330
+	case 7:
+		s.state.ts = 9000
+	case 8:
+		s.state.ts = 10000
+	case 9:
+		s.state.ts = 12500
+	case 10:
+		s.state.ts = 20000
+	case 11:
+		s.state.ts = 25000
+	case 12:
+		s.state.ts = 50000
+	case 13:
+		s.state.ts = 100000
+	}
+	statusLog.reportTS(s.state.ts)
 }
 
 func (s *civControlStruct) decodeDataMode(d []byte) {
@@ -304,12 +348,12 @@ func (s *civControlStruct) getDigit(v uint, n int) byte {
 	return byte(uint(f) % 10)
 }
 
-func (s *civControlStruct) incFreq(v uint) error {
-	return s.setFreq(s.state.freq + v)
+func (s *civControlStruct) incFreq() error {
+	return s.setFreq(s.state.freq + s.state.ts)
 }
 
-func (s *civControlStruct) decFreq(v uint) error {
-	return s.setFreq(s.state.freq - v)
+func (s *civControlStruct) decFreq() error {
+	return s.setFreq(s.state.freq - s.state.ts)
 }
 
 func (s *civControlStruct) setFreq(f uint) error {
@@ -448,6 +492,26 @@ func (s *civControlStruct) togglePreamp() error {
 	return s.st.send([]byte{254, 254, civAddress, 224, 0x16, 0x02, b, 253})
 }
 
+func (s *civControlStruct) incTS() error {
+	var b byte
+	if s.state.tsValue == 13 {
+		b = 0
+	} else {
+		b = s.state.tsValue + 1
+	}
+	return s.st.send([]byte{254, 254, civAddress, 224, 0x10, b, 253})
+}
+
+func (s *civControlStruct) decTS() error {
+	var b byte
+	if s.state.tsValue == 0 {
+		b = 13
+	} else {
+		b = s.state.tsValue - 1
+	}
+	return s.st.send([]byte{254, 254, civAddress, 224, 0x10, b, 253})
+}
+
 func (s *civControlStruct) getFreq() error {
 	return s.st.send([]byte{254, 254, civAddress, 224, 3, 253})
 }
@@ -473,6 +537,10 @@ func (s *civControlStruct) getVd() error {
 
 func (s *civControlStruct) getS() error {
 	return s.st.send([]byte{254, 254, civAddress, 224, 0x15, 0x02, 253})
+}
+
+func (s *civControlStruct) getTS() error {
+	return s.st.send([]byte{254, 254, civAddress, 224, 0x10, 253})
 }
 
 func (s *civControlStruct) loop() {
@@ -515,6 +583,9 @@ func (s *civControlStruct) init(st *serialStream) error {
 		return err
 	}
 	if err := s.getS(); err != nil {
+		return err
+	}
+	if err := s.getTS(); err != nil {
 		return err
 	}
 

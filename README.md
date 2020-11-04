@@ -85,8 +85,12 @@ kappanhang displays a "realtime" status bar (when the audio/serial connection
 is up) with the following info:
 
 - First status bar line:
+  - `S meter`: periodically refreshed S meter value
+
+- Second status bar line:
   - `state`: RX/TX/TUNE depending on the PTT status
   - `freq`: operating frequency in MHz
+  - `ts`: tuning step
   - `mode`: LSB/USB/FM etc.
   - `filter`: active filter (FIL1, FIL2 etc.)
   - `preamp`: PAMP0 means the preamp is off
@@ -94,9 +98,8 @@ is up) with the following info:
   - `txpwr`: current transmit power setting in percent
   - `audio`: current status of the audio monitor (see the *Hotkeys* section
     in this README for more information about this feature)
-  - `S meter`: periodically refreshed S meter value
 
-- Second status bar line:
+- Third status bar line:
   - `up`: how long the audio/serial connection is active
   - `rtt`: roundtrip communication latency with the server
   - `up/down`: currently used upload/download bandwidth (only considering UDP
@@ -104,8 +107,8 @@ is up) with the following info:
   - `retx`: audio/serial retransmit request count to/from the server
   - `lost`: lost audio/serial packet count from the server
 
-Data for the first status bar line is acquired by monitoring CiV traffic in
-the serial stream.
+Data for the first 2 status bar lines are acquired by monitoring CiV traffic
+in the serial stream. S value is queried periodically.
 
 `retx` and `lost` are displayed in a 1 minute window, which means they will be
 reset to 0 if they don't increase for 1 minute. A `retx` value other than 0
@@ -116,7 +119,7 @@ audio and serial communication disruptions.
 
 If status bar interval (can be changed with the `-i` command line
 argument) is equal to or above 1 second, then the realtime status bar will be
-disabled and the contents of the second line of the status bar will be written
+disabled and the contents of the last line of the status bar will be written
 as new console log lines. This is also the case if a Unix/VT100 terminal is
 not available.
 
@@ -135,12 +138,8 @@ Some basic CAT control hotkeys are also supported:
 - `t`: toggles the tune process
 - `+`: increases TX power
 - `-`: decreases TX power
-- `<`, `>`: decreases, increases frequency 1Hz
-- `,`, `.`: decreases, increases frequency 10Hz
-- `:`, `"`: decreases, increases frequency 100Hz
-- `;`, `'`: decreases, increases frequency 1kHz
-- `{`, `}`: decreases, increases frequency 10kHz
-- `[`, `]`: decreases, increases frequency 100kHz
+- `[`, `]`: decreases, increases frequency
+- `{`, `}`: decreases, increases tuning step
 - `n`, `m`: cycles through operating modes
 - `d`, `f`: cycles through filters
 - `D`: toggles data mode
