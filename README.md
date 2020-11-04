@@ -147,6 +147,7 @@ Some basic CAT control hotkeys are also supported:
 - `+`: increases TX power
 - `-`: decreases TX power
 - `0` to `9`: set TX power in 10% steps
+- `)`: set TX power to 100%
 - `[`, `]`: decreases, increases frequency
 - `{`, `}`: decreases, increases tuning step
 - `;`, `'`: decreases, increases RF gain

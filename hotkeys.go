@@ -84,6 +84,12 @@ func handleHotkey(k byte) {
 				log.Error("can't set power: ", err)
 			}
 		}
+	case ')':
+		if civControl != nil {
+			if err := civControl.setPwr(100); err != nil {
+				log.Error("can't set power: ", err)
+			}
+		}
 	case '\'':
 		if civControl != nil {
 			if err := civControl.incRFGain(); err != nil {
