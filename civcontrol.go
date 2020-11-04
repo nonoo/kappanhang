@@ -307,11 +307,27 @@ func (s *civControlStruct) decodeVdAndS(d []byte) {
 		} else {
 			sStr += "9+"
 
-			if sValue > 18 {
+			switch sValue {
+			case 10:
+				sStr += "10"
+			case 11:
+				sStr += "20"
+			case 12:
+				sStr += "30"
+			case 13:
+				sStr += "40"
+			case 14:
+				sStr += "40"
+			case 15:
+				sStr += "40"
+			case 16:
+				sStr += "40"
+			case 17:
+				sStr += "50"
+			case 18:
+				sStr += "50"
+			default:
 				sStr += "60"
-			} else {
-				dB := (float64((sValue - 9)) / 9) * 60
-				sStr += fmt.Sprint(int(math.Round(dB/10) * 10))
 			}
 		}
 		statusLog.reportS(sStr)
