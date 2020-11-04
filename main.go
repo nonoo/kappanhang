@@ -9,6 +9,10 @@ import (
 	"time"
 )
 
+const waitBetweenRetries = time.Second
+const retryCount = 5
+const waitOnRetryFailure = 65 * time.Second
+
 var gotErrChan = make(chan bool)
 var quitChan = make(chan bool)
 
@@ -23,7 +27,22 @@ func getAboutStr() string {
 	return "kappanhang " + v + " by Norbert Varga HA2NON and Akos Marton ES1AKOS https://github.com/nonoo/kappanhang"
 }
 
-func runControlStream(osSignal chan os.Signal) (shouldExit bool, exitCode int) {
+func wait(d time.Duration, osSignal chan os.Signal) (shouldExit bool) {
+	for sec := d.Seconds(); sec > 0; sec-- {
+		log.Print("waiting ", sec, " seconds...")
+		select {
+		case <-time.After(time.Second):
+		case <-osSignal:
+			log.Print("sigterm received")
+			return true
+		case <-quitChan:
+			return true
+		}
+	}
+	return false
+}
+
+func runControlStream(osSignal chan os.Signal) (requireWait, shouldExit bool, exitCode int) {
 	// Depleting gotErrChan.
 	var finished bool
 	for !finished {
@@ -39,48 +58,22 @@ func runControlStream(osSignal chan os.Signal) (shouldExit bool, exitCode int) {
 	if err := ctrl.init(); err != nil {
 		log.Error(err)
 		ctrl.deinit()
-		t := time.NewTimer(time.Second)
-		select {
-		case <-t.C:
-			return false, 0
-		case <-osSignal:
-			log.Print("sigterm received")
-			return true, 0
-		case <-quitChan:
-			return true, 0
-		}
+		return
 	}
 
 	select {
-	case requireWait := <-gotErrChan:
+	// Need to wait before reinit because the IC-705 will disconnect our audio stream eventually if we relogin
+	// in a too short interval without a deauth...
+	case requireWait = <-gotErrChan:
 		ctrl.deinit()
-
-		if !requireWait {
-			return
-		}
-
-		// Need to wait before reinit because the IC-705 will disconnect our audio stream eventually if we relogin
-		// in a too short interval without a deauth...
-		t := time.NewTicker(time.Second)
-		for sec := 65; sec > 0; sec-- {
-			log.Print("waiting ", sec, " seconds...")
-			select {
-			case <-t.C:
-			case <-osSignal:
-				log.Print("sigterm received")
-				return true, 0
-			case <-quitChan:
-				return true, 0
-			}
-		}
 		return
 	case <-osSignal:
 		log.Print("sigterm received")
 		ctrl.deinit()
-		return true, 0
+		return false, true, 0
 	case <-quitChan:
 		ctrl.deinit()
-		return true, 0
+		return false, true, 0
 	}
 }
 
@@ -113,23 +106,45 @@ func main() {
 		keyboard.init()
 	}
 
+	var retries int
+	var requireWait bool
 	var shouldExit bool
 	var exitCode int
-	for !shouldExit {
-		shouldExit, exitCode = runControlStream(osSignal)
+
+exit:
+	for {
+		requireWait, shouldExit, exitCode = runControlStream(osSignal)
+
+		if shouldExit {
+			break
+		}
 
 		select {
 		case <-osSignal:
 			log.Print("sigterm received")
-			shouldExit = true
+			break exit
 		case <-quitChan:
-			shouldExit = true
+			break exit
 		default:
 		}
 
-		if !shouldExit {
-			log.Print("restarting control stream...")
+		if requireWait {
+			if retries < retryCount {
+				retries++
+				shouldExit = wait(waitBetweenRetries, osSignal)
+			} else {
+				retries = 0
+				shouldExit = wait(waitOnRetryFailure, osSignal)
+			}
+		} else {
+			retries = 0
+			shouldExit = wait(time.Second, osSignal)
 		}
+
+		if shouldExit {
+			break
+		}
+		log.Print("restarting control stream...")
 	}
 
 	serialTCPSrv.deinit()
