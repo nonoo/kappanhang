@@ -61,8 +61,9 @@ After it is connected and logged in:
   [Hamlib](https://hamlib.github.io/) (`rigctld`).
 
   To use this with for example [WSJT-X](https://physics.princeton.edu/pulsar/K1JT/wsjtx.html),
-  open WSJT-X settings, go to the *Radio* tab, set the *rig type* to `Hamlib NET
-  rigctl`, and the *Network server* to `localhost`.
+  open WSJT-X settings, go to the *Radio* tab, set the *rig type* to `Hamlib
+  NET rigctl`, and the *Network server* to `localhost`. It is recommended to
+  set the *poll interval* to 10 seconds.
 
 ### Virtual serial port
 
