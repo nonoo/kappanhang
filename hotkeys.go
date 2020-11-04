@@ -24,6 +24,18 @@ func handleHotkey(k byte) {
 				log.Error("can't decrease power: ", err)
 			}
 		}
+	case '\'':
+		if civControl != nil {
+			if err := civControl.incRFGain(); err != nil {
+				log.Error("can't increase rf gain: ", err)
+			}
+		}
+	case ';':
+		if civControl != nil {
+			if err := civControl.decRFGain(); err != nil {
+				log.Error("can't decrease rf gain: ", err)
+			}
+		}
 	case ']':
 		if civControl != nil {
 			if err := civControl.incFreq(); err != nil {

@@ -23,6 +23,7 @@ type statusLogData struct {
 	preamp    string
 	vd        string
 	txPower   string
+	rfGain    string
 	s         string
 	ovf       bool
 	ts        string
@@ -228,6 +229,16 @@ func (s *statusLogStruct) reportTxPower(percent int) {
 	s.data.txPower = fmt.Sprint(percent, "%")
 }
 
+func (s *statusLogStruct) reportRFGain(percent int) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	if s.data == nil {
+		return
+	}
+	s.data.rfGain = fmt.Sprint(percent, "%")
+}
+
 func (s *statusLogStruct) clearInternal() {
 	fmt.Printf("%c[2K", 27)
 }
@@ -266,7 +277,11 @@ func (s *statusLogStruct) update() {
 	if s.data.ovf {
 		ovfStr = " " + s.preGenerated.ovf
 	}
-	s.data.line1 = fmt.Sprint(s.data.s, ovfStr)
+	var rfGainStr string
+	if s.data.rfGain != "" {
+		rfGainStr = " rfg " + s.data.rfGain
+	}
+	s.data.line1 = fmt.Sprint(s.data.s, ovfStr, rfGainStr)
 
 	var tsStr string
 	if s.data.ts != "" {

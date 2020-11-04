@@ -87,6 +87,7 @@ is up) with the following info:
 - First status bar line:
   - `S meter`: periodically refreshed S meter value, OVF is displayed on
     overflow
+  - `rfg`: RF gain in percent
 
 - Second status bar line:
   - `state`: RX/TX/TUNE depending on the PTT status
