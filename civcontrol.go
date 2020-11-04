@@ -71,6 +71,7 @@ type civControlStruct struct {
 	state struct {
 		getSSent   bool
 		getOVFSent bool
+		getSWRSent bool
 
 		freq             uint
 		ptt              bool
@@ -119,7 +120,7 @@ func (s *civControlStruct) decode(d []byte) bool {
 	case 0x1c:
 		s.decodeTransmitStatus(payload)
 	case 0x15:
-		return s.decodeVdAndS(payload)
+		return s.decodeVdSWRS(payload)
 	case 0x16:
 		s.decodePreampAndNR(payload)
 	}
@@ -324,7 +325,7 @@ func (s *civControlStruct) decodeTransmitStatus(d []byte) {
 	statusLog.reportPTT(s.state.ptt, s.state.tune)
 }
 
-func (s *civControlStruct) decodeVdAndS(d []byte) bool {
+func (s *civControlStruct) decodeVdSWRS(d []byte) bool {
 	if len(d) < 1 {
 		return true
 	}
@@ -367,6 +368,15 @@ func (s *civControlStruct) decodeVdAndS(d []byte) bool {
 		statusLog.reportS(sStr)
 		if s.state.getSSent {
 			s.state.getSSent = false
+			return false
+		}
+	case 0x12:
+		if len(d) < 3 {
+			return !s.state.getSWRSent
+		}
+		statusLog.reportSWR(((float64(int(d[1])<<8) + float64(d[2])) / 0x0241) * 16)
+		if s.state.getSWRSent {
+			s.state.getSWRSent = false
 			return false
 		}
 	case 0x15:
@@ -687,6 +697,11 @@ func (s *civControlStruct) getOVF() error {
 	return s.st.send([]byte{254, 254, civAddress, 224, 0x1a, 0x09, 253})
 }
 
+func (s *civControlStruct) getSWR() error {
+	s.state.getSWRSent = true
+	return s.st.send([]byte{254, 254, civAddress, 224, 0x15, 0x12, 253})
+}
+
 func (s *civControlStruct) getTS() error {
 	return s.st.send([]byte{254, 254, civAddress, 224, 0x10, 253})
 }
@@ -716,6 +731,7 @@ func (s *civControlStruct) loop() {
 		case <-time.After(sReadInterval):
 			_ = s.getS()
 			_ = s.getOVF()
+			_ = s.getSWR()
 		case <-s.resetSReadTimer:
 		}
 	}
@@ -751,6 +767,9 @@ func (s *civControlStruct) init(st *serialStream) error {
 		return err
 	}
 	if err := s.getOVF(); err != nil {
+		return err
+	}
+	if err := s.getSWR(); err != nil {
 		return err
 	}
 	if err := s.getTS(); err != nil {

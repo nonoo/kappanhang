@@ -90,6 +90,8 @@ is up) with the following info:
   - `rfg`: RF gain in percent
   - `sql`: squelch level in percent
   - `nr`: noise reduction level in percent
+  - `audio`: current status of the audio monitor (see the *Hotkeys* section
+    in this README for more information about this feature)
 
 - Second status bar line:
   - `state`: RX/TX/TUNE depending on the PTT status
@@ -100,8 +102,7 @@ is up) with the following info:
   - `preamp`: PAMP0 means the preamp is off
   - `voltage`: Vd voltage, updated when a TX/TUNE is over
   - `txpwr`: current transmit power setting in percent
-  - `audio`: current status of the audio monitor (see the *Hotkeys* section
-    in this README for more information about this feature)
+  - `swr`: reported SWR, it seems that the Icom IC-705 always reports 0.0
 
 - Third status bar line:
   - `up`: how long the audio/serial connection is active

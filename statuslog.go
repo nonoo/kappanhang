@@ -29,6 +29,7 @@ type statusLogData struct {
 	nrEnabled bool
 	s         string
 	ovf       bool
+	swr       string
 	ts        string
 
 	startTime time.Time
@@ -195,6 +196,16 @@ func (s *statusLogStruct) reportOVF(ovf bool) {
 	s.data.ovf = ovf
 }
 
+func (s *statusLogStruct) reportSWR(swr float64) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	if s.data == nil {
+		return
+	}
+	s.data.swr = fmt.Sprintf("%.1f", swr)
+}
+
 func (s *statusLogStruct) reportTS(ts uint) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -327,7 +338,7 @@ func (s *statusLogStruct) update() {
 			nrStr += "-"
 		}
 	}
-	s.data.line1 = fmt.Sprint(s.data.s, ovfStr, rfGainStr, sqlStr, nrStr)
+	s.data.line1 = fmt.Sprint(s.data.s, ovfStr, rfGainStr, sqlStr, nrStr, " audio ", s.data.audioStateStr)
 
 	var tsStr string
 	if s.data.ts != "" {
@@ -353,8 +364,12 @@ func (s *statusLogStruct) update() {
 	if s.data.txPower != "" {
 		txPowerStr = " txpwr " + s.data.txPower
 	}
+	var swrStr string
+	if s.data.swr != "" {
+		swrStr = " swr " + s.data.swr
+	}
 	s.data.line2 = fmt.Sprint(s.data.stateStr, " ", fmt.Sprintf("%.6f", float64(s.data.frequency)/1000000),
-		tsStr, modeStr, filterStr, preampStr, vdStr, txPowerStr, " audio ", s.data.audioStateStr)
+		tsStr, modeStr, filterStr, preampStr, vdStr, txPowerStr, swrStr)
 
 	up, down, lost, retransmits := netstat.get()
 	lostStr := "0"
