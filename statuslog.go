@@ -24,6 +24,7 @@ type statusLogData struct {
 	vd        string
 	txPower   string
 	rfGain    string
+	sql       string
 	s         string
 	ovf       bool
 	ts        string
@@ -239,6 +240,16 @@ func (s *statusLogStruct) reportRFGain(percent int) {
 	s.data.rfGain = fmt.Sprint(percent, "%")
 }
 
+func (s *statusLogStruct) reportSQL(percent int) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	if s.data == nil {
+		return
+	}
+	s.data.sql = fmt.Sprint(percent, "%")
+}
+
 func (s *statusLogStruct) clearInternal() {
 	fmt.Printf("%c[2K", 27)
 }
@@ -281,7 +292,11 @@ func (s *statusLogStruct) update() {
 	if s.data.rfGain != "" {
 		rfGainStr = " rfg " + s.data.rfGain
 	}
-	s.data.line1 = fmt.Sprint(s.data.s, ovfStr, rfGainStr)
+	var sqlStr string
+	if s.data.sql != "" {
+		sqlStr = " sql " + s.data.sql
+	}
+	s.data.line1 = fmt.Sprint(s.data.s, ovfStr, rfGainStr, sqlStr)
 
 	var tsStr string
 	if s.data.ts != "" {

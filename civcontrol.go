@@ -74,6 +74,7 @@ type civControlStruct struct {
 		tune             bool
 		pwrPercent       int
 		rfGainPercent    int
+		sqlPercent       int
 		operatingModeIdx int
 		filterIdx        int
 		dataMode         bool
@@ -108,7 +109,7 @@ func (s *civControlStruct) decode(d []byte) {
 	case 0x1a:
 		s.decodeDataModeAndOVF(payload)
 	case 0x14:
-		s.decodePowerAndRFGain(payload)
+		s.decodePowerRFGainSquelch(payload)
 	case 0x1c:
 		s.decodeTransmitStatus(payload)
 	case 0x15:
@@ -250,7 +251,7 @@ func (s *civControlStruct) decodeDataModeAndOVF(d []byte) {
 	}
 }
 
-func (s *civControlStruct) decodePowerAndRFGain(d []byte) {
+func (s *civControlStruct) decodePowerRFGainSquelch(d []byte) {
 	if len(d) < 3 {
 		return
 	}
@@ -260,6 +261,10 @@ func (s *civControlStruct) decodePowerAndRFGain(d []byte) {
 		hex := uint16(d[1])<<8 | uint16(d[2])
 		s.state.rfGainPercent = int(math.Round((float64(hex) / 0x0255) * 100))
 		statusLog.reportRFGain(s.state.rfGainPercent)
+	case 0x03:
+		hex := uint16(d[1])<<8 | uint16(d[2])
+		s.state.sqlPercent = int(math.Round((float64(hex) / 0x0255) * 100))
+		statusLog.reportSQL(s.state.sqlPercent)
 	case 0x0a:
 		hex := uint16(d[1])<<8 | uint16(d[2])
 		s.state.pwrPercent = int(math.Round((float64(hex) / 0x0255) * 100))
@@ -389,6 +394,25 @@ func (s *civControlStruct) incRFGain() error {
 func (s *civControlStruct) decRFGain() error {
 	if s.state.rfGainPercent > 0 {
 		return s.setRFGain(s.state.rfGainPercent - 1)
+	}
+	return nil
+}
+
+func (s *civControlStruct) setSQL(percent int) error {
+	v := uint16(0x0255 * (float64(percent) / 100))
+	return s.st.send([]byte{254, 254, civAddress, 224, 0x14, 0x03, byte(v >> 8), byte(v & 0xff), 253})
+}
+
+func (s *civControlStruct) incSQL() error {
+	if s.state.sqlPercent < 100 {
+		return s.setSQL(s.state.sqlPercent + 1)
+	}
+	return nil
+}
+
+func (s *civControlStruct) decSQL() error {
+	if s.state.sqlPercent > 0 {
+		return s.setSQL(s.state.sqlPercent - 1)
 	}
 	return nil
 }
@@ -605,6 +629,10 @@ func (s *civControlStruct) getRFGain() error {
 	return s.st.send([]byte{254, 254, civAddress, 224, 0x14, 0x02, 253})
 }
 
+func (s *civControlStruct) getSQL() error {
+	return s.st.send([]byte{254, 254, civAddress, 224, 0x14, 0x03, 253})
+}
+
 func (s *civControlStruct) loop() {
 	for {
 		select {
@@ -655,6 +683,9 @@ func (s *civControlStruct) init(st *serialStream) error {
 		return err
 	}
 	if err := s.getRFGain(); err != nil {
+		return err
+	}
+	if err := s.getSQL(); err != nil {
 		return err
 	}
 

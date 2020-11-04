@@ -88,6 +88,7 @@ is up) with the following info:
   - `S meter`: periodically refreshed S meter value, OVF is displayed on
     overflow
   - `rfg`: RF gain in percent
+  - `sql`: squelch level in percent
 
 - Second status bar line:
   - `state`: RX/TX/TUNE depending on the PTT status
@@ -143,6 +144,7 @@ Some basic CAT control hotkeys are also supported:
 - `[`, `]`: decreases, increases frequency
 - `{`, `}`: decreases, increases tuning step
 - `;`, `'`: decreases, increases RF gain
+- `,`, `.`: decreases, increases squelch level
 - `n`, `m`: cycles through operating modes
 - `d`, `f`: cycles through filters
 - `D`: toggles data mode
