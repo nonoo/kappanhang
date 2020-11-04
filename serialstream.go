@@ -92,7 +92,9 @@ func (s *serialStream) handleRxSeqBufEntry(e seqBufEntry) {
 
 	e.data = e.data[21:]
 
-	civControl.decode(e.data)
+	if !civControl.decode(e.data) {
+		return
+	}
 
 	if serialPort.write != nil {
 		serialPort.write <- e.data

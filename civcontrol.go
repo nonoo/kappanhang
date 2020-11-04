@@ -69,6 +69,9 @@ type civControlStruct struct {
 	resetSReadTimer chan bool
 
 	state struct {
+		getSSent   bool
+		getOVFSent bool
+
 		freq             uint
 		ptt              bool
 		tune             bool
@@ -90,9 +93,10 @@ type civControlStruct struct {
 
 var civControl *civControlStruct
 
-func (s *civControlStruct) decode(d []byte) {
+// Returns false if the message should not be forwarded to the serial port TCP server or the virtual serial port.
+func (s *civControlStruct) decode(d []byte) bool {
 	if len(d) < 6 || d[0] != 0xfe || d[1] != 0xfe || d[len(d)-1] != 0xfd {
-		return
+		return true
 	}
 
 	payload := d[5 : len(d)-1]
@@ -109,16 +113,17 @@ func (s *civControlStruct) decode(d []byte) {
 	case 0x10:
 		s.decodeTS(payload)
 	case 0x1a:
-		s.decodeDataModeAndOVF(payload)
+		return s.decodeDataModeAndOVF(payload)
 	case 0x14:
 		s.decodePowerRFGainSQLNR(payload)
 	case 0x1c:
 		s.decodeTransmitStatus(payload)
 	case 0x15:
-		s.decodeVdAndS(payload)
+		return s.decodeVdAndS(payload)
 	case 0x16:
 		s.decodePreampAndNR(payload)
 	}
+	return true
 }
 
 func (s *civControlStruct) decodeFreq(d []byte) {
@@ -222,15 +227,15 @@ func (s *civControlStruct) decodeTS(d []byte) {
 	statusLog.reportTS(s.state.ts)
 }
 
-func (s *civControlStruct) decodeDataModeAndOVF(d []byte) {
-	if len(d) < 2 {
-		return
+func (s *civControlStruct) decodeDataModeAndOVF(d []byte) bool {
+	if len(d) < 1 {
+		return true
 	}
 
 	switch d[0] {
 	case 0x06:
 		if len(d) < 3 {
-			return
+			return true
 		}
 		var dataMode string
 		var filter string
@@ -245,12 +250,20 @@ func (s *civControlStruct) decodeDataModeAndOVF(d []byte) {
 
 		statusLog.reportDataMode(dataMode, filter)
 	case 0x09:
+		if len(d) < 2 {
+			return !s.state.getOVFSent
+		}
 		if d[1] != 0 {
 			statusLog.reportOVF(true)
 		} else {
 			statusLog.reportOVF(false)
 		}
+		if s.state.getOVFSent {
+			s.state.getOVFSent = false
+			return false
+		}
 	}
+	return true
 }
 
 func (s *civControlStruct) decodePowerRFGainSQLNR(d []byte) {
@@ -311,13 +324,16 @@ func (s *civControlStruct) decodeTransmitStatus(d []byte) {
 	statusLog.reportPTT(s.state.ptt, s.state.tune)
 }
 
-func (s *civControlStruct) decodeVdAndS(d []byte) {
-	if len(d) < 3 {
-		return
+func (s *civControlStruct) decodeVdAndS(d []byte) bool {
+	if len(d) < 1 {
+		return true
 	}
 
 	switch d[0] {
 	case 0x02:
+		if len(d) < 3 {
+			return !s.state.getSSent
+		}
 		sValue := (int(math.Round(((float64(int(d[1])<<8) + float64(d[2])) / 0x0241) * 18)))
 		sStr := "S"
 		if sValue <= 9 {
@@ -349,9 +365,17 @@ func (s *civControlStruct) decodeVdAndS(d []byte) {
 			}
 		}
 		statusLog.reportS(sStr)
+		if s.state.getSSent {
+			s.state.getSSent = false
+			return false
+		}
 	case 0x15:
+		if len(d) < 3 {
+			return true
+		}
 		statusLog.reportVd(((float64(int(d[1])<<8) + float64(d[2])) / 0x0241) * 16)
 	}
+	return true
 }
 
 func (s *civControlStruct) decodePreampAndNR(d []byte) {
@@ -654,10 +678,12 @@ func (s *civControlStruct) getVd() error {
 }
 
 func (s *civControlStruct) getS() error {
+	s.state.getSSent = true
 	return s.st.send([]byte{254, 254, civAddress, 224, 0x15, 0x02, 253})
 }
 
 func (s *civControlStruct) getOVF() error {
+	s.state.getOVFSent = true
 	return s.st.send([]byte{254, 254, civAddress, 224, 0x1a, 0x09, 253})
 }
 
