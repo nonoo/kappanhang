@@ -101,7 +101,8 @@ is up) with the following info:
   - `mode`: LSB/USB/FM etc.
   - `filter`: active filter (FIL1, FIL2 etc.)
   - `preamp`: PAMP0 means the preamp is off
-  - `voltage`: Vd voltage, updated when a TX/TUNE is over
+  - `voltage`: drain voltage of the final amplifier MOS-FETs, updated when a
+    TX/TUNE is over
   - `txpwr`: current transmit power setting in percent
   - `swr`: reported SWR
 
