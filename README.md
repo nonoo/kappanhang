@@ -112,7 +112,9 @@ is up) with the following info:
   - `lost`: lost audio/serial packet count from the server
 
 Data for the first 2 status bar lines are acquired by monitoring CiV traffic
-in the serial stream. S value and OVF are queried periodically.
+in the serial stream. S value and OVF are queried periodically, but these
+queries/replies are filtered from the serial data stream sent to the TCP
+serial port server and to the virtual serial port.
 
 `retx` and `lost` are displayed in a 1 minute window, which means they will be
 reset to 0 if they don't increase for 1 minute. A `retx` value other than 0
