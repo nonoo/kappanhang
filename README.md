@@ -103,7 +103,7 @@ is up) with the following info:
   - `preamp`: PAMP0 means the preamp is off
   - `voltage`: Vd voltage, updated when a TX/TUNE is over
   - `txpwr`: current transmit power setting in percent
-  - `swr`: reported SWR, it seems that the Icom IC-705 always reports 0.0
+  - `swr`: reported SWR
 
 - Third status bar line:
   - `up`: how long the audio/serial connection is active

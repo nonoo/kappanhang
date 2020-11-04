@@ -462,7 +462,7 @@ func (s *civControlStruct) decodeVdSWRS(d []byte) bool {
 		if len(d) < 3 {
 			return !s.state.getSWRSent
 		}
-		statusLog.reportSWR(((float64(int(d[1])<<8) + float64(d[2])) / 0x0241) * 16)
+		statusLog.reportSWR(((float64(int(d[1])<<8)+float64(d[2]))/0x0120)*2 + 1)
 		if s.state.getSWRSent {
 			s.state.getSWRSent = false
 			return false
