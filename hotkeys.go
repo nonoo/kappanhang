@@ -24,6 +24,66 @@ func handleHotkey(k byte) {
 				log.Error("can't decrease power: ", err)
 			}
 		}
+	case '0':
+		if civControl != nil {
+			if err := civControl.setPwr(0); err != nil {
+				log.Error("can't set power: ", err)
+			}
+		}
+	case '1':
+		if civControl != nil {
+			if err := civControl.setPwr(10); err != nil {
+				log.Error("can't set power: ", err)
+			}
+		}
+	case '2':
+		if civControl != nil {
+			if err := civControl.setPwr(20); err != nil {
+				log.Error("can't set power: ", err)
+			}
+		}
+	case '3':
+		if civControl != nil {
+			if err := civControl.setPwr(30); err != nil {
+				log.Error("can't set power: ", err)
+			}
+		}
+	case '4':
+		if civControl != nil {
+			if err := civControl.setPwr(40); err != nil {
+				log.Error("can't set power: ", err)
+			}
+		}
+	case '5':
+		if civControl != nil {
+			if err := civControl.setPwr(50); err != nil {
+				log.Error("can't set power: ", err)
+			}
+		}
+	case '6':
+		if civControl != nil {
+			if err := civControl.setPwr(60); err != nil {
+				log.Error("can't set power: ", err)
+			}
+		}
+	case '7':
+		if civControl != nil {
+			if err := civControl.setPwr(70); err != nil {
+				log.Error("can't set power: ", err)
+			}
+		}
+	case '8':
+		if civControl != nil {
+			if err := civControl.setPwr(80); err != nil {
+				log.Error("can't set power: ", err)
+			}
+		}
+	case '9':
+		if civControl != nil {
+			if err := civControl.setPwr(90); err != nil {
+				log.Error("can't set power: ", err)
+			}
+		}
 	case '\'':
 		if civControl != nil {
 			if err := civControl.incRFGain(); err != nil {
