@@ -400,7 +400,7 @@ func (s *statusLogStruct) update() {
 		txPowerStr = " txpwr " + s.data.txPower
 	}
 	var swrStr string
-	if s.data.swr != "" {
+	if (s.data.tune || s.data.ptt) && s.data.swr != "" {
 		swrStr = " SWR" + s.data.swr
 	}
 	s.data.line2 = fmt.Sprint(stateStr, " ", fmt.Sprintf("%.6f", float64(s.data.frequency)/1000000),
