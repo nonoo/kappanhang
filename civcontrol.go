@@ -594,6 +594,11 @@ func (s *civControlStruct) decSQL() error {
 }
 
 func (s *civControlStruct) setNR(percent int) error {
+	if !s.state.nrEnabled {
+		if err := s.toggleNR(); err != nil {
+			return err
+		}
+	}
 	s.state.setNRSent = true
 	v := uint16(0x0255 * (float64(percent) / 100))
 	return s.st.send([]byte{254, 254, civAddress, 224, 0x14, 0x06, byte(v >> 8), byte(v & 0xff), 253})
