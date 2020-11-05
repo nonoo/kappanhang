@@ -376,7 +376,12 @@ func (s *statusLogStruct) update() {
 		if s.data.ovf {
 			ovfStr = s.preGenerated.ovf
 		}
-		stateStr = s.preGenerated.rxColor.Sprint(" "+s.padRight(s.data.s, 5)+" ") + ovfStr
+		if len(s.data.s) <= 2 {
+			stateStr = s.preGenerated.rxColor.Sprint("  " + s.padRight(s.data.s, 4) + " ")
+		} else {
+			stateStr = s.preGenerated.rxColor.Sprint(" " + s.padRight(s.data.s, 5) + " ")
+		}
+		stateStr += ovfStr
 	}
 	var tsStr string
 	if s.data.ts != "" {
