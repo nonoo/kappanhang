@@ -519,7 +519,7 @@ func (s *statusLogStruct) initIfNeeded() {
 	c = color.New(color.FgHiWhite, color.BlinkRapid)
 	c.Add(color.BgRed)
 	s.preGenerated.stateStr.tx = c.Sprint("  TX   ")
-	s.preGenerated.stateStr.tune = c.Sprint(" TUNE  ")
+	s.preGenerated.stateStr.tune = c.Sprint("  TUNE ")
 	s.preGenerated.audioStateStr.rec = c.Sprint("  REC  ")
 
 	c = color.New(color.FgHiWhite)
