@@ -86,21 +86,21 @@ kappanhang displays a "realtime" status bar (when the audio/serial connection
 is up) with the following info:
 
 - First status bar line:
-  - `S meter`: periodically refreshed S meter value, OVF is displayed on
-    overflow
+  - `MON/REC`: current status of the audio monitor (see the *Hotkeys* section
+    in this README for more information about this feature)
+  - `filter`: active filter (FIL1, FIL2 etc.)
+  - `preamp`: PAMP0 means the preamp is off
+  - `AGC`: AGC state (F - fast, M - middle, S - slow)
   - `rfg`: RF gain in percent
   - `sql`: squelch level in percent
   - `nr`: noise reduction level in percent
-  - `audio`: current status of the audio monitor (see the *Hotkeys* section
-    in this README for more information about this feature)
 
 - Second status bar line:
-  - `state`: RX/TX/TUNE depending on the PTT status
+  - `S meter`: periodically refreshed S meter value, OVF is displayed on
+    overflow, displays TX on transmit (or TUNE)
   - `freq`: operating frequency in MHz
-  - `ts`: tuning step
+  - `TS`: tuning step
   - `mode`: LSB/USB/FM etc.
-  - `filter`: active filter (FIL1, FIL2 etc.)
-  - `preamp`: PAMP0 means the preamp is off
   - `voltage`: drain voltage of the final amplifier MOS-FETs, updated when a
     TX/TUNE is over
   - `txpwr`: current transmit power setting in percent

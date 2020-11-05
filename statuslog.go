@@ -15,7 +15,8 @@ type statusLogData struct {
 	line2 string
 	line3 string
 
-	stateStr  string
+	ptt       bool
+	tune      bool
 	frequency uint
 	mode      string
 	dataMode  string
@@ -48,14 +49,13 @@ type statusLogStruct struct {
 	mutex            sync.Mutex
 
 	preGenerated struct {
+		rxColor          *color.Color
 		retransmitsColor *color.Color
 		lostColor        *color.Color
 
 		stateStr struct {
-			unknown string
-			rx      string
-			tx      string
-			tune    string
+			tx   string
+			tune string
 		}
 		audioStateStr struct {
 			off   string
@@ -245,13 +245,8 @@ func (s *statusLogStruct) reportPTT(ptt, tune bool) {
 	if s.data == nil {
 		return
 	}
-	if tune {
-		s.data.stateStr = s.preGenerated.stateStr.tune
-	} else if ptt {
-		s.data.stateStr = s.preGenerated.stateStr.tx
-	} else {
-		s.data.stateStr = s.preGenerated.stateStr.rx
-	}
+	s.data.tune = tune
+	s.data.ptt = ptt
 }
 
 func (s *statusLogStruct) reportTxPower(percent int) {
@@ -340,9 +335,17 @@ func (s *statusLogStruct) update() {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	var ovfStr string
-	if s.data.ovf {
-		ovfStr = " " + s.preGenerated.ovf
+	var filterStr string
+	if s.data.filter != "" {
+		filterStr = " " + s.data.filter
+	}
+	var preampStr string
+	if s.data.preamp != "" {
+		preampStr = " " + s.data.preamp
+	}
+	var agcStr string
+	if s.data.agc != "" {
+		agcStr = " " + s.data.agc
 	}
 	var rfGainStr string
 	if s.data.rfGain != "" {
@@ -361,8 +364,20 @@ func (s *statusLogStruct) update() {
 			nrStr += "-"
 		}
 	}
-	s.data.line1 = fmt.Sprint(s.padRight(s.data.s, 5), ovfStr, rfGainStr, sqlStr, nrStr, " audio ", s.data.audioStateStr)
+	s.data.line1 = fmt.Sprint(s.data.audioStateStr, filterStr, preampStr, agcStr, rfGainStr, sqlStr, nrStr)
 
+	var stateStr string
+	if s.data.tune {
+		stateStr = s.preGenerated.stateStr.tune
+	} else if s.data.ptt {
+		stateStr = s.preGenerated.stateStr.tx
+	} else {
+		var ovfStr string
+		if s.data.ovf {
+			ovfStr = s.preGenerated.ovf
+		}
+		stateStr = s.preGenerated.rxColor.Sprint(" "+s.padRight(s.data.s, 5)+" ") + ovfStr
+	}
 	var tsStr string
 	if s.data.ts != "" {
 		tsStr = " " + s.data.ts
@@ -370,18 +385,6 @@ func (s *statusLogStruct) update() {
 	var modeStr string
 	if s.data.mode != "" {
 		modeStr = " " + s.data.mode + s.data.dataMode
-	}
-	var filterStr string
-	if s.data.filter != "" {
-		filterStr = " " + s.data.filter
-	}
-	var preampStr string
-	if s.data.preamp != "" {
-		preampStr = " " + s.data.preamp
-	}
-	var agcStr string
-	if s.data.agc != "" {
-		agcStr = " " + s.data.agc
 	}
 	var vdStr string
 	if s.data.vd != "" {
@@ -395,8 +398,8 @@ func (s *statusLogStruct) update() {
 	if s.data.swr != "" {
 		swrStr = " swr " + s.data.swr
 	}
-	s.data.line2 = fmt.Sprint(s.data.stateStr, " ", fmt.Sprintf("%.6f", float64(s.data.frequency)/1000000),
-		tsStr, modeStr, filterStr, preampStr, agcStr, vdStr, txPowerStr, swrStr)
+	s.data.line2 = fmt.Sprint(stateStr, " ", fmt.Sprintf("%.6f", float64(s.data.frequency)/1000000),
+		tsStr, modeStr, vdStr, txPowerStr, swrStr)
 
 	up, down, lost, retransmits := netstat.get()
 	lostStr := "0"
@@ -459,7 +462,7 @@ func (s *statusLogStruct) startPeriodicPrint() {
 	s.initIfNeeded()
 
 	s.data = &statusLogData{
-		stateStr:      s.preGenerated.stateStr.unknown,
+		s:             "S0",
 		startTime:     time.Now(),
 		rttStr:        "?",
 		audioStateStr: s.preGenerated.audioStateStr.off,
@@ -502,18 +505,16 @@ func (s *statusLogStruct) initIfNeeded() {
 
 	c := color.New(color.FgHiWhite)
 	c.Add(color.BgWhite)
-	s.preGenerated.stateStr.unknown = c.Sprint("  ??  ")
-	s.preGenerated.audioStateStr.off = c.Sprint("  OFF  ")
+	s.preGenerated.audioStateStr.off = c.Sprint("  MON  ")
 
-	c = color.New(color.FgHiWhite)
-	c.Add(color.BgGreen)
-	s.preGenerated.stateStr.rx = c.Sprint("  RX  ")
-	s.preGenerated.audioStateStr.monOn = c.Sprint("  MON  ")
+	s.preGenerated.rxColor = color.New(color.FgHiWhite)
+	s.preGenerated.rxColor.Add(color.BgGreen)
+	s.preGenerated.audioStateStr.monOn = s.preGenerated.rxColor.Sprint("  MON  ")
 
 	c = color.New(color.FgHiWhite, color.BlinkRapid)
 	c.Add(color.BgRed)
-	s.preGenerated.stateStr.tx = c.Sprint("  TX  ")
-	s.preGenerated.stateStr.tune = c.Sprint(" TUNE ")
+	s.preGenerated.stateStr.tx = c.Sprint("  TX   ")
+	s.preGenerated.stateStr.tune = c.Sprint(" TUNE  ")
 	s.preGenerated.audioStateStr.rec = c.Sprint("  REC  ")
 
 	c = color.New(color.FgHiWhite)
