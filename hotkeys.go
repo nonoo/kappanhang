@@ -1,5 +1,7 @@
 package main
 
+import "fmt"
+
 func handleHotkey(k byte) {
 	switch k {
 	case 'l':
@@ -209,6 +211,14 @@ func handleHotkey(k byte) {
 			if err := civControl.toggleAGC(); err != nil {
 				log.Error("can't change agc: ", err)
 			}
+		}
+	case '\n':
+		if statusLog.isRealtime() {
+			statusLog.mutex.Lock()
+			statusLog.clearInternal()
+			fmt.Println()
+			statusLog.mutex.Unlock()
+			statusLog.print()
 		}
 	case 'q':
 		quitChan <- true
