@@ -36,7 +36,7 @@ func (p *pkt0Type) retransmitRange(s *streamCommon, start, end uint16) error {
 				return err
 			}
 		} else {
-			log.Debug(s.name+"/can't retransmit #", start, " - not found")
+			log.Debug(s.name+"/can't retransmit #", start, " - not found ")
 
 			// Sending an idle with the requested seqnum.
 			if err := p.sendIdle(s, false, start); err != nil {

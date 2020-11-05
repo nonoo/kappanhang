@@ -43,6 +43,8 @@ func (s *controlStream) sendPktLogin() error {
 	if _, err := rand.Read(authStartID[:]); err != nil {
 		return err
 	}
+	usernameEncoded := passcode(username)
+	passwordEncoded := passcode(password)
 	p := []byte{0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
 		byte(s.common.remoteSID >> 24), byte(s.common.remoteSID >> 16), byte(s.common.remoteSID >> 8), byte(s.common.remoteSID),
@@ -52,10 +54,14 @@ func (s *controlStream) sendPktLogin() error {
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x2b, 0x3f, 0x55, 0x5c, 0x00, 0x00, 0x00, 0x00, // username: beer
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x2b, 0x3f, 0x55, 0x5c, 0x3f, 0x25, 0x77, 0x58, // pass: beerbeer
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		usernameEncoded[0], usernameEncoded[1], usernameEncoded[2], usernameEncoded[3],
+		usernameEncoded[4], usernameEncoded[5], usernameEncoded[6], usernameEncoded[7],
+		usernameEncoded[8], usernameEncoded[9], usernameEncoded[10], usernameEncoded[11],
+		usernameEncoded[12], usernameEncoded[13], usernameEncoded[14], usernameEncoded[15],
+		passwordEncoded[0], passwordEncoded[1], passwordEncoded[2], passwordEncoded[3],
+		passwordEncoded[4], passwordEncoded[5], passwordEncoded[6], passwordEncoded[7],
+		passwordEncoded[8], passwordEncoded[9], passwordEncoded[10], passwordEncoded[11],
+		passwordEncoded[12], passwordEncoded[13], passwordEncoded[14], passwordEncoded[15],
 		0x69, 0x63, 0x6f, 0x6d, 0x2d, 0x70, 0x63, 0x00, // icom-pc in plain text
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -107,6 +113,7 @@ func (s *controlStream) sendRequestSerialAndAudio() error {
 
 	txSeqBufLengthMs := uint16(txSeqBufLength.Milliseconds())
 
+	usernameEncoded := passcode(username)
 	p := []byte{0x90, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		byte(s.common.localSID >> 24), byte(s.common.localSID >> 16), byte(s.common.localSID >> 8), byte(s.common.localSID),
 		byte(s.common.remoteSID >> 24), byte(s.common.remoteSID >> 16), byte(s.common.remoteSID >> 8), byte(s.common.remoteSID),
@@ -120,8 +127,10 @@ func (s *controlStream) sendRequestSerialAndAudio() error {
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x2b, 0x3f, 0x55, 0x5c, 0x00, 0x00, 0x00, 0x00, // username: beer
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		usernameEncoded[0], usernameEncoded[1], usernameEncoded[2], usernameEncoded[3],
+		usernameEncoded[4], usernameEncoded[5], usernameEncoded[6], usernameEncoded[7],
+		usernameEncoded[8], usernameEncoded[9], usernameEncoded[10], usernameEncoded[11],
+		usernameEncoded[12], usernameEncoded[13], usernameEncoded[14], usernameEncoded[15],
 		0x01, 0x01, 0x04, 0x04, 0x00, 0x00, byte(audioSampleRate >> 8), byte(audioSampleRate & 0xff),
 		0x00, 0x00, byte(audioSampleRate >> 8), byte(audioSampleRate & 0xff),
 		0x00, 0x00, byte(serialStreamPort >> 8), byte(serialStreamPort & 0xff),
@@ -341,7 +350,7 @@ func (s *controlStream) init() error {
 		return err
 	}
 	if bytes.Equal(r[48:52], []byte{0xff, 0xff, 0xff, 0xfe}) {
-		return errors.New("invalid user/password")
+		return errors.New("invalid username/password")
 	}
 
 	s.common.pkt7.startPeriodicSend(&s.common, 2, false)

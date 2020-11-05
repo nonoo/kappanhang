@@ -10,6 +10,8 @@ import (
 
 var verboseLog bool
 var connectAddress string
+var username string
+var password string
 var serialTCPPort uint16
 var enableSerialDevice bool
 var rigctldModel uint
@@ -22,6 +24,8 @@ func parseArgs() {
 	h := getopt.BoolLong("help", 'h', "display help")
 	v := getopt.BoolLong("verbose", 'v', "Enable verbose (debug) logging")
 	a := getopt.StringLong("address", 'a', "IC-705", "Connect to address")
+	u := getopt.StringLong("username", 'u', "beer", "Username")
+	p := getopt.StringLong("password", 'p', "beerbeer", "Password")
 	t := getopt.Uint16Long("serial-tcp-port", 't', 4533, "Expose radio's serial port on this TCP port")
 	s := getopt.BoolLong("enable-serial-device", 's', "Expose radio's serial port as a virtual serial port")
 	m := getopt.UintLong("rigctld-model", 'm', 3085, "rigctld model number")
@@ -40,6 +44,8 @@ func parseArgs() {
 
 	verboseLog = *v
 	connectAddress = *a
+	username = *u
+	password = *p
 	serialTCPPort = *t
 	enableSerialDevice = *s
 	rigctldModel = *m

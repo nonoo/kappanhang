@@ -28,9 +28,6 @@ go install https://github.com/nonoo/kappanhang
 - Make sure network settings (on the Icom IC-705 in: `Menu -> Set ->
   WLAN set -> Remote settings`) are the following:
   - **Network control** is turned on.
-  - **Network user 1** username is `beer` and the password is `beerbeer`.
-    These are fixed as the password encoding of the RS-BA1 protocol has not
-    been decrypted yet. See [passcode.txt](passcode.txt) for more information.
   - **UDP ports** are on their default values:
     - Control port: `50001`
     - Serial port: `50002`
@@ -48,7 +45,9 @@ You can get the available command line parameters with the `-h` command line
 argument.
 
 If no command line arguments are set, then the app will try to connect to the
-host **ic-705** (ic-705.local or ic-705.localdomain).
+host **ic-705** (ic-705.local or ic-705.localdomain) with the username `beer`
+and password `beerbeer`. You can set the username with the `-u` and the
+password with the `-p` command line arguments.
 
 After it is connected and logged in:
 

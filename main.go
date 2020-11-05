@@ -58,6 +58,9 @@ func runControlStream(osSignal chan os.Signal) (requireWait, shouldExit bool, ex
 	if err := ctrl.init(); err != nil {
 		log.Error(err)
 		ctrl.deinit()
+		if strings.Contains(err.Error(), "invalid username/password") {
+			return false, true, 1
+		}
 		return
 	}
 
