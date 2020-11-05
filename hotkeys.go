@@ -204,6 +204,12 @@ func handleHotkey(k byte) {
 				log.Error("can't change preamp: ", err)
 			}
 		}
+	case 'a':
+		if civControl != nil {
+			if err := civControl.toggleAGC(); err != nil {
+				log.Error("can't change agc: ", err)
+			}
+		}
 	case 'q':
 		quitChan <- true
 	}

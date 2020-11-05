@@ -21,6 +21,7 @@ type statusLogData struct {
 	dataMode  string
 	filter    string
 	preamp    string
+	agc       string
 	vd        string
 	txPower   string
 	rfGain    string
@@ -154,6 +155,16 @@ func (s *statusLogStruct) reportPreamp(preamp int) {
 		return
 	}
 	s.data.preamp = fmt.Sprint("PAMP", preamp)
+}
+
+func (s *statusLogStruct) reportAGC(agc string) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	if s.data == nil {
+		return
+	}
+	s.data.agc = "AGC" + agc
 }
 
 func (s *statusLogStruct) reportNREnabled(enabled bool) {
@@ -368,6 +379,10 @@ func (s *statusLogStruct) update() {
 	if s.data.preamp != "" {
 		preampStr = " " + s.data.preamp
 	}
+	var agcStr string
+	if s.data.agc != "" {
+		agcStr = " " + s.data.agc
+	}
 	var vdStr string
 	if s.data.vd != "" {
 		vdStr = " " + s.data.vd
@@ -381,7 +396,7 @@ func (s *statusLogStruct) update() {
 		swrStr = " swr " + s.data.swr
 	}
 	s.data.line2 = fmt.Sprint(s.data.stateStr, " ", fmt.Sprintf("%.6f", float64(s.data.frequency)/1000000),
-		tsStr, modeStr, filterStr, preampStr, vdStr, txPowerStr, swrStr)
+		tsStr, modeStr, filterStr, preampStr, agcStr, vdStr, txPowerStr, swrStr)
 
 	up, down, lost, retransmits := netstat.get()
 	lostStr := "0"

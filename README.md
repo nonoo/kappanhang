@@ -160,6 +160,7 @@ Some basic CAT control hotkeys are also supported:
 - `D`: toggles data mode
 - `v`, `b`: cycles through bands
 - `p`: toggles preamp
+- `a`: toggles AGC
 
 ## Icom IC-705 Wi-Fi notes
 

@@ -9,6 +9,8 @@ import (
 const civAddress = 0xa4
 const sReadInterval = time.Second
 
+// Commands reference: https://www.icomeurope.com/wp-content/uploads/2020/08/IC-705_ENG_CI-V_1_20200721.pdf
+
 type civOperatingMode struct {
 	name string
 	code byte
@@ -88,6 +90,7 @@ type civControlStruct struct {
 		setTuneSent      bool
 		setDataModeSent  bool
 		setPreampSent    bool
+		setAGCSent       bool
 		setNREnabledSent bool
 		setTSSent        bool
 
@@ -105,6 +108,7 @@ type civControlStruct struct {
 		bandIdx          int
 		bandChanging     bool
 		preamp           int
+		agc              int
 		tsValue          byte
 		ts               uint
 	}
@@ -144,7 +148,7 @@ func (s *civControlStruct) decode(d []byte) bool {
 	case 0x15:
 		return s.decodeVdSWRS(payload)
 	case 0x16:
-		return s.decodePreampAndNR(payload)
+		return s.decodePreampAGCNR(payload)
 	}
 	return true
 }
@@ -480,7 +484,7 @@ func (s *civControlStruct) decodeVdSWRS(d []byte) bool {
 	return true
 }
 
-func (s *civControlStruct) decodePreampAndNR(d []byte) bool {
+func (s *civControlStruct) decodePreampAGCNR(d []byte) bool {
 	switch d[0] {
 	case 0x02:
 		if len(d) < 2 {
@@ -490,6 +494,25 @@ func (s *civControlStruct) decodePreampAndNR(d []byte) bool {
 		statusLog.reportPreamp(s.state.preamp)
 		if s.state.setPreampSent {
 			s.state.setPreampSent = false
+			return false
+		}
+	case 0x12:
+		if len(d) < 2 {
+			return !s.state.setAGCSent
+		}
+		s.state.agc = int(d[1])
+		var agc string
+		switch s.state.agc {
+		case 1:
+			agc = "F"
+		case 2:
+			agc = "M"
+		case 3:
+			agc = "S"
+		}
+		statusLog.reportAGC(agc)
+		if s.state.setAGCSent {
+			s.state.setAGCSent = false
 			return false
 		}
 	case 0x40:
@@ -745,6 +768,15 @@ func (s *civControlStruct) togglePreamp() error {
 	return s.st.send([]byte{254, 254, civAddress, 224, 0x16, 0x02, b, 253})
 }
 
+func (s *civControlStruct) toggleAGC() error {
+	s.state.setAGCSent = true
+	b := byte(s.state.agc + 1)
+	if b > 3 {
+		b = 1
+	}
+	return s.st.send([]byte{254, 254, civAddress, 224, 0x16, 0x12, b, 253})
+}
+
 func (s *civControlStruct) toggleNR() error {
 	s.state.setNRSent = true
 	var b byte
@@ -875,6 +907,10 @@ func (s *civControlStruct) init(st *serialStream) error {
 	}
 	// Querying preamp.
 	if err := s.st.send([]byte{254, 254, civAddress, 224, 0x16, 0x02, 253}); err != nil {
+		return err
+	}
+	// Querying AGC.
+	if err := s.st.send([]byte{254, 254, civAddress, 224, 0x16, 0x12, 253}); err != nil {
 		return err
 	}
 	if err := s.getVd(); err != nil {
