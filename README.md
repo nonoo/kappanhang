@@ -104,7 +104,7 @@ is up) with the following info:
   - `voltage`: drain voltage of the final amplifier MOS-FETs, updated when a
     TX/TUNE is over
   - `txpwr`: current transmit power setting in percent
-  - `swr`: reported SWR
+  - `swr`: reported SWR (only displayed during TX)
 
 - Third status bar line:
   - `up`: how long the audio/serial connection is active
