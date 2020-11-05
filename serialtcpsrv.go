@@ -14,29 +14,34 @@ type serialTCPSrvStruct struct {
 	fromClient chan []byte
 	toClient   chan []byte
 
-	writeLoopDeinitNeededChan   chan bool
-	writeLoopDeinitFinishedChan chan bool
+	clientLoopDeinitNeededChan   chan bool
+	clientLoopDeinitFinishedChan chan bool
 
 	deinitNeededChan   chan bool
 	deinitFinishedChan chan bool
 
-	deinitializing bool
-	mutex          sync.Mutex
+	clientConnected bool
+	mutex           sync.Mutex
 }
 
 var serialTCPSrv serialTCPSrvStruct
 
 func (s *serialTCPSrvStruct) isClientConnected() bool {
-	return s.writeLoopDeinitNeededChan != nil
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	return s.clientConnected
 }
 
-func (s *serialTCPSrvStruct) writeLoop(errChan chan error) {
+func (s *serialTCPSrvStruct) writeLoop(writeLoopDeinitNeededChan, writeLoopDeinitFinishedChan chan bool,
+	errChan chan error) {
+
 	var b []byte
 	for {
 		select {
 		case b = <-s.toClient:
-		case <-s.writeLoopDeinitNeededChan:
-			s.writeLoopDeinitFinishedChan <- true
+		case <-writeLoopDeinitNeededChan:
+			writeLoopDeinitFinishedChan <- true
 			return
 		}
 
@@ -58,67 +63,79 @@ func (s *serialTCPSrvStruct) disconnectClient() {
 }
 
 func (s *serialTCPSrvStruct) deinitClient() {
-	if s.writeLoopDeinitNeededChan != nil {
-		s.writeLoopDeinitNeededChan <- true
-		<-s.writeLoopDeinitFinishedChan
+	if s.clientLoopDeinitNeededChan != nil {
+		s.clientLoopDeinitNeededChan <- true
+		<-s.clientLoopDeinitFinishedChan
 
-		s.writeLoopDeinitNeededChan = nil
-		s.writeLoopDeinitFinishedChan = nil
+		s.clientLoopDeinitNeededChan = nil
+		s.clientLoopDeinitFinishedChan = nil
 	}
+}
+
+func (s *serialTCPSrvStruct) clientLoop() {
+	s.mutex.Lock()
+	s.clientConnected = true
+	s.mutex.Unlock()
+
+	defer func() {
+		s.mutex.Lock()
+		s.clientConnected = false
+		s.mutex.Unlock()
+	}()
+
+	log.Print("client ", s.client.RemoteAddr().String(), " connected")
+
+	writeLoopDeinitNeededChan := make(chan bool)
+	writeLoopDeinitFinishedChan := make(chan bool)
+	writeErrChan := make(chan error)
+	go s.writeLoop(writeLoopDeinitNeededChan, writeLoopDeinitFinishedChan, writeErrChan)
+
+connected:
+	for {
+		b := make([]byte, maxSerialFrameLength)
+		n, err := s.client.Read(b)
+		if err != nil {
+			break
+		}
+
+		select {
+		case s.fromClient <- b[:n]:
+		case <-writeErrChan:
+			break connected
+		case <-s.clientLoopDeinitNeededChan:
+			writeLoopDeinitNeededChan <- true
+			<-writeLoopDeinitFinishedChan
+
+			s.clientLoopDeinitFinishedChan <- true
+			return
+		}
+	}
+
+	log.Print("client ", s.client.RemoteAddr().String(), " disconnected")
+
+	writeLoopDeinitNeededChan <- true
+	<-writeLoopDeinitFinishedChan
 }
 
 func (s *serialTCPSrvStruct) loop() {
 	for {
-		var err error
-		s.client, err = s.listener.Accept()
+		newClient, err := s.listener.Accept()
+
+		s.disconnectClient()
+		s.deinitClient()
 
 		if err != nil {
 			if err != io.EOF {
 				reportError(err)
 			}
-			s.disconnectClient()
-			s.deinitClient()
 			<-s.deinitNeededChan
 			s.deinitFinishedChan <- true
 			return
 		}
 
-		log.Print("client ", s.client.RemoteAddr().String(), " connected")
+		s.client = newClient
 
-		s.writeLoopDeinitNeededChan = make(chan bool)
-		s.writeLoopDeinitFinishedChan = make(chan bool)
-		writeErrChan := make(chan error)
-		go s.writeLoop(writeErrChan)
-
-		connected := true
-		for connected {
-			b := make([]byte, maxSerialFrameLength)
-			n, err := s.client.Read(b)
-			if err != nil {
-				break
-			}
-
-			select {
-			case s.fromClient <- b[:n]:
-			case <-writeErrChan:
-				connected = false
-			case <-s.deinitNeededChan:
-				s.disconnectClient()
-				s.deinitClient()
-				s.deinitFinishedChan <- true
-				return
-			}
-		}
-
-		s.disconnectClient()
-		s.deinitClient()
-		log.Print("client ", s.client.RemoteAddr().String(), " disconnected")
-
-		s.mutex.Lock()
-		if !s.deinitializing {
-			rigctldRunner.restart()
-		}
-		s.mutex.Unlock()
+		go s.clientLoop()
 	}
 }
 
@@ -154,10 +171,6 @@ func (s *serialTCPSrvStruct) initIfNeeded() (err error) {
 }
 
 func (s *serialTCPSrvStruct) deinit() {
-	s.mutex.Lock()
-	s.deinitializing = true
-	s.mutex.Unlock()
-
 	if s.listener != nil {
 		s.listener.Close()
 	}

@@ -84,13 +84,13 @@ func (c *cmdRunner) startIfNeeded(cmdLine string) {
 	go c.run(cmdLine)
 }
 
-func (c *cmdRunner) restart() {
-	if c.restartNeeded == nil {
-		return
-	}
+// func (c *cmdRunner) restart() {
+// 	if c.restartNeeded == nil {
+// 		return
+// 	}
 
-	c.restartNeeded <- true
-}
+// 	c.restartNeeded <- true
+// }
 
 func (c *cmdRunner) stop() {
 	if c.runEndNeeded == nil {
