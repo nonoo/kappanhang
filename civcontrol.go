@@ -885,7 +885,9 @@ func (s *civControlStruct) loop() {
 		case <-time.After(sReadInterval):
 			_ = s.getS()
 			_ = s.getOVF()
-			_ = s.getSWR()
+			if s.state.ptt || s.state.tune {
+				_ = s.getSWR()
+			}
 		case <-s.resetSReadTimer:
 		}
 	}
