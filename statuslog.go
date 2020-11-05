@@ -347,6 +347,15 @@ func (s *statusLogStruct) update() {
 	if s.data.agc != "" {
 		agcStr = " " + s.data.agc
 	}
+	var nrStr string
+	if s.data.nr != "" {
+		nrStr = " NR"
+		if s.data.nrEnabled {
+			nrStr += s.data.nr
+		} else {
+			nrStr += "-"
+		}
+	}
 	var rfGainStr string
 	if s.data.rfGain != "" {
 		rfGainStr = " rfg " + s.data.rfGain
@@ -355,16 +364,7 @@ func (s *statusLogStruct) update() {
 	if s.data.sql != "" {
 		sqlStr = " sql " + s.data.sql
 	}
-	var nrStr string
-	if s.data.nr != "" {
-		nrStr = " nr "
-		if s.data.nrEnabled {
-			nrStr += s.data.nr
-		} else {
-			nrStr += "-"
-		}
-	}
-	s.data.line1 = fmt.Sprint(s.data.audioStateStr, filterStr, preampStr, agcStr, rfGainStr, sqlStr, nrStr)
+	s.data.line1 = fmt.Sprint(s.data.audioStateStr, filterStr, preampStr, agcStr, nrStr, rfGainStr, sqlStr)
 
 	var stateStr string
 	if s.data.tune {
@@ -401,7 +401,7 @@ func (s *statusLogStruct) update() {
 	}
 	var swrStr string
 	if s.data.swr != "" {
-		swrStr = " swr " + s.data.swr
+		swrStr = " SWR" + s.data.swr
 	}
 	s.data.line2 = fmt.Sprint(stateStr, " ", fmt.Sprintf("%.6f", float64(s.data.frequency)/1000000),
 		tsStr, modeStr, vdStr, txPowerStr, swrStr)
