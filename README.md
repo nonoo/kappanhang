@@ -177,10 +177,11 @@ should be used (see explanation [here](https://www.metageek.com/training/resourc
 Sometimes rebooting the transceiver helps, as the network stack in the IC-705
 is not quite free of bugs. :)
 
-## Authors
+## Contributors
 
 - Norbert Varga HA2NON [nonoo@nonoo.hu](mailto:nonoo@nonoo.hu)
 - Akos Marton ES1AKOS
+- W6EL (passcode algorithm)
 
 ## Donations
 
