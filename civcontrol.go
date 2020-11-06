@@ -541,9 +541,6 @@ func (s *civControlStruct) decodePreampAGCNR(d []byte) bool {
 }
 
 func (s *civControlStruct) setPwr(percent int) error {
-	s.state.pwrPercent = percent
-	statusLog.reportTxPower(s.state.pwrPercent)
-
 	s.state.setPwrSent = true
 	v := uint16(0x0255 * (float64(percent) / 100))
 	return s.st.send([]byte{254, 254, civAddress, 224, 0x14, 0x0a, byte(v >> 8), byte(v & 0xff), 253})
@@ -564,9 +561,6 @@ func (s *civControlStruct) decPwr() error {
 }
 
 func (s *civControlStruct) setRFGain(percent int) error {
-	s.state.rfGainPercent = percent
-	statusLog.reportRFGain(s.state.rfGainPercent)
-
 	s.state.setRFGainSent = true
 	v := uint16(0x0255 * (float64(percent) / 100))
 	return s.st.send([]byte{254, 254, civAddress, 224, 0x14, 0x02, byte(v >> 8), byte(v & 0xff), 253})
@@ -587,9 +581,6 @@ func (s *civControlStruct) decRFGain() error {
 }
 
 func (s *civControlStruct) setSQL(percent int) error {
-	s.state.sqlPercent = percent
-	statusLog.reportSQL(s.state.sqlPercent)
-
 	s.state.setSQLSent = true
 	v := uint16(0x0255 * (float64(percent) / 100))
 	return s.st.send([]byte{254, 254, civAddress, 224, 0x14, 0x03, byte(v >> 8), byte(v & 0xff), 253})
@@ -610,9 +601,6 @@ func (s *civControlStruct) decSQL() error {
 }
 
 func (s *civControlStruct) setNR(percent int) error {
-	s.state.nrPercent = percent
-	statusLog.reportNR(s.state.nrPercent)
-
 	if !s.state.nrEnabled {
 		if err := s.toggleNR(); err != nil {
 			return err
@@ -655,9 +643,6 @@ func (s *civControlStruct) decFreq() error {
 }
 
 func (s *civControlStruct) setFreq(f uint) error {
-	s.state.freq = f
-	statusLog.reportFrequency(s.state.freq)
-
 	s.state.setFreqSent = true
 	var b [5]byte
 	v0 := s.getDigit(f, 9)
