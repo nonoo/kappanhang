@@ -3,7 +3,7 @@ package main
 import "time"
 
 // This value is sent to the transceiver and - according to my observations - it will use
-// this is it's RX buf length. Note that if it is set to larger than 500-600ms then audio TX
+// this as it's RX buf length. Note that if it is set to larger than 500-600ms then audio TX
 // won't work (small radio memory?)
 const txSeqBufLength = 300 * time.Millisecond
 
