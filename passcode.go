@@ -101,7 +101,11 @@ var sequence = map[int]byte{
 func passcode(s string) (res []byte) {
 	res = make([]byte, 16)
 	for i := 0; i < len(s) && i < len(res); i++ {
-		res[i] = sequence[int(s[i])+i]
+		p := int(s[i]) + i
+		if p > 126 {
+			p = 32 + p%127
+		}
+		res[i] = sequence[p]
 	}
 	return res
 }
