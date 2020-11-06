@@ -80,6 +80,10 @@ type civControlStruct struct {
 		getTransmitStatusSent bool
 		getVdSent             bool
 
+		lastSReceivedAt   time.Time
+		lastOVFReceivedAt time.Time
+		lastSWRReceivedAt time.Time
+
 		setPwrSent       bool
 		setRFGainSent    bool
 		setSQLSent       bool
@@ -315,6 +319,7 @@ func (s *civControlStruct) decodeDataModeAndOVF(d []byte) bool {
 		} else {
 			statusLog.reportOVF(false)
 		}
+		s.state.lastOVFReceivedAt = time.Now()
 		if s.state.getOVFSent {
 			s.state.getOVFSent = false
 			return false
@@ -457,6 +462,7 @@ func (s *civControlStruct) decodeVdSWRS(d []byte) bool {
 				sStr += "60"
 			}
 		}
+		s.state.lastSReceivedAt = time.Now()
 		statusLog.reportS(sStr)
 		if s.state.getSSent {
 			s.state.getSSent = false
@@ -466,6 +472,7 @@ func (s *civControlStruct) decodeVdSWRS(d []byte) bool {
 		if len(d) < 3 {
 			return !s.state.getSWRSent
 		}
+		s.state.lastSWRReceivedAt = time.Now()
 		statusLog.reportSWR(((float64(int(d[1])<<8)+float64(d[2]))/0x0120)*2 + 1)
 		if s.state.getSWRSent {
 			s.state.getSWRSent = false
@@ -898,9 +905,13 @@ func (s *civControlStruct) loop() {
 			s.deinitFinished <- true
 			return
 		case <-time.After(sReadInterval):
-			_ = s.getS()
-			_ = s.getOVF()
-			if s.state.ptt || s.state.tune {
+			if time.Since(s.state.lastSReceivedAt) >= sReadInterval {
+				_ = s.getS()
+			}
+			if time.Since(s.state.lastOVFReceivedAt) >= sReadInterval {
+				_ = s.getOVF()
+			}
+			if time.Since(s.state.lastSWRReceivedAt) >= sReadInterval && (s.state.ptt || s.state.tune) {
 				_ = s.getSWR()
 			}
 		case <-s.resetSReadTimer:
