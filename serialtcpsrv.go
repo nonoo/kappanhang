@@ -175,7 +175,6 @@ func (s *serialTCPSrvStruct) deinit() {
 		s.listener.Close()
 	}
 
-	s.disconnectClient()
 	if s.deinitNeededChan != nil {
 		s.deinitNeededChan <- true
 		<-s.deinitFinishedChan
