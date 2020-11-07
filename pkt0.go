@@ -35,10 +35,16 @@ func (p *pkt0Type) retransmitRange(s *streamCommon, start, end uint16) error {
 			if err := s.send(d); err != nil {
 				return err
 			}
+			if err := s.send(d); err != nil {
+				return err
+			}
 		} else {
 			log.Debug(s.name+"/can't retransmit #", start, " - not found ")
 
 			// Sending an idle with the requested seqnum.
+			if err := p.sendIdle(s, false, start); err != nil {
+				return err
+			}
 			if err := p.sendIdle(s, false, start); err != nil {
 				return err
 			}
@@ -67,10 +73,16 @@ func (p *pkt0Type) handle(s *streamCommon, r []byte) error {
 			if err := s.send(d); err != nil {
 				return err
 			}
+			if err := s.send(d); err != nil {
+				return err
+			}
 		} else {
 			log.Debug(s.name+"/can't retransmit #", seq, " - not found")
 
 			// Sending an idle with the requested seqnum.
+			if err := p.sendIdle(s, false, seq); err != nil {
+				return err
+			}
 			if err := p.sendIdle(s, false, seq); err != nil {
 				return err
 			}
