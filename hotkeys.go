@@ -212,6 +212,12 @@ func handleHotkey(k byte) {
 				log.Error("can't change agc: ", err)
 			}
 		}
+	case 'o':
+		if civControl != nil {
+			if err := civControl.toggleVFO(); err != nil {
+				log.Error("can't change vfo: ", err)
+			}
+		}
 	case '\n':
 		if statusLog.isRealtime() {
 			statusLog.mutex.Lock()

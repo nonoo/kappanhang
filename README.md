@@ -160,6 +160,7 @@ Some basic CAT control hotkeys are also supported:
 - `v`, `b`: cycles through bands
 - `p`: toggles preamp
 - `a`: toggles AGC
+- `o`: toggles VFO A/B
 
 ## Icom IC-705 Wi-Fi notes
 

@@ -97,6 +97,7 @@ type civControlStruct struct {
 		setAGCSent       bool
 		setNREnabledSent bool
 		setTSSent        bool
+		setVFOSent       bool
 
 		freq             uint
 		ptt              bool
@@ -115,6 +116,7 @@ type civControlStruct struct {
 		agc              int
 		tsValue          byte
 		ts               uint
+		vfoBActive       bool
 	}
 }
 
@@ -141,6 +143,8 @@ func (s *civControlStruct) decode(d []byte) bool {
 		return s.decodeFreq(payload)
 	case 0x06:
 		return s.decodeMode(payload)
+	case 0x07:
+		return s.decodeVFO(payload)
 	case 0x10:
 		return s.decodeTS(payload)
 	case 0x1a:
@@ -232,6 +236,29 @@ func (s *civControlStruct) decodeMode(d []byte) bool {
 	}
 	if s.state.setModeSent {
 		s.state.setModeSent = false
+		return false
+	}
+	return true
+}
+
+func (s *civControlStruct) decodeVFO(d []byte) bool {
+	if len(d) < 1 {
+		return !s.state.setVFOSent
+	}
+
+	if d[0] == 1 {
+		s.state.vfoBActive = true
+		log.Print("active vfo: B")
+	} else {
+		s.state.vfoBActive = false
+		log.Print("active vfo: A")
+	}
+
+	if s.state.setVFOSent {
+		// The radio does not send the VFO's frequency automatically.
+		_ = s.getFreq()
+
+		s.state.setVFOSent = false
 		return false
 	}
 	return true
@@ -818,6 +845,15 @@ func (s *civControlStruct) decTS() error {
 		b = s.state.tsValue - 1
 	}
 	return s.st.send([]byte{254, 254, civAddress, 224, 0x10, b, 253})
+}
+
+func (s *civControlStruct) toggleVFO() error {
+	s.state.setVFOSent = true
+	var b byte
+	if !s.state.vfoBActive {
+		b = 1
+	}
+	return s.st.send([]byte{254, 254, civAddress, 224, 0x07, b, 253})
 }
 
 func (s *civControlStruct) getFreq() error {
