@@ -151,6 +151,7 @@ Some basic CAT control hotkeys are also supported:
 - `[`, `]`: decreases, increases frequency
 - `{`, `}`: decreases, increases tuning step
 - `;`, `'`: decreases, increases RF gain
+- `!` to `(` (shift + numbers): set RF gain in 10% steps
 - `:`, `"`: decreases, increases squelch level
 - `,`, `.`: decreases, increases noise reduction level
 - `/`: toggles noise reduction
