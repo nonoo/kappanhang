@@ -33,6 +33,7 @@ type statusLogData struct {
 	ovf       bool
 	swr       string
 	ts        string
+	split     string
 
 	startTime time.Time
 	rttStr    string
@@ -52,6 +53,7 @@ type statusLogStruct struct {
 		rxColor          *color.Color
 		retransmitsColor *color.Color
 		lostColor        *color.Color
+		splitColor       *color.Color
 
 		stateStr struct {
 			tx   string
@@ -289,6 +291,20 @@ func (s *statusLogStruct) reportNR(percent int) {
 	s.data.nr = fmt.Sprint(percent, "%")
 }
 
+func (s *statusLogStruct) reportSplit(split string) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	if s.data == nil {
+		return
+	}
+	if split == "" {
+		s.data.split = ""
+	} else {
+		s.data.split = s.preGenerated.splitColor.Sprint(split)
+	}
+}
+
 func (s *statusLogStruct) clearInternal() {
 	fmt.Printf("%c[2K", 27)
 }
@@ -399,12 +415,16 @@ func (s *statusLogStruct) update() {
 	if s.data.txPower != "" {
 		txPowerStr = " txpwr " + s.data.txPower
 	}
+	var splitStr string
+	if s.data.split != "" {
+		splitStr = " " + s.data.split
+	}
 	var swrStr string
 	if (s.data.tune || s.data.ptt) && s.data.swr != "" {
 		swrStr = " SWR" + s.data.swr
 	}
 	s.data.line2 = fmt.Sprint(stateStr, " ", fmt.Sprintf("%.6f", float64(s.data.frequency)/1000000),
-		tsStr, modeStr, vdStr, txPowerStr, swrStr)
+		tsStr, modeStr, splitStr, vdStr, txPowerStr, swrStr)
 
 	up, down, lost, retransmits := netstat.get()
 	lostStr := "0"
@@ -530,4 +550,6 @@ func (s *statusLogStruct) initIfNeeded() {
 	s.preGenerated.retransmitsColor.Add(color.BgYellow)
 	s.preGenerated.lostColor = color.New(color.FgHiWhite)
 	s.preGenerated.lostColor.Add(color.BgRed)
+
+	s.preGenerated.splitColor = color.New(color.FgHiMagenta)
 }

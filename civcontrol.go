@@ -64,6 +64,15 @@ var civBands = []civBand{
 	{freqFrom: 0, freqTo: 0},                 // GENE
 }
 
+type splitMode int
+
+const (
+	splitModeOff = iota
+	splitModeOn
+	splitModeDUPMinus
+	splitModeDUPPlus
+)
+
 type civControlStruct struct {
 	st              *serialStream
 	deinitNeeded    chan bool
@@ -98,6 +107,7 @@ type civControlStruct struct {
 		setNREnabledSent bool
 		setTSSent        bool
 		setVFOSent       bool
+		setSplitSent     bool
 
 		freq             uint
 		ptt              bool
@@ -117,6 +127,7 @@ type civControlStruct struct {
 		tsValue          byte
 		ts               uint
 		vfoBActive       bool
+		splitMode        splitMode
 	}
 }
 
@@ -145,6 +156,8 @@ func (s *civControlStruct) decode(d []byte) bool {
 		return s.decodeMode(payload)
 	case 0x07:
 		return s.decodeVFO(payload)
+	case 0x0f:
+		return s.decodeSplit(payload)
 	case 0x10:
 		return s.decodeTS(payload)
 	case 0x1a:
@@ -259,6 +272,34 @@ func (s *civControlStruct) decodeVFO(d []byte) bool {
 		_ = s.getFreq()
 
 		s.state.setVFOSent = false
+		return false
+	}
+	return true
+}
+
+func (s *civControlStruct) decodeSplit(d []byte) bool {
+	if len(d) < 1 {
+		return !s.state.setSplitSent
+	}
+
+	var str string
+	switch d[0] {
+	default:
+		s.state.splitMode = splitModeOff
+	case 0x01:
+		s.state.splitMode = splitModeOn
+		str = "SPLIT"
+	case 0x11:
+		s.state.splitMode = splitModeDUPMinus
+		str = "DUP-"
+	case 0x12:
+		s.state.splitMode = splitModeDUPPlus
+		str = "DUP+"
+	}
+	statusLog.reportSplit(str)
+
+	if s.state.setSplitSent {
+		s.state.setSplitSent = false
 		return false
 	}
 	return true
@@ -856,6 +897,22 @@ func (s *civControlStruct) toggleVFO() error {
 	return s.st.send([]byte{254, 254, civAddress, 224, 0x07, b, 253})
 }
 
+func (s *civControlStruct) toggleSplit() error {
+	s.state.setSplitSent = true
+	var b byte
+	switch s.state.splitMode {
+	case splitModeOff:
+		b = 0x01
+	case splitModeOn:
+		b = 0x011
+	case splitModeDUPMinus:
+		b = 0x12
+	default:
+		b = 0x10
+	}
+	return s.st.send([]byte{254, 254, civAddress, 224, 0x0f, b, 253})
+}
+
 func (s *civControlStruct) getFreq() error {
 	s.state.getFreqSent = true
 	return s.st.send([]byte{254, 254, civAddress, 224, 3, 253})
@@ -992,6 +1049,10 @@ func (s *civControlStruct) init(st *serialStream) error {
 		return err
 	}
 	if err := s.getNREnabled(); err != nil {
+		return err
+	}
+	// Querying split.
+	if err := s.st.send([]byte{254, 254, civAddress, 224, 0x0f, 253}); err != nil {
 		return err
 	}
 

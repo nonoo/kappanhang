@@ -218,6 +218,12 @@ func handleHotkey(k byte) {
 				log.Error("can't change vfo: ", err)
 			}
 		}
+	case 's':
+		if civControl != nil {
+			if err := civControl.toggleSplit(); err != nil {
+				log.Error("can't change split: ", err)
+			}
+		}
 	case '\n':
 		if statusLog.isRealtime() {
 			statusLog.mutex.Lock()

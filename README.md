@@ -161,6 +161,7 @@ Some basic CAT control hotkeys are also supported:
 - `p`: toggles preamp
 - `a`: toggles AGC
 - `o`: toggles VFO A/B
+- `s`: toggles split/DUP+- operation
 
 ## Icom IC-705 Wi-Fi notes
 
