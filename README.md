@@ -55,14 +55,13 @@ After it is connected and logged in:
   used to record/play audio from/to the server (the transceiver). You can also
   set this sound card in [WSJT-X](https://physics.princeton.edu/pulsar/K1JT/wsjtx.html).
 - Starts a **TCP server** on port `4533` for exposing the **serial port**.
-- Starts `rigctld` and connects it to kappanhang's TCP serial port server.
-  This can be used for controlling the server (the transceiver) with
-  [Hamlib](https://hamlib.github.io/) (`rigctld`).
+- Starts an **internal rigctld** server. This can be used for controlling the
+  server (the transceiver) with [Hamlib](https://hamlib.github.io/) (`rigctl`)
+  clients.
 
   To use this with for example [WSJT-X](https://physics.princeton.edu/pulsar/K1JT/wsjtx.html),
   open WSJT-X settings, go to the *Radio* tab, set the *rig type* to `Hamlib
-  NET rigctl`, and the *Network server* to `localhost`. It is recommended to
-  set the *poll interval* to 10 seconds.
+  NET rigctl`, and the *Network server* to `localhost`.
 
 ### Virtual serial port
 

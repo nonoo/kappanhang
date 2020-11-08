@@ -17,7 +17,6 @@ type cmdRunner struct {
 
 var runCmdRunner cmdRunner
 var serialCmdRunner cmdRunner
-var rigctldRunner cmdRunner
 
 func (c *cmdRunner) kill(cmd *exec.Cmd) {
 	err := cmd.Process.Kill()

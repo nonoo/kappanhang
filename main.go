@@ -150,10 +150,10 @@ exit:
 		log.Print("restarting control stream...")
 	}
 
+	rigctld.deinit()
 	serialTCPSrv.deinit()
 	runCmdRunner.stop()
 	serialCmdRunner.stop()
-	rigctldRunner.stop()
 	audio.deinit()
 	serialPort.deinit()
 

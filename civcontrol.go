@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"math"
+	"sync"
 	"time"
 )
 
@@ -109,6 +110,8 @@ type civControlStruct struct {
 		setVFOSent       bool
 		setSplitSent     bool
 
+		mutex sync.Mutex
+
 		freq             uint
 		ptt              bool
 		tune             bool
@@ -140,6 +143,9 @@ func (s *civControlStruct) decode(d []byte) bool {
 	}
 
 	payload := d[5 : len(d)-1]
+
+	s.state.mutex.Lock()
+	defer s.state.mutex.Unlock()
 
 	switch d[4] {
 	case 0x00:
@@ -799,18 +805,23 @@ func (s *civControlStruct) toggleTune() error {
 	return s.st.send([]byte{254, 254, civAddress, 224, 0x1c, 1, b, 253})
 }
 
-func (s *civControlStruct) toggleDataMode() error {
-	s.state.setDataModeSent = true
+func (s *civControlStruct) setDataMode(enable bool) error {
 	var b byte
 	var f byte
-	if !s.state.dataMode {
+	if enable {
 		b = 1
 		f = 1
 	} else {
 		b = 0
 		f = 0
 	}
+
 	return s.st.send([]byte{254, 254, civAddress, 224, 0x1a, 0x06, b, f, 253})
+}
+
+func (s *civControlStruct) toggleDataMode() error {
+	s.state.setDataModeSent = true
+	return s.setDataMode(!s.state.dataMode)
 }
 
 func (s *civControlStruct) incBand() error {
@@ -888,29 +899,50 @@ func (s *civControlStruct) decTS() error {
 	return s.st.send([]byte{254, 254, civAddress, 224, 0x10, b, 253})
 }
 
+func (s *civControlStruct) setVFO(nr byte) error {
+	s.state.setVFOSent = true
+	return s.st.send([]byte{254, 254, civAddress, 224, 0x07, nr, 253})
+}
+
 func (s *civControlStruct) toggleVFO() error {
 	s.state.setVFOSent = true
 	var b byte
 	if !s.state.vfoBActive {
 		b = 1
 	}
-	return s.st.send([]byte{254, 254, civAddress, 224, 0x07, b, 253})
+	return s.setVFO(b)
+}
+
+func (s *civControlStruct) setSplit(mode splitMode) error {
+	s.state.setSplitSent = true
+	var b byte
+	switch mode {
+	default:
+		b = 0x00
+	case splitModeOn:
+		b = 0x01
+	case splitModeDUPMinus:
+		b = 0x11
+	case splitModeDUPPlus:
+		b = 0x12
+	}
+	return s.st.send([]byte{254, 254, civAddress, 224, 0x0f, b, 253})
 }
 
 func (s *civControlStruct) toggleSplit() error {
 	s.state.setSplitSent = true
-	var b byte
+	var mode splitMode
 	switch s.state.splitMode {
 	case splitModeOff:
-		b = 0x01
+		mode = splitModeOn
 	case splitModeOn:
-		b = 0x011
+		mode = splitModeDUPMinus
 	case splitModeDUPMinus:
-		b = 0x12
+		mode = splitModeDUPPlus
 	default:
-		b = 0x10
+		mode = splitModeOff
 	}
-	return s.st.send([]byte{254, 254, civAddress, 224, 0x0f, b, 253})
+	return s.setSplit(mode)
 }
 
 func (s *civControlStruct) getFreq() error {
