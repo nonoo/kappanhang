@@ -270,6 +270,9 @@ func (s *rigctldStruct) processCmd(cmd string) (close bool, err error) {
 		} else {
 			_ = s.sendReplyCode(rigctldNoError)
 		}
+	case cmd == "v": // Ignore this command.
+		_ = s.sendReplyCode(rigctldUnsupportedCmd)
+		return
 	default:
 		_ = s.sendReplyCode(rigctldUnsupportedCmd)
 		return false, fmt.Errorf("got unknown cmd %s", cmd)
