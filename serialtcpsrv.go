@@ -115,6 +115,9 @@ connected:
 
 	writeLoopDeinitNeededChan <- true
 	<-writeLoopDeinitFinishedChan
+
+	<-s.clientLoopDeinitNeededChan
+	s.clientLoopDeinitFinishedChan <- true
 }
 
 func (s *serialTCPSrvStruct) loop() {
@@ -123,6 +126,9 @@ func (s *serialTCPSrvStruct) loop() {
 
 		s.disconnectClient()
 		s.deinitClient()
+
+		s.clientLoopDeinitNeededChan = make(chan bool)
+		s.clientLoopDeinitFinishedChan = make(chan bool)
 
 		if err != nil {
 			if err != io.EOF {
