@@ -8,7 +8,8 @@ import (
 )
 
 const civAddress = 0xa4
-const sReadInterval = time.Second
+const statusPollInterval = time.Second
+const commandRetryTimeout = 500 * time.Millisecond
 
 // Commands reference: https://www.icomeurope.com/wp-content/uploads/2020/08/IC-705_ENG_CI-V_1_20200721.pdf
 
@@ -74,43 +75,62 @@ const (
 	splitModeDUPPlus
 )
 
+type civCmd struct {
+	pending bool
+	sentAt  time.Time
+	name    string
+	cmd     []byte
+}
+
 type civControlStruct struct {
-	st              *serialStream
-	deinitNeeded    chan bool
-	deinitFinished  chan bool
-	resetSReadTimer chan bool
+	st                 *serialStream
+	deinitNeeded       chan bool
+	deinitFinished     chan bool
+	resetSReadTimer    chan bool
+	newPendingCmdAdded chan bool
 
 	state struct {
-		getFreqSent           bool
-		getModeSent           bool
-		getDataModeSent       bool
-		getSSent              bool
-		getOVFSent            bool
-		getSWRSent            bool
-		getTransmitStatusSent bool
-		getVdSent             bool
+		mutex       sync.Mutex
+		pendingCmds []*civCmd
+
+		getFreq           civCmd
+		getMode           civCmd
+		getDataMode       civCmd
+		getPwr            civCmd
+		getS              civCmd
+		getOVF            civCmd
+		getSWR            civCmd
+		getTransmitStatus civCmd
+		getPreamp         civCmd
+		getAGC            civCmd
+		getTuneStatus     civCmd
+		getVd             civCmd
+		getTS             civCmd
+		getRFGain         civCmd
+		getSQL            civCmd
+		getNR             civCmd
+		getNREnabled      civCmd
+		getSplit          civCmd
 
 		lastSReceivedAt   time.Time
 		lastOVFReceivedAt time.Time
 		lastSWRReceivedAt time.Time
 
-		setPwrSent       bool
-		setRFGainSent    bool
-		setSQLSent       bool
-		setNRSent        bool
-		setFreqSent      bool
-		setModeSent      bool
-		setPTTSent       bool
-		setTuneSent      bool
-		setDataModeSent  bool
-		setPreampSent    bool
-		setAGCSent       bool
-		setNREnabledSent bool
-		setTSSent        bool
-		setVFOSent       bool
-		setSplitSent     bool
-
-		mutex sync.Mutex
+		setPwr       civCmd
+		setRFGain    civCmd
+		setSQL       civCmd
+		setNR        civCmd
+		setFreq      civCmd
+		setMode      civCmd
+		setPTT       civCmd
+		setTune      civCmd
+		setDataMode  civCmd
+		setPreamp    civCmd
+		setAGC       civCmd
+		setNREnabled civCmd
+		setTS        civCmd
+		setVFO       civCmd
+		setSplit     civCmd
 
 		freq             uint
 		ptt              bool
@@ -169,20 +189,20 @@ func (s *civControlStruct) decode(d []byte) bool {
 	case 0x1a:
 		return s.decodeDataModeAndOVF(payload)
 	case 0x14:
-		return s.decodePowerRFGainSQLNR(payload)
+		return s.decodePowerRFGainSQLNRPwr(payload)
 	case 0x1c:
 		return s.decodeTransmitStatus(payload)
 	case 0x15:
 		return s.decodeVdSWRS(payload)
 	case 0x16:
-		return s.decodePreampAGCNR(payload)
+		return s.decodePreampAGCNREnabled(payload)
 	}
 	return true
 }
 
 func (s *civControlStruct) decodeFreq(d []byte) bool {
 	if len(d) < 2 {
-		return !s.state.getFreqSent && !s.state.setFreqSent
+		return !s.state.getFreq.pending && !s.state.setFreq.pending
 	}
 
 	var f uint
@@ -208,12 +228,12 @@ func (s *civControlStruct) decodeFreq(d []byte) bool {
 		}
 	}
 
-	if s.state.getFreqSent {
-		s.state.getFreqSent = false
+	if s.state.getFreq.pending {
+		s.removePendingCmd(&s.state.getFreq)
 		return false
 	}
-	if s.state.setFreqSent {
-		s.state.setFreqSent = false
+	if s.state.setFreq.pending {
+		s.removePendingCmd(&s.state.setFreq)
 		return false
 	}
 	return true
@@ -230,7 +250,7 @@ func (s *civControlStruct) decodeFilterValueToFilterIdx(v byte) int {
 
 func (s *civControlStruct) decodeMode(d []byte) bool {
 	if len(d) < 1 {
-		return !s.state.getModeSent && !s.state.setModeSent
+		return !s.state.getMode.pending && !s.state.setMode.pending
 	}
 
 	var mode string
@@ -249,12 +269,12 @@ func (s *civControlStruct) decodeMode(d []byte) bool {
 	}
 	statusLog.reportMode(mode, filter)
 
-	if s.state.getModeSent {
-		s.state.getModeSent = false
+	if s.state.getMode.pending {
+		s.removePendingCmd(&s.state.getMode)
 		return false
 	}
-	if s.state.setModeSent {
-		s.state.setModeSent = false
+	if s.state.setMode.pending {
+		s.removePendingCmd(&s.state.setMode)
 		return false
 	}
 	return true
@@ -262,7 +282,7 @@ func (s *civControlStruct) decodeMode(d []byte) bool {
 
 func (s *civControlStruct) decodeVFO(d []byte) bool {
 	if len(d) < 1 {
-		return !s.state.setVFOSent
+		return !s.state.setVFO.pending
 	}
 
 	if d[0] == 1 {
@@ -273,11 +293,11 @@ func (s *civControlStruct) decodeVFO(d []byte) bool {
 		log.Print("active vfo: A")
 	}
 
-	if s.state.setVFOSent {
+	if s.state.setVFO.pending {
 		// The radio does not send the VFO's frequency automatically.
 		_ = s.getFreq()
 
-		s.state.setVFOSent = false
+		s.removePendingCmd(&s.state.setVFO)
 		return false
 	}
 	return true
@@ -285,7 +305,7 @@ func (s *civControlStruct) decodeVFO(d []byte) bool {
 
 func (s *civControlStruct) decodeSplit(d []byte) bool {
 	if len(d) < 1 {
-		return !s.state.setSplitSent
+		return !s.state.getSplit.pending && !s.state.setSplit.pending
 	}
 
 	var str string
@@ -304,8 +324,12 @@ func (s *civControlStruct) decodeSplit(d []byte) bool {
 	}
 	statusLog.reportSplit(str)
 
-	if s.state.setSplitSent {
-		s.state.setSplitSent = false
+	if s.state.getSplit.pending {
+		s.removePendingCmd(&s.state.getSplit)
+		return false
+	}
+	if s.state.setSplit.pending {
+		s.removePendingCmd(&s.state.setSplit)
 		return false
 	}
 	return true
@@ -313,7 +337,7 @@ func (s *civControlStruct) decodeSplit(d []byte) bool {
 
 func (s *civControlStruct) decodeTS(d []byte) bool {
 	if len(d) < 1 {
-		return !s.state.setTSSent
+		return !s.state.getTS.pending && !s.state.setTS.pending
 	}
 
 	s.state.tsValue = d[0]
@@ -350,8 +374,12 @@ func (s *civControlStruct) decodeTS(d []byte) bool {
 	}
 	statusLog.reportTS(s.state.ts)
 
-	if s.state.setTSSent {
-		s.state.setTSSent = false
+	if s.state.getTS.pending {
+		s.removePendingCmd(&s.state.getTS)
+		return false
+	}
+	if s.state.setTS.pending {
+		s.removePendingCmd(&s.state.setTS)
 		return false
 	}
 	return true
@@ -361,7 +389,7 @@ func (s *civControlStruct) decodeDataModeAndOVF(d []byte) bool {
 	switch d[0] {
 	case 0x06:
 		if len(d) < 3 {
-			return !s.state.getDataModeSent && !s.state.setDataModeSent
+			return !s.state.getDataMode.pending && !s.state.setDataMode.pending
 		}
 		var dataMode string
 		var filter string
@@ -376,17 +404,17 @@ func (s *civControlStruct) decodeDataModeAndOVF(d []byte) bool {
 
 		statusLog.reportDataMode(dataMode, filter)
 
-		if s.state.getDataModeSent {
-			s.state.getDataModeSent = false
+		if s.state.getDataMode.pending {
+			s.removePendingCmd(&s.state.getDataMode)
 			return false
 		}
-		if s.state.setDataModeSent {
-			s.state.setDataModeSent = false
+		if s.state.setDataMode.pending {
+			s.removePendingCmd(&s.state.setDataMode)
 			return false
 		}
 	case 0x09:
 		if len(d) < 2 {
-			return !s.state.getOVFSent
+			return !s.state.getOVF.pending
 		}
 		if d[1] != 0 {
 			statusLog.reportOVF(true)
@@ -394,58 +422,74 @@ func (s *civControlStruct) decodeDataModeAndOVF(d []byte) bool {
 			statusLog.reportOVF(false)
 		}
 		s.state.lastOVFReceivedAt = time.Now()
-		if s.state.getOVFSent {
-			s.state.getOVFSent = false
+		if s.state.getOVF.pending {
+			s.removePendingCmd(&s.state.getOVF)
 			return false
 		}
 	}
 	return true
 }
 
-func (s *civControlStruct) decodePowerRFGainSQLNR(d []byte) bool {
+func (s *civControlStruct) decodePowerRFGainSQLNRPwr(d []byte) bool {
 	switch d[0] {
 	case 0x02:
 		if len(d) < 3 {
-			return !s.state.setRFGainSent
+			return !s.state.getRFGain.pending && !s.state.setRFGain.pending
 		}
 		hex := uint16(d[1])<<8 | uint16(d[2])
 		s.state.rfGainPercent = int(math.Round((float64(hex) / 0x0255) * 100))
 		statusLog.reportRFGain(s.state.rfGainPercent)
-		if s.state.setRFGainSent {
-			s.state.setRFGainSent = false
+		if s.state.getRFGain.pending {
+			s.removePendingCmd(&s.state.getRFGain)
+			return false
+		}
+		if s.state.setRFGain.pending {
+			s.removePendingCmd(&s.state.setRFGain)
 			return false
 		}
 	case 0x03:
 		if len(d) < 3 {
-			return !s.state.setSQLSent
+			return !s.state.getSQL.pending && !s.state.setSQL.pending
 		}
 		hex := uint16(d[1])<<8 | uint16(d[2])
 		s.state.sqlPercent = int(math.Round((float64(hex) / 0x0255) * 100))
 		statusLog.reportSQL(s.state.sqlPercent)
-		if s.state.setSQLSent {
-			s.state.setSQLSent = false
+		if s.state.getSQL.pending {
+			s.removePendingCmd(&s.state.getSQL)
+			return false
+		}
+		if s.state.setSQL.pending {
+			s.removePendingCmd(&s.state.setSQL)
 			return false
 		}
 	case 0x06:
 		if len(d) < 3 {
-			return !s.state.setNRSent
+			return !s.state.getNR.pending && !s.state.setNR.pending
 		}
 		hex := uint16(d[1])<<8 | uint16(d[2])
 		s.state.nrPercent = int(math.Round((float64(hex) / 0x0255) * 100))
 		statusLog.reportNR(s.state.nrPercent)
-		if s.state.setNRSent {
-			s.state.setNRSent = false
+		if s.state.getNR.pending {
+			s.removePendingCmd(&s.state.getNR)
+			return false
+		}
+		if s.state.setNR.pending {
+			s.removePendingCmd(&s.state.setNR)
 			return false
 		}
 	case 0x0a:
 		if len(d) < 3 {
-			return !s.state.setPwrSent
+			return !s.state.getPwr.pending && !s.state.setPwr.pending
 		}
 		hex := uint16(d[1])<<8 | uint16(d[2])
 		s.state.pwrPercent = int(math.Round((float64(hex) / 0x0255) * 100))
 		statusLog.reportTxPower(s.state.pwrPercent)
-		if s.state.setPwrSent {
-			s.state.setPwrSent = false
+		if s.state.getPwr.pending {
+			s.removePendingCmd(&s.state.getPwr)
+			return false
+		}
+		if s.state.setPwr.pending {
+			s.removePendingCmd(&s.state.setPwr)
 			return false
 		}
 	}
@@ -454,7 +498,7 @@ func (s *civControlStruct) decodePowerRFGainSQLNR(d []byte) bool {
 
 func (s *civControlStruct) decodeTransmitStatus(d []byte) bool {
 	if len(d) < 2 {
-		return !s.state.getTransmitStatusSent && !s.state.setPTTSent
+		return !s.state.getTuneStatus.pending && !s.state.getTransmitStatus.pending && !s.state.setPTT.pending
 	}
 
 	switch d[0] {
@@ -468,8 +512,8 @@ func (s *civControlStruct) decodeTransmitStatus(d []byte) bool {
 			}
 		}
 		statusLog.reportPTT(s.state.ptt, s.state.tune)
-		if s.state.setPTTSent {
-			s.state.setPTTSent = false
+		if s.state.setPTT.pending {
+			s.removePendingCmd(&s.state.setPTT)
 			return false
 		}
 	case 1:
@@ -488,13 +532,18 @@ func (s *civControlStruct) decodeTransmitStatus(d []byte) bool {
 		}
 
 		statusLog.reportPTT(s.state.ptt, s.state.tune)
-		if s.state.setTuneSent {
-			s.state.setTuneSent = false
+		if s.state.setTune.pending {
+			s.removePendingCmd(&s.state.setTune)
 			return false
 		}
 	}
-	if s.state.getTransmitStatusSent { // TODO
-		s.state.getTransmitStatusSent = false
+
+	if s.state.getTuneStatus.pending {
+		s.removePendingCmd(&s.state.getTuneStatus)
+		return false
+	}
+	if s.state.getTransmitStatus.pending {
+		s.removePendingCmd(&s.state.getTransmitStatus)
 		return false
 	}
 	return true
@@ -504,7 +553,7 @@ func (s *civControlStruct) decodeVdSWRS(d []byte) bool {
 	switch d[0] {
 	case 0x02:
 		if len(d) < 3 {
-			return !s.state.getSSent
+			return !s.state.getS.pending
 		}
 		sValue := (int(math.Round(((float64(int(d[1])<<8) + float64(d[2])) / 0x0241) * 18)))
 		sStr := "S"
@@ -538,48 +587,52 @@ func (s *civControlStruct) decodeVdSWRS(d []byte) bool {
 		}
 		s.state.lastSReceivedAt = time.Now()
 		statusLog.reportS(sStr)
-		if s.state.getSSent {
-			s.state.getSSent = false
+		if s.state.getS.pending {
+			s.removePendingCmd(&s.state.getS)
 			return false
 		}
 	case 0x12:
 		if len(d) < 3 {
-			return !s.state.getSWRSent
+			return !s.state.getSWR.pending
 		}
 		s.state.lastSWRReceivedAt = time.Now()
 		statusLog.reportSWR(((float64(int(d[1])<<8)+float64(d[2]))/0x0120)*2 + 1)
-		if s.state.getSWRSent {
-			s.state.getSWRSent = false
+		if s.state.getSWR.pending {
+			s.removePendingCmd(&s.state.getSWR)
 			return false
 		}
 	case 0x15:
 		if len(d) < 3 {
-			return !s.state.getVdSent
+			return !s.state.getVd.pending
 		}
 		statusLog.reportVd(((float64(int(d[1])<<8) + float64(d[2])) / 0x0241) * 16)
-		if s.state.getVdSent {
-			s.state.getVdSent = false
+		if s.state.getVd.pending {
+			s.removePendingCmd(&s.state.getVd)
 			return false
 		}
 	}
 	return true
 }
 
-func (s *civControlStruct) decodePreampAGCNR(d []byte) bool {
+func (s *civControlStruct) decodePreampAGCNREnabled(d []byte) bool {
 	switch d[0] {
 	case 0x02:
 		if len(d) < 2 {
-			return !s.state.setPreampSent
+			return !s.state.getPreamp.pending && !s.state.setPreamp.pending
 		}
 		s.state.preamp = int(d[1])
 		statusLog.reportPreamp(s.state.preamp)
-		if s.state.setPreampSent {
-			s.state.setPreampSent = false
+		if s.state.getPreamp.pending {
+			s.removePendingCmd(&s.state.getPreamp)
+			return false
+		}
+		if s.state.setPreamp.pending {
+			s.removePendingCmd(&s.state.setPreamp)
 			return false
 		}
 	case 0x12:
 		if len(d) < 2 {
-			return !s.state.setAGCSent
+			return !s.state.getAGC.pending && !s.state.setAGC.pending
 		}
 		s.state.agc = int(d[1])
 		var agc string
@@ -592,13 +645,17 @@ func (s *civControlStruct) decodePreampAGCNR(d []byte) bool {
 			agc = "S"
 		}
 		statusLog.reportAGC(agc)
-		if s.state.setAGCSent {
-			s.state.setAGCSent = false
+		if s.state.getAGC.pending {
+			s.removePendingCmd(&s.state.getAGC)
+			return false
+		}
+		if s.state.setAGC.pending {
+			s.removePendingCmd(&s.state.setAGC)
 			return false
 		}
 	case 0x40:
 		if len(d) < 2 {
-			return !s.state.setNREnabledSent
+			return !s.state.getNREnabled.pending && !s.state.setNREnabled.pending
 		}
 		if d[1] == 1 {
 			s.state.nrEnabled = true
@@ -606,18 +663,61 @@ func (s *civControlStruct) decodePreampAGCNR(d []byte) bool {
 			s.state.nrEnabled = false
 		}
 		statusLog.reportNREnabled(s.state.nrEnabled)
-		if s.state.setNREnabledSent {
-			s.state.setNREnabledSent = false
+		if s.state.getNREnabled.pending {
+			s.removePendingCmd(&s.state.getNREnabled)
+			return false
+		}
+		if s.state.setNREnabled.pending {
+			s.removePendingCmd(&s.state.setNREnabled)
 			return false
 		}
 	}
 	return true
 }
 
+func (s *civControlStruct) initCmd(cmd *civCmd, name string, data []byte) {
+	*cmd = civCmd{}
+	cmd.name = name
+	cmd.cmd = data
+}
+
+func (s *civControlStruct) getPendingCmdIndex(cmd *civCmd) int {
+	for i := range s.state.pendingCmds {
+		if cmd == s.state.pendingCmds[i] {
+			return i
+		}
+	}
+	return -1
+}
+
+func (s *civControlStruct) removePendingCmd(cmd *civCmd) {
+	cmd.pending = false
+	index := s.getPendingCmdIndex(cmd)
+	if index < 0 {
+		return
+	}
+	s.state.pendingCmds[index] = s.state.pendingCmds[len(s.state.pendingCmds)-1]
+	s.state.pendingCmds[len(s.state.pendingCmds)-1] = nil
+	s.state.pendingCmds = s.state.pendingCmds[:len(s.state.pendingCmds)-1]
+}
+
+func (s *civControlStruct) sendCmd(cmd *civCmd) error {
+	cmd.pending = true
+	cmd.sentAt = time.Now()
+	if s.getPendingCmdIndex(cmd) < 0 {
+		s.state.pendingCmds = append(s.state.pendingCmds, cmd)
+		select {
+		case s.newPendingCmdAdded <- true:
+		default:
+		}
+	}
+	return s.st.send(cmd.cmd)
+}
+
 func (s *civControlStruct) setPwr(percent int) error {
-	s.state.setPwrSent = true
 	v := uint16(0x0255 * (float64(percent) / 100))
-	return s.st.send([]byte{254, 254, civAddress, 224, 0x14, 0x0a, byte(v >> 8), byte(v & 0xff), 253})
+	s.initCmd(&s.state.setPwr, "setPwr", []byte{254, 254, civAddress, 224, 0x14, 0x0a, byte(v >> 8), byte(v & 0xff), 253})
+	return s.sendCmd(&s.state.setPwr)
 }
 
 func (s *civControlStruct) incPwr() error {
@@ -635,9 +735,9 @@ func (s *civControlStruct) decPwr() error {
 }
 
 func (s *civControlStruct) setRFGain(percent int) error {
-	s.state.setRFGainSent = true
 	v := uint16(0x0255 * (float64(percent) / 100))
-	return s.st.send([]byte{254, 254, civAddress, 224, 0x14, 0x02, byte(v >> 8), byte(v & 0xff), 253})
+	s.initCmd(&s.state.setRFGain, "setRFGain", []byte{254, 254, civAddress, 224, 0x14, 0x02, byte(v >> 8), byte(v & 0xff), 253})
+	return s.sendCmd(&s.state.setRFGain)
 }
 
 func (s *civControlStruct) incRFGain() error {
@@ -655,9 +755,9 @@ func (s *civControlStruct) decRFGain() error {
 }
 
 func (s *civControlStruct) setSQL(percent int) error {
-	s.state.setSQLSent = true
 	v := uint16(0x0255 * (float64(percent) / 100))
-	return s.st.send([]byte{254, 254, civAddress, 224, 0x14, 0x03, byte(v >> 8), byte(v & 0xff), 253})
+	s.initCmd(&s.state.setSQL, "setSQL", []byte{254, 254, civAddress, 224, 0x14, 0x03, byte(v >> 8), byte(v & 0xff), 253})
+	return s.sendCmd(&s.state.setSQL)
 }
 
 func (s *civControlStruct) incSQL() error {
@@ -680,9 +780,9 @@ func (s *civControlStruct) setNR(percent int) error {
 			return err
 		}
 	}
-	s.state.setNRSent = true
 	v := uint16(0x0255 * (float64(percent) / 100))
-	return s.st.send([]byte{254, 254, civAddress, 224, 0x14, 0x06, byte(v >> 8), byte(v & 0xff), 253})
+	s.initCmd(&s.state.setNR, "setNR", []byte{254, 254, civAddress, 224, 0x14, 0x06, byte(v >> 8), byte(v & 0xff), 253})
+	return s.sendCmd(&s.state.setNR)
 }
 
 func (s *civControlStruct) incNR() error {
@@ -717,7 +817,6 @@ func (s *civControlStruct) decFreq() error {
 }
 
 func (s *civControlStruct) setFreq(f uint) error {
-	s.state.setFreqSent = true
 	var b [5]byte
 	v0 := s.getDigit(f, 9)
 	v1 := s.getDigit(f, 8)
@@ -734,7 +833,8 @@ func (s *civControlStruct) setFreq(f uint) error {
 	v0 = s.getDigit(f, 1)
 	v1 = s.getDigit(f, 0)
 	b[0] = v0<<4 | v1
-	return s.st.send([]byte{254, 254, civAddress, 224, 5, b[0], b[1], b[2], b[3], b[4], 253})
+	s.initCmd(&s.state.setFreq, "setFreq", []byte{254, 254, civAddress, 224, 5, b[0], b[1], b[2], b[3], b[4], 253})
+	return s.sendCmd(&s.state.setFreq)
 }
 
 func (s *civControlStruct) incOperatingMode() error {
@@ -774,20 +874,20 @@ func (s *civControlStruct) decFilter() error {
 }
 
 func (s *civControlStruct) setOperatingModeAndFilter(modeCode, filterCode byte) error {
-	s.state.setModeSent = true
-	if err := s.st.send([]byte{254, 254, civAddress, 224, 0x06, modeCode, filterCode, 253}); err != nil {
+	s.initCmd(&s.state.setMode, "setMode", []byte{254, 254, civAddress, 224, 0x06, modeCode, filterCode, 253})
+	if err := s.sendCmd(&s.state.setMode); err != nil {
 		return err
 	}
 	return s.getMode()
 }
 
 func (s *civControlStruct) setPTT(enable bool) error {
-	s.state.setPTTSent = true
 	var b byte
 	if enable {
 		b = 1
 	}
-	return s.st.send([]byte{254, 254, civAddress, 224, 0x1c, 0, b, 253})
+	s.initCmd(&s.state.setPTT, "setPTT", []byte{254, 254, civAddress, 224, 0x1c, 0, b, 253})
+	return s.sendCmd(&s.state.setPTT)
 }
 
 func (s *civControlStruct) toggleTune() error {
@@ -795,14 +895,14 @@ func (s *civControlStruct) toggleTune() error {
 		return nil
 	}
 
-	s.state.setTuneSent = true
 	var b byte
 	if !s.state.tune {
 		b = 2
 	} else {
 		b = 1
 	}
-	return s.st.send([]byte{254, 254, civAddress, 224, 0x1c, 1, b, 253})
+	s.initCmd(&s.state.setTune, "setTune", []byte{254, 254, civAddress, 224, 0x1c, 1, b, 253})
+	return s.sendCmd(&s.state.setTune)
 }
 
 func (s *civControlStruct) setDataMode(enable bool) error {
@@ -815,12 +915,11 @@ func (s *civControlStruct) setDataMode(enable bool) error {
 		b = 0
 		f = 0
 	}
-
-	return s.st.send([]byte{254, 254, civAddress, 224, 0x1a, 0x06, b, f, 253})
+	s.initCmd(&s.state.setDataMode, "setDataMode", []byte{254, 254, civAddress, 224, 0x1a, 0x06, b, f, 253})
+	return s.sendCmd(&s.state.setDataMode)
 }
 
 func (s *civControlStruct) toggleDataMode() error {
-	s.state.setDataModeSent = true
 	return s.setDataMode(!s.state.dataMode)
 }
 
@@ -851,61 +950,63 @@ func (s *civControlStruct) decBand() error {
 }
 
 func (s *civControlStruct) togglePreamp() error {
-	s.state.setPreampSent = true
 	b := byte(s.state.preamp + 1)
 	if b > 2 {
 		b = 0
 	}
-	return s.st.send([]byte{254, 254, civAddress, 224, 0x16, 0x02, b, 253})
+	s.initCmd(&s.state.setPreamp, "setPreamp", []byte{254, 254, civAddress, 224, 0x16, 0x02, b, 253})
+	return s.sendCmd(&s.state.setPreamp)
 }
 
 func (s *civControlStruct) toggleAGC() error {
-	s.state.setAGCSent = true
 	b := byte(s.state.agc + 1)
 	if b > 3 {
 		b = 1
 	}
-	return s.st.send([]byte{254, 254, civAddress, 224, 0x16, 0x12, b, 253})
+	s.initCmd(&s.state.setAGC, "setAGC", []byte{254, 254, civAddress, 224, 0x16, 0x12, b, 253})
+	return s.sendCmd(&s.state.setAGC)
 }
 
 func (s *civControlStruct) toggleNR() error {
-	s.state.setNRSent = true
 	var b byte
 	if !s.state.nrEnabled {
 		b = 1
 	}
-	return s.st.send([]byte{254, 254, civAddress, 224, 0x16, 0x40, b, 253})
+	s.initCmd(&s.state.setNREnabled, "setNREnabled", []byte{254, 254, civAddress, 224, 0x16, 0x40, b, 253})
+	return s.sendCmd(&s.state.setNREnabled)
+}
+
+func (s *civControlStruct) setTS(b byte) error {
+	s.initCmd(&s.state.setTS, "setTS", []byte{254, 254, civAddress, 224, 0x10, b, 253})
+	return s.sendCmd(&s.state.setTS)
 }
 
 func (s *civControlStruct) incTS() error {
-	s.state.setTSSent = true
 	var b byte
 	if s.state.tsValue == 13 {
 		b = 0
 	} else {
 		b = s.state.tsValue + 1
 	}
-	return s.st.send([]byte{254, 254, civAddress, 224, 0x10, b, 253})
+	return s.setTS(b)
 }
 
 func (s *civControlStruct) decTS() error {
-	s.state.setTSSent = true
 	var b byte
 	if s.state.tsValue == 0 {
 		b = 13
 	} else {
 		b = s.state.tsValue - 1
 	}
-	return s.st.send([]byte{254, 254, civAddress, 224, 0x10, b, 253})
+	return s.setTS(b)
 }
 
 func (s *civControlStruct) setVFO(nr byte) error {
-	s.state.setVFOSent = true
-	return s.st.send([]byte{254, 254, civAddress, 224, 0x07, nr, 253})
+	s.initCmd(&s.state.setVFO, "setVFO", []byte{254, 254, civAddress, 224, 0x07, nr, 253})
+	return s.sendCmd(&s.state.setVFO)
 }
 
 func (s *civControlStruct) toggleVFO() error {
-	s.state.setVFOSent = true
 	var b byte
 	if !s.state.vfoBActive {
 		b = 1
@@ -914,7 +1015,6 @@ func (s *civControlStruct) toggleVFO() error {
 }
 
 func (s *civControlStruct) setSplit(mode splitMode) error {
-	s.state.setSplitSent = true
 	var b byte
 	switch mode {
 	default:
@@ -926,11 +1026,11 @@ func (s *civControlStruct) setSplit(mode splitMode) error {
 	case splitModeDUPPlus:
 		b = 0x12
 	}
-	return s.st.send([]byte{254, 254, civAddress, 224, 0x0f, b, 253})
+	s.initCmd(&s.state.setSplit, "setSplit", []byte{254, 254, civAddress, 224, 0x0f, b, 253})
+	return s.sendCmd(&s.state.setSplit)
 }
 
 func (s *civControlStruct) toggleSplit() error {
-	s.state.setSplitSent = true
 	var mode splitMode
 	switch s.state.splitMode {
 	case splitModeOff:
@@ -946,85 +1046,136 @@ func (s *civControlStruct) toggleSplit() error {
 }
 
 func (s *civControlStruct) getFreq() error {
-	s.state.getFreqSent = true
-	return s.st.send([]byte{254, 254, civAddress, 224, 3, 253})
+	s.initCmd(&s.state.getFreq, "getFreq", []byte{254, 254, civAddress, 224, 3, 253})
+	return s.sendCmd(&s.state.getFreq)
 }
 
 func (s *civControlStruct) getMode() error {
-	s.state.getModeSent = true
-	return s.st.send([]byte{254, 254, civAddress, 224, 4, 253})
+	s.initCmd(&s.state.getMode, "getMode", []byte{254, 254, civAddress, 224, 4, 253})
+	return s.sendCmd(&s.state.getMode)
 }
 
 func (s *civControlStruct) getDataMode() error {
-	s.state.getDataModeSent = true
-	return s.st.send([]byte{254, 254, civAddress, 224, 0x1a, 0x06, 253})
+	s.initCmd(&s.state.getDataMode, "getDataMode", []byte{254, 254, civAddress, 224, 0x1a, 0x06, 253})
+	return s.sendCmd(&s.state.getDataMode)
+}
+
+func (s *civControlStruct) getPwr() error {
+	s.initCmd(&s.state.getPwr, "getPwr", []byte{254, 254, civAddress, 224, 0x14, 0x0a, 253})
+	return s.sendCmd(&s.state.getPwr)
 }
 
 func (s *civControlStruct) getTransmitStatus() error {
-	s.state.getTransmitStatusSent = true
-	if err := s.st.send([]byte{254, 254, civAddress, 224, 0x1c, 0, 253}); err != nil {
+	s.initCmd(&s.state.getTransmitStatus, "getTransmitStatus", []byte{254, 254, civAddress, 224, 0x1c, 0, 253})
+	if err := s.sendCmd(&s.state.getTransmitStatus); err != nil {
 		return err
 	}
-	return s.st.send([]byte{254, 254, civAddress, 224, 0x1c, 1, 253})
+	s.initCmd(&s.state.getTuneStatus, "getTuneStatus", []byte{254, 254, civAddress, 224, 0x1c, 1, 253})
+	return s.sendCmd(&s.state.getTuneStatus)
+}
+
+func (s *civControlStruct) getPreamp() error {
+	s.initCmd(&s.state.getPreamp, "getPreamp", []byte{254, 254, civAddress, 224, 0x16, 0x02, 253})
+	return s.sendCmd(&s.state.getPreamp)
+}
+
+func (s *civControlStruct) getAGC() error {
+	s.initCmd(&s.state.getAGC, "getAGC", []byte{254, 254, civAddress, 224, 0x16, 0x12, 253})
+	return s.sendCmd(&s.state.getAGC)
 }
 
 func (s *civControlStruct) getVd() error {
-	s.state.getVdSent = true
-	return s.st.send([]byte{254, 254, civAddress, 224, 0x15, 0x15, 253})
+	s.initCmd(&s.state.getVd, "getVd", []byte{254, 254, civAddress, 224, 0x15, 0x15, 253})
+	return s.sendCmd(&s.state.getVd)
 }
 
 func (s *civControlStruct) getS() error {
-	s.state.getSSent = true
-	return s.st.send([]byte{254, 254, civAddress, 224, 0x15, 0x02, 253})
+	s.initCmd(&s.state.getS, "getS", []byte{254, 254, civAddress, 224, 0x15, 0x02, 253})
+	return s.sendCmd(&s.state.getS)
 }
 
 func (s *civControlStruct) getOVF() error {
-	s.state.getOVFSent = true
-	return s.st.send([]byte{254, 254, civAddress, 224, 0x1a, 0x09, 253})
+	s.initCmd(&s.state.getOVF, "getOVF", []byte{254, 254, civAddress, 224, 0x1a, 0x09, 253})
+	return s.sendCmd(&s.state.getOVF)
 }
 
 func (s *civControlStruct) getSWR() error {
-	s.state.getSWRSent = true
-	return s.st.send([]byte{254, 254, civAddress, 224, 0x15, 0x12, 253})
+	s.initCmd(&s.state.getSWR, "getSWR", []byte{254, 254, civAddress, 224, 0x15, 0x12, 253})
+	return s.sendCmd(&s.state.getSWR)
 }
 
 func (s *civControlStruct) getTS() error {
-	return s.st.send([]byte{254, 254, civAddress, 224, 0x10, 253})
+	s.initCmd(&s.state.getTS, "getTS", []byte{254, 254, civAddress, 224, 0x10, 253})
+	return s.sendCmd(&s.state.getTS)
 }
 
 func (s *civControlStruct) getRFGain() error {
-	return s.st.send([]byte{254, 254, civAddress, 224, 0x14, 0x02, 253})
+	s.initCmd(&s.state.getRFGain, "getRFGain", []byte{254, 254, civAddress, 224, 0x14, 0x02, 253})
+	return s.sendCmd(&s.state.getRFGain)
 }
 
 func (s *civControlStruct) getSQL() error {
-	return s.st.send([]byte{254, 254, civAddress, 224, 0x14, 0x03, 253})
+	s.initCmd(&s.state.getSQL, "getSQL", []byte{254, 254, civAddress, 224, 0x14, 0x03, 253})
+	return s.sendCmd(&s.state.getSQL)
 }
 
 func (s *civControlStruct) getNR() error {
-	return s.st.send([]byte{254, 254, civAddress, 224, 0x14, 0x06, 253})
+	s.initCmd(&s.state.getNR, "getNR", []byte{254, 254, civAddress, 224, 0x14, 0x06, 253})
+	return s.sendCmd(&s.state.getNR)
 }
 
 func (s *civControlStruct) getNREnabled() error {
-	return s.st.send([]byte{254, 254, civAddress, 224, 0x16, 0x40, 253})
+	s.initCmd(&s.state.getNREnabled, "getNREnabled", []byte{254, 254, civAddress, 224, 0x16, 0x40, 253})
+	return s.sendCmd(&s.state.getNREnabled)
+}
+
+func (s *civControlStruct) getSplit() error {
+	s.initCmd(&s.state.getSplit, "getSplit", []byte{254, 254, civAddress, 224, 0x0f, 253})
+	return s.sendCmd(&s.state.getSplit)
 }
 
 func (s *civControlStruct) loop() {
 	for {
+		s.state.mutex.Lock()
+		nextPendingCmdTimeout := time.Hour
+		for i := range s.state.pendingCmds {
+			diff := time.Since(s.state.pendingCmds[i].sentAt)
+			if diff >= commandRetryTimeout {
+				nextPendingCmdTimeout = 0
+				break
+			}
+			if diff < nextPendingCmdTimeout {
+				nextPendingCmdTimeout = diff
+			}
+		}
+		s.state.mutex.Unlock()
+
 		select {
 		case <-s.deinitNeeded:
 			s.deinitFinished <- true
 			return
-		case <-time.After(sReadInterval):
-			if time.Since(s.state.lastSReceivedAt) >= sReadInterval {
+		case <-time.After(statusPollInterval):
+			if !s.state.getS.pending && time.Since(s.state.lastSReceivedAt) >= statusPollInterval {
 				_ = s.getS()
 			}
-			if time.Since(s.state.lastOVFReceivedAt) >= sReadInterval {
+			if !s.state.getOVF.pending && time.Since(s.state.lastOVFReceivedAt) >= statusPollInterval {
 				_ = s.getOVF()
 			}
-			if time.Since(s.state.lastSWRReceivedAt) >= sReadInterval && (s.state.ptt || s.state.tune) {
+			if !s.state.getSWR.pending && time.Since(s.state.lastSWRReceivedAt) >= statusPollInterval &&
+				(s.state.ptt || s.state.tune) {
 				_ = s.getSWR()
 			}
 		case <-s.resetSReadTimer:
+		case <-s.newPendingCmdAdded:
+		case <-time.After(nextPendingCmdTimeout):
+			s.state.mutex.Lock()
+			for _, cmd := range s.state.pendingCmds {
+				if time.Since(cmd.sentAt) >= commandRetryTimeout {
+					log.Debug("retrying cmd send ", cmd.name)
+					_ = s.sendCmd(cmd)
+				}
+			}
+			s.state.mutex.Unlock()
 		}
 	}
 }
@@ -1041,19 +1192,16 @@ func (s *civControlStruct) init(st *serialStream) error {
 	if err := s.getDataMode(); err != nil {
 		return err
 	}
-	// Querying power.
-	if err := s.st.send([]byte{254, 254, civAddress, 224, 0x14, 0x0a, 253}); err != nil {
+	if err := s.getPwr(); err != nil {
 		return err
 	}
 	if err := s.getTransmitStatus(); err != nil {
 		return err
 	}
-	// Querying preamp.
-	if err := s.st.send([]byte{254, 254, civAddress, 224, 0x16, 0x02, 253}); err != nil {
+	if err := s.getPreamp(); err != nil {
 		return err
 	}
-	// Querying AGC.
-	if err := s.st.send([]byte{254, 254, civAddress, 224, 0x16, 0x12, 253}); err != nil {
+	if err := s.getAGC(); err != nil {
 		return err
 	}
 	if err := s.getVd(); err != nil {
@@ -1083,14 +1231,14 @@ func (s *civControlStruct) init(st *serialStream) error {
 	if err := s.getNREnabled(); err != nil {
 		return err
 	}
-	// Querying split.
-	if err := s.st.send([]byte{254, 254, civAddress, 224, 0x0f, 253}); err != nil {
+	if err := s.getSplit(); err != nil {
 		return err
 	}
 
 	s.deinitNeeded = make(chan bool)
 	s.deinitFinished = make(chan bool)
 	s.resetSReadTimer = make(chan bool)
+	s.newPendingCmdAdded = make(chan bool)
 	go s.loop()
 	return nil
 }
