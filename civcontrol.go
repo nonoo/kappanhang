@@ -513,7 +513,9 @@ func (s *civControlStruct) decodeTransmitStatus(d []byte) bool {
 		} else {
 			if s.state.ptt { // PTT released?
 				s.state.ptt = false
-				s.state.pttTimeoutTimer.Stop()
+				if s.state.pttTimeoutTimer != nil {
+					s.state.pttTimeoutTimer.Stop()
+				}
 				_ = s.getVd()
 			}
 		}
