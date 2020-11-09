@@ -1302,15 +1302,17 @@ func (s *civControlStruct) loop() {
 			s.deinitFinished <- true
 			return
 		case <-time.After(statusPollInterval):
-			if !s.state.getS.pending && time.Since(s.state.lastSReceivedAt) >= statusPollInterval {
-				_ = s.getS()
-			}
-			if !s.state.getOVF.pending && time.Since(s.state.lastOVFReceivedAt) >= statusPollInterval {
-				_ = s.getOVF()
-			}
-			if !s.state.getSWR.pending && time.Since(s.state.lastSWRReceivedAt) >= statusPollInterval &&
-				(s.state.ptt || s.state.tune) {
-				_ = s.getSWR()
+			if s.state.ptt || s.state.tune {
+				if !s.state.getSWR.pending && time.Since(s.state.lastSWRReceivedAt) >= statusPollInterval {
+					_ = s.getSWR()
+				}
+			} else {
+				if !s.state.getS.pending && time.Since(s.state.lastSReceivedAt) >= statusPollInterval {
+					_ = s.getS()
+				}
+				if !s.state.getOVF.pending && time.Since(s.state.lastOVFReceivedAt) >= statusPollInterval {
+					_ = s.getOVF()
+				}
 			}
 		case <-s.resetSReadTimer:
 		case <-s.newPendingCmdAdded:
