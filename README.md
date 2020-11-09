@@ -100,7 +100,9 @@ is up) with the following info:
     overflow, displays TX on transmit (or TUNE)
   - `freq`: operating frequency in MHz
   - `TS`: tuning step
-  - `mode`: LSB/USB/FM etc.
+  - `mode`: LSB/USB/FM etc. *-D* indicates data mode
+  - `SPLIT/DUP-/DUP+`: displayed when split/DUP operation is active, the TX
+    frequency is also displayed in split mode
   - `voltage`: drain voltage of the final amplifier MOS-FETs, updated when a
     TX/TUNE is over
   - `txpwr`: current transmit power setting in percent
