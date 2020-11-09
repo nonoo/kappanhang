@@ -1147,7 +1147,7 @@ func (s *civControlStruct) setSplit(mode splitMode) error {
 	var b byte
 	switch mode {
 	default:
-		b = 0x00
+		b = 0x10
 	case splitModeOn:
 		b = 0x01
 	case splitModeDUPMinus:
