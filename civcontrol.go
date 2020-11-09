@@ -10,6 +10,8 @@ import (
 const civAddress = 0xa4
 const statusPollInterval = time.Second
 const commandRetryTimeout = 500 * time.Millisecond
+const pttTimeout = 3 * time.Minute
+const tuneTimeout = 30 * time.Second
 
 // Commands reference: https://www.icomeurope.com/wp-content/uploads/2020/08/IC-705_ENG_CI-V_1_20200721.pdf
 
@@ -131,6 +133,9 @@ type civControlStruct struct {
 		setTS        civCmd
 		setVFO       civCmd
 		setSplit     civCmd
+
+		pttTimeoutTimer  *time.Timer
+		tuneTimeoutTimer *time.Timer
 
 		freq             uint
 		ptt              bool
@@ -508,6 +513,7 @@ func (s *civControlStruct) decodeTransmitStatus(d []byte) bool {
 		} else {
 			if s.state.ptt { // PTT released?
 				s.state.ptt = false
+				s.state.pttTimeoutTimer.Stop()
 				_ = s.getVd()
 			}
 		}
@@ -527,6 +533,7 @@ func (s *civControlStruct) decodeTransmitStatus(d []byte) bool {
 		} else {
 			if s.state.tune { // Tune finished?
 				s.state.tune = false
+				s.state.tuneTimeoutTimer.Stop()
 				_ = s.getVd()
 			}
 		}
@@ -885,24 +892,34 @@ func (s *civControlStruct) setPTT(enable bool) error {
 	var b byte
 	if enable {
 		b = 1
+		s.state.pttTimeoutTimer = time.AfterFunc(pttTimeout, func() {
+			_ = s.setPTT(false)
+		})
 	}
 	s.initCmd(&s.state.setPTT, "setPTT", []byte{254, 254, civAddress, 224, 0x1c, 0, b, 253})
 	return s.sendCmd(&s.state.setPTT)
 }
 
-func (s *civControlStruct) toggleTune() error {
+func (s *civControlStruct) setTune(enable bool) error {
 	if s.state.ptt {
 		return nil
 	}
 
 	var b byte
-	if !s.state.tune {
+	if enable {
 		b = 2
+		s.state.tuneTimeoutTimer = time.AfterFunc(tuneTimeout, func() {
+			_ = s.setTune(false)
+		})
 	} else {
 		b = 1
 	}
 	s.initCmd(&s.state.setTune, "setTune", []byte{254, 254, civAddress, 224, 0x1c, 1, b, 253})
 	return s.sendCmd(&s.state.setTune)
+}
+
+func (s *civControlStruct) toggleTune() error {
+	return s.setTune(!s.state.tune)
 }
 
 func (s *civControlStruct) setDataMode(enable bool) error {
