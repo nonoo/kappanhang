@@ -112,31 +112,35 @@ type civControlStruct struct {
 		getNR             civCmd
 		getNREnabled      civCmd
 		getSplit          civCmd
+		getMainVFOFreq    civCmd
+		getSubVFOFreq     civCmd
 
 		lastSReceivedAt   time.Time
 		lastOVFReceivedAt time.Time
 		lastSWRReceivedAt time.Time
 
-		setPwr       civCmd
-		setRFGain    civCmd
-		setSQL       civCmd
-		setNR        civCmd
-		setFreq      civCmd
-		setMode      civCmd
-		setPTT       civCmd
-		setTune      civCmd
-		setDataMode  civCmd
-		setPreamp    civCmd
-		setAGC       civCmd
-		setNREnabled civCmd
-		setTS        civCmd
-		setVFO       civCmd
-		setSplit     civCmd
+		setPwr        civCmd
+		setRFGain     civCmd
+		setSQL        civCmd
+		setNR         civCmd
+		setFreq       civCmd
+		setSubVFOFreq civCmd
+		setMode       civCmd
+		setPTT        civCmd
+		setTune       civCmd
+		setDataMode   civCmd
+		setPreamp     civCmd
+		setAGC        civCmd
+		setNREnabled  civCmd
+		setTS         civCmd
+		setVFO        civCmd
+		setSplit      civCmd
 
 		pttTimeoutTimer  *time.Timer
 		tuneTimeoutTimer *time.Timer
 
 		freq             uint
+		subFreq          uint
 		ptt              bool
 		tune             bool
 		pwrPercent       int
@@ -200,16 +204,13 @@ func (s *civControlStruct) decode(d []byte) bool {
 		return s.decodeVdSWRS(payload)
 	case 0x16:
 		return s.decodePreampAGCNREnabled(payload)
+	case 0x25:
+		return s.decodeVFOFreq(payload)
 	}
 	return true
 }
 
-func (s *civControlStruct) decodeFreq(d []byte) bool {
-	if len(d) < 2 {
-		return !s.state.getFreq.pending && !s.state.setFreq.pending
-	}
-
-	var f uint
+func (s *civControlStruct) decodeFreqData(d []byte) (f uint) {
 	var pos int
 	for _, v := range d {
 		s1 := v & 0x0f
@@ -219,8 +220,15 @@ func (s *civControlStruct) decodeFreq(d []byte) bool {
 		f += uint(s2) * uint(math.Pow(10, float64(pos)))
 		pos++
 	}
+	return
+}
 
-	s.state.freq = f
+func (s *civControlStruct) decodeFreq(d []byte) bool {
+	if len(d) < 2 {
+		return !s.state.getFreq.pending && !s.state.setFreq.pending
+	}
+
+	s.state.freq = s.decodeFreqData(d)
 	statusLog.reportFrequency(s.state.freq)
 
 	s.state.bandIdx = len(civBands) - 1 // Set the band idx to GENE by default.
@@ -298,9 +306,8 @@ func (s *civControlStruct) decodeVFO(d []byte) bool {
 	}
 
 	if s.state.setVFO.pending {
-		// The radio does not send the VFO's frequency automatically.
-		_ = s.getFreq()
-
+		// The radio does not send frequencies automatically.
+		_ = s.getBothVFOFreq()
 		s.removePendingCmd(&s.state.setVFO)
 		return false
 	}
@@ -326,7 +333,7 @@ func (s *civControlStruct) decodeSplit(d []byte) bool {
 		s.state.splitMode = splitModeDUPPlus
 		str = "DUP+"
 	}
-	statusLog.reportSplit(str)
+	statusLog.reportSplit(s.state.splitMode, str)
 
 	if s.state.getSplit.pending {
 		s.removePendingCmd(&s.state.getSplit)
@@ -683,6 +690,45 @@ func (s *civControlStruct) decodePreampAGCNREnabled(d []byte) bool {
 	return true
 }
 
+func (s *civControlStruct) decodeVFOFreq(d []byte) bool {
+	if len(d) < 2 {
+		return !s.state.getMainVFOFreq.pending && !s.state.getSubVFOFreq.pending && !s.state.setSubVFOFreq.pending
+	}
+
+	f := s.decodeFreqData(d[1:])
+	switch d[0] {
+	default:
+		s.state.freq = f
+		statusLog.reportFrequency(s.state.freq)
+
+		s.state.bandIdx = len(civBands) - 1 // Set the band idx to GENE by default.
+		for i := range civBands {
+			if s.state.freq >= civBands[i].freqFrom && s.state.freq <= civBands[i].freqTo {
+				s.state.bandIdx = i
+				civBands[s.state.bandIdx].freq = s.state.freq
+				break
+			}
+		}
+
+		if s.state.getMainVFOFreq.pending {
+			s.removePendingCmd(&s.state.getMainVFOFreq)
+			return false
+		}
+	case 0x01:
+		s.state.subFreq = f
+		statusLog.reportSubFrequency(s.state.subFreq)
+		if s.state.getSubVFOFreq.pending {
+			s.removePendingCmd(&s.state.getSubVFOFreq)
+			return false
+		}
+		if s.state.setSubVFOFreq.pending {
+			s.removePendingCmd(&s.state.setSubVFOFreq)
+			return false
+		}
+	}
+	return true
+}
+
 func (s *civControlStruct) initCmd(cmd *civCmd, name string, data []byte) {
 	*cmd = civCmd{}
 	cmd.name = name
@@ -828,8 +874,7 @@ func (s *civControlStruct) decFreq() error {
 	return s.setFreq(s.state.freq - s.state.ts)
 }
 
-func (s *civControlStruct) setFreq(f uint) error {
-	var b [5]byte
+func (s *civControlStruct) encodeFreqData(f uint) (b [5]byte) {
 	v0 := s.getDigit(f, 9)
 	v1 := s.getDigit(f, 8)
 	b[4] = v0<<4 | v1
@@ -845,8 +890,19 @@ func (s *civControlStruct) setFreq(f uint) error {
 	v0 = s.getDigit(f, 1)
 	v1 = s.getDigit(f, 0)
 	b[0] = v0<<4 | v1
+	return
+}
+
+func (s *civControlStruct) setFreq(f uint) error {
+	b := s.encodeFreqData(f)
 	s.initCmd(&s.state.setFreq, "setFreq", []byte{254, 254, civAddress, 224, 5, b[0], b[1], b[2], b[3], b[4], 253})
 	return s.sendCmd(&s.state.setFreq)
+}
+
+func (s *civControlStruct) setSubVFOFreq(f uint) error {
+	b := s.encodeFreqData(f)
+	s.initCmd(&s.state.setSubVFOFreq, "setSubVFOFreq", []byte{254, 254, civAddress, 224, 0x25, 0x01, b[0], b[1], b[2], b[3], b[4], 253})
+	return s.sendCmd(&s.state.setSubVFOFreq)
 }
 
 func (s *civControlStruct) incOperatingMode() error {
@@ -1067,10 +1123,10 @@ func (s *civControlStruct) toggleSplit() error {
 	return s.setSplit(mode)
 }
 
-func (s *civControlStruct) getFreq() error {
-	s.initCmd(&s.state.getFreq, "getFreq", []byte{254, 254, civAddress, 224, 3, 253})
-	return s.sendCmd(&s.state.getFreq)
-}
+// func (s *civControlStruct) getFreq() error {
+// 	s.initCmd(&s.state.getFreq, "getFreq", []byte{254, 254, civAddress, 224, 3, 253})
+// 	return s.sendCmd(&s.state.getFreq)
+// }
 
 func (s *civControlStruct) getMode() error {
 	s.initCmd(&s.state.getMode, "getMode", []byte{254, 254, civAddress, 224, 4, 253})
@@ -1156,6 +1212,15 @@ func (s *civControlStruct) getSplit() error {
 	return s.sendCmd(&s.state.getSplit)
 }
 
+func (s *civControlStruct) getBothVFOFreq() error {
+	s.initCmd(&s.state.getMainVFOFreq, "getMainVFOFreq", []byte{254, 254, civAddress, 224, 0x25, 0, 253})
+	if err := s.sendCmd(&s.state.getMainVFOFreq); err != nil {
+		return err
+	}
+	s.initCmd(&s.state.getSubVFOFreq, "getSubVFOFreq", []byte{254, 254, civAddress, 224, 0x25, 1, 253})
+	return s.sendCmd(&s.state.getSubVFOFreq)
+}
+
 func (s *civControlStruct) loop() {
 	for {
 		s.state.mutex.Lock()
@@ -1205,7 +1270,7 @@ func (s *civControlStruct) loop() {
 func (s *civControlStruct) init(st *serialStream) error {
 	s.st = st
 
-	if err := s.getFreq(); err != nil {
+	if err := s.getBothVFOFreq(); err != nil {
 		return err
 	}
 	if err := s.getMode(); err != nil {
@@ -1254,6 +1319,9 @@ func (s *civControlStruct) init(st *serialStream) error {
 		return err
 	}
 	if err := s.getSplit(); err != nil {
+		return err
+	}
+	if err := s.getBothVFOFreq(); err != nil {
 		return err
 	}
 

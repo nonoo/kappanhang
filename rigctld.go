@@ -270,6 +270,24 @@ func (s *rigctldStruct) processCmd(cmd string) (close bool, err error) {
 		} else {
 			_ = s.sendReplyCode(rigctldNoError)
 		}
+	case cmd == "i":
+		civControl.state.mutex.Lock()
+		defer civControl.state.mutex.Unlock()
+
+		err = s.send(civControl.state.subFreq, "\n")
+	case cmdSplit[0] == "I":
+		var f float64
+		f, err = strconv.ParseFloat(cmdSplit[1], 0)
+		if err != nil {
+			_ = s.sendReplyCode(rigctldInvalidParam)
+			return
+		}
+		err = civControl.setSubVFOFreq(uint(f))
+		if err != nil {
+			_ = s.sendReplyCode(rigctldInvalidParam)
+			return
+		}
+		err = s.sendReplyCode(rigctldNoError)
 	case cmd == "v": // Ignore this command.
 		_ = s.sendReplyCode(rigctldUnsupportedCmd)
 		return
