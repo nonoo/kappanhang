@@ -142,7 +142,7 @@ func (s *rigctldStruct) processCmd(cmd string) (close bool, err error) {
 			_ = s.sendReplyCode(rigctldInvalidParam)
 			return
 		}
-		err = civControl.setFreq(uint(f))
+		err = civControl.setMainVFOFreq(uint(f))
 		if err != nil {
 			_ = s.sendReplyCode(rigctldInvalidParam)
 			return
