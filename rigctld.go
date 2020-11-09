@@ -57,7 +57,7 @@ func (s *rigctldStruct) sendReplyCode(code int) error {
 }
 
 func (s *rigctldStruct) processCmd(cmd string) (close bool, err error) {
-	cmdSplit := strings.Split(cmd, " ")
+	cmdSplit := strings.Fields(cmd)
 
 	switch {
 	case cmd == "\\chk_vfo":
