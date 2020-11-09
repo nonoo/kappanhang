@@ -158,7 +158,7 @@ type civControlStruct struct {
 	}
 }
 
-var civControl *civControlStruct
+var civControl civControlStruct
 
 // Returns false if the message should not be forwarded to the serial port TCP server or the virtual serial port.
 func (s *civControlStruct) decode(d []byte) bool {
@@ -710,6 +710,10 @@ func (s *civControlStruct) removePendingCmd(cmd *civCmd) {
 }
 
 func (s *civControlStruct) sendCmd(cmd *civCmd) error {
+	if s.st == nil {
+		return nil
+	}
+
 	cmd.pending = true
 	cmd.sentAt = time.Now()
 	if s.getPendingCmdIndex(cmd) < 0 {
@@ -1267,4 +1271,5 @@ func (s *civControlStruct) deinit() {
 		<-s.deinitFinished
 	}
 	s.deinitNeeded = nil
+	s.st = nil
 }

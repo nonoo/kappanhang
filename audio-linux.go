@@ -85,10 +85,6 @@ func (a *audioStruct) togglePlaybackToDefaultSoundcard() {
 }
 
 func (a *audioStruct) toggleRecFromDefaultSoundcard() {
-	if civControl == nil {
-		return
-	}
-
 	if a.defaultSoundcardStream.recStream == nil {
 		ss := pulse.SampleSpec{Format: pulse.SAMPLE_S16LE, Rate: audioSampleRate, Channels: 1}
 		battr := pulse.NewBufferAttr()

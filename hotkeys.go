@@ -9,274 +9,184 @@ func handleHotkey(k byte) {
 	case ' ':
 		audio.toggleRecFromDefaultSoundcard()
 	case 't':
-		if civControl != nil {
-			if err := civControl.toggleTune(); err != nil {
-				log.Error("can't toggle tune: ", err)
-			}
+		if err := civControl.toggleTune(); err != nil {
+			log.Error("can't toggle tune: ", err)
 		}
 	case '+':
-		if civControl != nil {
-			if err := civControl.incPwr(); err != nil {
-				log.Error("can't increase power: ", err)
-			}
+		if err := civControl.incPwr(); err != nil {
+			log.Error("can't increase power: ", err)
 		}
 	case '-':
-		if civControl != nil {
-			if err := civControl.decPwr(); err != nil {
-				log.Error("can't decrease power: ", err)
-			}
+		if err := civControl.decPwr(); err != nil {
+			log.Error("can't decrease power: ", err)
 		}
 	case '0':
-		if civControl != nil {
-			if err := civControl.setPwr(0); err != nil {
-				log.Error("can't set power: ", err)
-			}
+		if err := civControl.setPwr(0); err != nil {
+			log.Error("can't set power: ", err)
 		}
 	case '1':
-		if civControl != nil {
-			if err := civControl.setPwr(10); err != nil {
-				log.Error("can't set power: ", err)
-			}
+		if err := civControl.setPwr(10); err != nil {
+			log.Error("can't set power: ", err)
 		}
 	case '2':
-		if civControl != nil {
-			if err := civControl.setPwr(20); err != nil {
-				log.Error("can't set power: ", err)
-			}
+		if err := civControl.setPwr(20); err != nil {
+			log.Error("can't set power: ", err)
 		}
 	case '3':
-		if civControl != nil {
-			if err := civControl.setPwr(30); err != nil {
-				log.Error("can't set power: ", err)
-			}
+		if err := civControl.setPwr(30); err != nil {
+			log.Error("can't set power: ", err)
 		}
 	case '4':
-		if civControl != nil {
-			if err := civControl.setPwr(40); err != nil {
-				log.Error("can't set power: ", err)
-			}
+		if err := civControl.setPwr(40); err != nil {
+			log.Error("can't set power: ", err)
 		}
 	case '5':
-		if civControl != nil {
-			if err := civControl.setPwr(50); err != nil {
-				log.Error("can't set power: ", err)
-			}
+		if err := civControl.setPwr(50); err != nil {
+			log.Error("can't set power: ", err)
 		}
 	case '6':
-		if civControl != nil {
-			if err := civControl.setPwr(60); err != nil {
-				log.Error("can't set power: ", err)
-			}
+		if err := civControl.setPwr(60); err != nil {
+			log.Error("can't set power: ", err)
 		}
 	case '7':
-		if civControl != nil {
-			if err := civControl.setPwr(70); err != nil {
-				log.Error("can't set power: ", err)
-			}
+		if err := civControl.setPwr(70); err != nil {
+			log.Error("can't set power: ", err)
 		}
 	case '8':
-		if civControl != nil {
-			if err := civControl.setPwr(80); err != nil {
-				log.Error("can't set power: ", err)
-			}
+		if err := civControl.setPwr(80); err != nil {
+			log.Error("can't set power: ", err)
 		}
 	case '9':
-		if civControl != nil {
-			if err := civControl.setPwr(90); err != nil {
-				log.Error("can't set power: ", err)
-			}
+		if err := civControl.setPwr(90); err != nil {
+			log.Error("can't set power: ", err)
 		}
 	case ')':
-		if civControl != nil {
-			if err := civControl.setPwr(100); err != nil {
-				log.Error("can't set power: ", err)
-			}
+		if err := civControl.setPwr(100); err != nil {
+			log.Error("can't set power: ", err)
 		}
 	case '!':
-		if civControl != nil {
-			if err := civControl.setRFGain(10); err != nil {
-				log.Error("can't set rfgain: ", err)
-			}
+		if err := civControl.setRFGain(10); err != nil {
+			log.Error("can't set rfgain: ", err)
 		}
 	case '@':
-		if civControl != nil {
-			if err := civControl.setRFGain(20); err != nil {
-				log.Error("can't set rfgain: ", err)
-			}
+		if err := civControl.setRFGain(20); err != nil {
+			log.Error("can't set rfgain: ", err)
 		}
 	case '#':
-		if civControl != nil {
-			if err := civControl.setRFGain(30); err != nil {
-				log.Error("can't set rfgain: ", err)
-			}
+		if err := civControl.setRFGain(30); err != nil {
+			log.Error("can't set rfgain: ", err)
 		}
 	case '$':
-		if civControl != nil {
-			if err := civControl.setRFGain(40); err != nil {
-				log.Error("can't set rfgain: ", err)
-			}
+		if err := civControl.setRFGain(40); err != nil {
+			log.Error("can't set rfgain: ", err)
 		}
 	case '%':
-		if civControl != nil {
-			if err := civControl.setRFGain(50); err != nil {
-				log.Error("can't set rfgain: ", err)
-			}
+		if err := civControl.setRFGain(50); err != nil {
+			log.Error("can't set rfgain: ", err)
 		}
 	case '^':
-		if civControl != nil {
-			if err := civControl.setRFGain(60); err != nil {
-				log.Error("can't set rfgain: ", err)
-			}
+		if err := civControl.setRFGain(60); err != nil {
+			log.Error("can't set rfgain: ", err)
 		}
 	case '&':
-		if civControl != nil {
-			if err := civControl.setRFGain(70); err != nil {
-				log.Error("can't set rfgain: ", err)
-			}
+		if err := civControl.setRFGain(70); err != nil {
+			log.Error("can't set rfgain: ", err)
 		}
 	case '*':
-		if civControl != nil {
-			if err := civControl.setRFGain(80); err != nil {
-				log.Error("can't set rfgain: ", err)
-			}
+		if err := civControl.setRFGain(80); err != nil {
+			log.Error("can't set rfgain: ", err)
 		}
 	case '(':
-		if civControl != nil {
-			if err := civControl.setRFGain(90); err != nil {
-				log.Error("can't set rfgain: ", err)
-			}
+		if err := civControl.setRFGain(90); err != nil {
+			log.Error("can't set rfgain: ", err)
 		}
 	case '\'':
-		if civControl != nil {
-			if err := civControl.incRFGain(); err != nil {
-				log.Error("can't increase rf gain: ", err)
-			}
+		if err := civControl.incRFGain(); err != nil {
+			log.Error("can't increase rf gain: ", err)
 		}
 	case ';':
-		if civControl != nil {
-			if err := civControl.decRFGain(); err != nil {
-				log.Error("can't decrease rf gain: ", err)
-			}
+		if err := civControl.decRFGain(); err != nil {
+			log.Error("can't decrease rf gain: ", err)
 		}
 	case '"':
-		if civControl != nil {
-			if err := civControl.incSQL(); err != nil {
-				log.Error("can't increase sql: ", err)
-			}
+		if err := civControl.incSQL(); err != nil {
+			log.Error("can't increase sql: ", err)
 		}
 	case ':':
-		if civControl != nil {
-			if err := civControl.decSQL(); err != nil {
-				log.Error("can't decrease sql: ", err)
-			}
+		if err := civControl.decSQL(); err != nil {
+			log.Error("can't decrease sql: ", err)
 		}
 	case '.':
-		if civControl != nil {
-			if err := civControl.incNR(); err != nil {
-				log.Error("can't increase nr: ", err)
-			}
+		if err := civControl.incNR(); err != nil {
+			log.Error("can't increase nr: ", err)
 		}
 	case ',':
-		if civControl != nil {
-			if err := civControl.decNR(); err != nil {
-				log.Error("can't decrease nr: ", err)
-			}
+		if err := civControl.decNR(); err != nil {
+			log.Error("can't decrease nr: ", err)
 		}
 	case '/':
-		if civControl != nil {
-			if err := civControl.toggleNR(); err != nil {
-				log.Error("can't toggle nr: ", err)
-			}
+		if err := civControl.toggleNR(); err != nil {
+			log.Error("can't toggle nr: ", err)
 		}
 	case ']':
-		if civControl != nil {
-			if err := civControl.incFreq(); err != nil {
-				log.Error("can't increase freq: ", err)
-			}
+		if err := civControl.incFreq(); err != nil {
+			log.Error("can't increase freq: ", err)
 		}
 	case '[':
-		if civControl != nil {
-			if err := civControl.decFreq(); err != nil {
-				log.Error("can't decrease freq: ", err)
-			}
+		if err := civControl.decFreq(); err != nil {
+			log.Error("can't decrease freq: ", err)
 		}
 	case '}':
-		if civControl != nil {
-			if err := civControl.incTS(); err != nil {
-				log.Error("can't increase ts: ", err)
-			}
+		if err := civControl.incTS(); err != nil {
+			log.Error("can't increase ts: ", err)
 		}
 	case '{':
-		if civControl != nil {
-			if err := civControl.decTS(); err != nil {
-				log.Error("can't decrease ts: ", err)
-			}
+		if err := civControl.decTS(); err != nil {
+			log.Error("can't decrease ts: ", err)
 		}
 	case 'm':
-		if civControl != nil {
-			if err := civControl.incOperatingMode(); err != nil {
-				log.Error("can't change mode: ", err)
-			}
+		if err := civControl.incOperatingMode(); err != nil {
+			log.Error("can't change mode: ", err)
 		}
 	case 'n':
-		if civControl != nil {
-			if err := civControl.decOperatingMode(); err != nil {
-				log.Error("can't change mode: ", err)
-			}
+		if err := civControl.decOperatingMode(); err != nil {
+			log.Error("can't change mode: ", err)
 		}
 	case 'f':
-		if civControl != nil {
-			if err := civControl.incFilter(); err != nil {
-				log.Error("can't change filter: ", err)
-			}
+		if err := civControl.incFilter(); err != nil {
+			log.Error("can't change filter: ", err)
 		}
 	case 'd':
-		if civControl != nil {
-			if err := civControl.decFilter(); err != nil {
-				log.Error("can't change filter: ", err)
-			}
+		if err := civControl.decFilter(); err != nil {
+			log.Error("can't change filter: ", err)
 		}
 	case 'D':
-		if civControl != nil {
-			if err := civControl.toggleDataMode(); err != nil {
-				log.Error("can't change datamode: ", err)
-			}
+		if err := civControl.toggleDataMode(); err != nil {
+			log.Error("can't change datamode: ", err)
 		}
 	case 'b':
-		if civControl != nil {
-			if err := civControl.incBand(); err != nil {
-				log.Error("can't change band: ", err)
-			}
+		if err := civControl.incBand(); err != nil {
+			log.Error("can't change band: ", err)
 		}
 	case 'v':
-		if civControl != nil {
-			if err := civControl.decBand(); err != nil {
-				log.Error("can't change band: ", err)
-			}
+		if err := civControl.decBand(); err != nil {
+			log.Error("can't change band: ", err)
 		}
 	case 'p':
-		if civControl != nil {
-			if err := civControl.togglePreamp(); err != nil {
-				log.Error("can't change preamp: ", err)
-			}
+		if err := civControl.togglePreamp(); err != nil {
+			log.Error("can't change preamp: ", err)
 		}
 	case 'a':
-		if civControl != nil {
-			if err := civControl.toggleAGC(); err != nil {
-				log.Error("can't change agc: ", err)
-			}
+		if err := civControl.toggleAGC(); err != nil {
+			log.Error("can't change agc: ", err)
 		}
 	case 'o':
-		if civControl != nil {
-			if err := civControl.toggleVFO(); err != nil {
-				log.Error("can't change vfo: ", err)
-			}
+		if err := civControl.toggleVFO(); err != nil {
+			log.Error("can't change vfo: ", err)
 		}
 	case 's':
-		if civControl != nil {
-			if err := civControl.toggleSplit(); err != nil {
-				log.Error("can't change split: ", err)
-			}
+		if err := civControl.toggleSplit(); err != nil {
+			log.Error("can't change split: ", err)
 		}
 	case '\n':
 		if statusLog.isRealtime() {

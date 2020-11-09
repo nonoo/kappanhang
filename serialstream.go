@@ -254,7 +254,7 @@ func (s *serialStream) init(devName string) error {
 	s.readFromSerialPort.frameTimeout = time.NewTimer(0)
 	<-s.readFromSerialPort.frameTimeout.C
 
-	civControl = &civControlStruct{}
+	civControl = civControlStruct{}
 	if err := civControl.init(s); err != nil {
 		return err
 	}
@@ -272,10 +272,7 @@ func (s *serialStream) deinit() {
 		s.deinitNeededChan <- true
 		<-s.deinitFinishedChan
 	}
-	if civControl != nil {
-		civControl.deinit()
-		civControl = nil
-	}
+	civControl.deinit()
 	s.common.deinit()
 	s.rxSeqBuf.deinit()
 }
