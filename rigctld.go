@@ -288,6 +288,64 @@ func (s *rigctldStruct) processCmd(cmd string) (close bool, err error) {
 			return
 		}
 		err = s.sendReplyCode(rigctldNoError)
+	case cmd == "x":
+		civControl.state.mutex.Lock()
+		defer civControl.state.mutex.Unlock()
+
+		var mode string
+		if civControl.state.subDataMode {
+			mode = "PKT"
+		}
+		mode += civOperatingModes[civControl.state.subOperatingModeIdx].name
+
+		// This can be queried with a CIV command for accurate values by the way.
+		width := "3000"
+		switch civControl.state.subFilterIdx {
+		case 1:
+			width = "2400"
+		case 2:
+			width = "1800"
+		}
+		err = s.send(mode, "\n", width, "\n")
+	case cmdSplit[0] == "X":
+		mode := cmdSplit[1]
+		var dataMode byte
+		if mode[:3] == "PKT" {
+			dataMode = 1
+			mode = mode[3:]
+		}
+		var modeCode byte
+		var modeFound bool
+		for _, m := range civOperatingModes {
+			if m.name == mode {
+				modeCode = m.code
+				modeFound = true
+				break
+			}
+		}
+		if !modeFound {
+			err = fmt.Errorf("unknown mode %s", mode)
+			_ = s.sendReplyCode(rigctldInvalidParam)
+			return
+		}
+		var width int
+		width, err = strconv.Atoi(cmdSplit[2])
+		if err != nil {
+			_ = s.sendReplyCode(rigctldInvalidParam)
+			return
+		}
+		var filterCode byte
+		if width <= 1800 {
+			filterCode = 2
+		} else if width <= 2400 {
+			filterCode = 1
+		}
+		err = civControl.setSubVFOMode(modeCode, dataMode, filterCode)
+		if err != nil {
+			_ = s.sendReplyCode(rigctldInvalidParam)
+		} else {
+			_ = s.sendReplyCode(rigctldNoError)
+		}
 	case cmd == "v": // Ignore this command.
 		_ = s.sendReplyCode(rigctldUnsupportedCmd)
 		return

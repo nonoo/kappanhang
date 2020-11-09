@@ -254,6 +254,7 @@ func (s *serialStream) init(devName string) error {
 	s.readFromSerialPort.frameTimeout = time.NewTimer(0)
 	<-s.readFromSerialPort.frameTimeout.C
 
+	civControl.deinit()
 	civControl = civControlStruct{}
 	if err := civControl.init(s); err != nil {
 		return err

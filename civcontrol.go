@@ -95,8 +95,6 @@ type civControlStruct struct {
 		pendingCmds []*civCmd
 
 		getFreq           civCmd
-		getMode           civCmd
-		getDataMode       civCmd
 		getPwr            civCmd
 		getS              civCmd
 		getOVF            civCmd
@@ -114,6 +112,8 @@ type civControlStruct struct {
 		getSplit          civCmd
 		getMainVFOFreq    civCmd
 		getSubVFOFreq     civCmd
+		getMainVFOMode    civCmd
+		getSubVFOMode     civCmd
 
 		lastSReceivedAt   time.Time
 		lastOVFReceivedAt time.Time
@@ -126,6 +126,7 @@ type civControlStruct struct {
 		setFreq       civCmd
 		setSubVFOFreq civCmd
 		setMode       civCmd
+		setSubVFOMode civCmd
 		setPTT        civCmd
 		setTune       civCmd
 		setDataMode   civCmd
@@ -139,26 +140,28 @@ type civControlStruct struct {
 		pttTimeoutTimer  *time.Timer
 		tuneTimeoutTimer *time.Timer
 
-		freq             uint
-		subFreq          uint
-		ptt              bool
-		tune             bool
-		pwrPercent       int
-		rfGainPercent    int
-		sqlPercent       int
-		nrPercent        int
-		nrEnabled        bool
-		operatingModeIdx int
-		filterIdx        int
-		dataMode         bool
-		bandIdx          int
-		bandChanging     bool
-		preamp           int
-		agc              int
-		tsValue          byte
-		ts               uint
-		vfoBActive       bool
-		splitMode        splitMode
+		freq                uint
+		subFreq             uint
+		ptt                 bool
+		tune                bool
+		pwrPercent          int
+		rfGainPercent       int
+		sqlPercent          int
+		nrPercent           int
+		nrEnabled           bool
+		operatingModeIdx    int
+		dataMode            bool
+		filterIdx           int
+		subOperatingModeIdx int
+		subDataMode         bool
+		subFilterIdx        int
+		bandIdx             int
+		preamp              int
+		agc                 int
+		tsValue             byte
+		ts                  uint
+		vfoBActive          bool
+		splitMode           splitMode
 	}
 }
 
@@ -206,6 +209,8 @@ func (s *civControlStruct) decode(d []byte) bool {
 		return s.decodePreampAGCNREnabled(payload)
 	case 0x25:
 		return s.decodeVFOFreq(payload)
+	case 0x26:
+		return s.decodeVFOMode(payload)
 	}
 	return true
 }
@@ -257,34 +262,27 @@ func (s *civControlStruct) decodeFilterValueToFilterIdx(v byte) int {
 			return i
 		}
 	}
-	return -1
+	return 0
 }
 
 func (s *civControlStruct) decodeMode(d []byte) bool {
 	if len(d) < 1 {
-		return !s.state.getMode.pending && !s.state.setMode.pending
+		return !s.state.setMode.pending
 	}
 
-	var mode string
 	for i := range civOperatingModes {
 		if civOperatingModes[i].code == d[0] {
 			s.state.operatingModeIdx = i
-			mode = civOperatingModes[i].name
 			break
 		}
 	}
 
-	var filter string
 	if len(d) > 1 {
 		s.state.filterIdx = s.decodeFilterValueToFilterIdx(d[1])
-		filter = civFilters[s.state.filterIdx].name
 	}
-	statusLog.reportMode(mode, filter)
+	statusLog.reportMode(civOperatingModes[s.state.operatingModeIdx].name, s.state.dataMode,
+		civFilters[s.state.filterIdx].name)
 
-	if s.state.getMode.pending {
-		s.removePendingCmd(&s.state.getMode)
-		return false
-	}
 	if s.state.setMode.pending {
 		s.removePendingCmd(&s.state.setMode)
 		return false
@@ -400,25 +398,18 @@ func (s *civControlStruct) decodeDataModeAndOVF(d []byte) bool {
 	switch d[0] {
 	case 0x06:
 		if len(d) < 3 {
-			return !s.state.getDataMode.pending && !s.state.setDataMode.pending
+			return !s.state.setDataMode.pending
 		}
-		var dataMode string
-		var filter string
 		if d[1] == 1 {
-			dataMode = "-D"
 			s.state.dataMode = true
 			s.state.filterIdx = s.decodeFilterValueToFilterIdx(d[2])
-			filter = civFilters[s.state.filterIdx].name
 		} else {
 			s.state.dataMode = false
 		}
 
-		statusLog.reportDataMode(dataMode, filter)
+		statusLog.reportMode(civOperatingModes[s.state.operatingModeIdx].name, s.state.dataMode,
+			civFilters[s.state.filterIdx].name)
 
-		if s.state.getDataMode.pending {
-			s.removePendingCmd(&s.state.getDataMode)
-			return false
-		}
 		if s.state.setDataMode.pending {
 			s.removePendingCmd(&s.state.setDataMode)
 			return false
@@ -729,6 +720,60 @@ func (s *civControlStruct) decodeVFOFreq(d []byte) bool {
 	return true
 }
 
+func (s *civControlStruct) decodeVFOMode(d []byte) bool {
+	if len(d) < 2 {
+		return !s.state.getMainVFOMode.pending && !s.state.getSubVFOMode.pending && !s.state.setSubVFOMode.pending
+	}
+
+	operatingModeIdx := -1
+	for i := range civOperatingModes {
+		if civOperatingModes[i].code == d[1] {
+			operatingModeIdx = i
+			break
+		}
+	}
+	var dataMode bool
+	if len(d) > 2 && d[2] != 0 {
+		dataMode = true
+	}
+	filterIdx := -1
+	if len(d) > 3 {
+		filterIdx = s.decodeFilterValueToFilterIdx(d[3])
+	}
+
+	switch d[0] {
+	default:
+		s.state.operatingModeIdx = operatingModeIdx
+		s.state.dataMode = dataMode
+		if filterIdx >= 0 {
+			s.state.filterIdx = filterIdx
+		}
+		statusLog.reportMode(civOperatingModes[s.state.operatingModeIdx].name, s.state.dataMode,
+			civFilters[s.state.filterIdx].name)
+
+		if s.state.getMainVFOMode.pending {
+			s.removePendingCmd(&s.state.getMainVFOMode)
+			return false
+		}
+	case 0x01:
+		s.state.subOperatingModeIdx = operatingModeIdx
+		s.state.subDataMode = dataMode
+		s.state.subFilterIdx = filterIdx
+		statusLog.reportSubMode(civOperatingModes[s.state.subOperatingModeIdx].name, s.state.subDataMode,
+			civFilters[s.state.subFilterIdx].name)
+
+		if s.state.getSubVFOMode.pending {
+			s.removePendingCmd(&s.state.getSubVFOMode)
+			return false
+		}
+		if s.state.setSubVFOMode.pending {
+			s.removePendingCmd(&s.state.setSubVFOMode)
+			return false
+		}
+	}
+	return true
+}
+
 func (s *civControlStruct) initCmd(cmd *civCmd, name string, data []byte) {
 	*cmd = civCmd{}
 	cmd.name = name
@@ -946,7 +991,12 @@ func (s *civControlStruct) setOperatingModeAndFilter(modeCode, filterCode byte) 
 	if err := s.sendCmd(&s.state.setMode); err != nil {
 		return err
 	}
-	return s.getMode()
+	return s.getBothVFOMode()
+}
+
+func (s *civControlStruct) setSubVFOMode(modeCode, dataMode, filterCode byte) error {
+	s.initCmd(&s.state.setSubVFOMode, "setSubVFOMode", []byte{254, 254, civAddress, 224, 0x26, 0x01, modeCode, dataMode, filterCode, 253})
+	return s.sendCmd(&s.state.setSubVFOMode)
 }
 
 func (s *civControlStruct) setPTT(enable bool) error {
@@ -1002,7 +1052,6 @@ func (s *civControlStruct) toggleDataMode() error {
 }
 
 func (s *civControlStruct) incBand() error {
-	s.state.bandChanging = true
 	i := s.state.bandIdx + 1
 	if i >= len(civBands) {
 		i = 0
@@ -1015,7 +1064,6 @@ func (s *civControlStruct) incBand() error {
 }
 
 func (s *civControlStruct) decBand() error {
-	s.state.bandChanging = true
 	i := s.state.bandIdx - 1
 	if i < 0 {
 		i = len(civBands) - 1
@@ -1081,7 +1129,10 @@ func (s *civControlStruct) decTS() error {
 
 func (s *civControlStruct) setVFO(nr byte) error {
 	s.initCmd(&s.state.setVFO, "setVFO", []byte{254, 254, civAddress, 224, 0x07, nr, 253})
-	return s.sendCmd(&s.state.setVFO)
+	if err := s.sendCmd(&s.state.setVFO); err != nil {
+		return err
+	}
+	return s.getBothVFOMode()
 }
 
 func (s *civControlStruct) toggleVFO() error {
@@ -1128,15 +1179,15 @@ func (s *civControlStruct) toggleSplit() error {
 // 	return s.sendCmd(&s.state.getFreq)
 // }
 
-func (s *civControlStruct) getMode() error {
-	s.initCmd(&s.state.getMode, "getMode", []byte{254, 254, civAddress, 224, 4, 253})
-	return s.sendCmd(&s.state.getMode)
-}
+// func (s *civControlStruct) getMode() error {
+// 	s.initCmd(&s.state.getMode, "getMode", []byte{254, 254, civAddress, 224, 4, 253})
+// 	return s.sendCmd(&s.state.getMode)
+// }
 
-func (s *civControlStruct) getDataMode() error {
-	s.initCmd(&s.state.getDataMode, "getDataMode", []byte{254, 254, civAddress, 224, 0x1a, 0x06, 253})
-	return s.sendCmd(&s.state.getDataMode)
-}
+// func (s *civControlStruct) getDataMode() error {
+// 	s.initCmd(&s.state.getDataMode, "getDataMode", []byte{254, 254, civAddress, 224, 0x1a, 0x06, 253})
+// 	return s.sendCmd(&s.state.getDataMode)
+// }
 
 func (s *civControlStruct) getPwr() error {
 	s.initCmd(&s.state.getPwr, "getPwr", []byte{254, 254, civAddress, 224, 0x14, 0x0a, 253})
@@ -1221,6 +1272,15 @@ func (s *civControlStruct) getBothVFOFreq() error {
 	return s.sendCmd(&s.state.getSubVFOFreq)
 }
 
+func (s *civControlStruct) getBothVFOMode() error {
+	s.initCmd(&s.state.getMainVFOMode, "getMainVFOMode", []byte{254, 254, civAddress, 224, 0x26, 0, 253})
+	if err := s.sendCmd(&s.state.getMainVFOMode); err != nil {
+		return err
+	}
+	s.initCmd(&s.state.getSubVFOMode, "getSubVFOMode", []byte{254, 254, civAddress, 224, 0x26, 1, 253})
+	return s.sendCmd(&s.state.getSubVFOMode)
+}
+
 func (s *civControlStruct) loop() {
 	for {
 		s.state.mutex.Lock()
@@ -1273,10 +1333,7 @@ func (s *civControlStruct) init(st *serialStream) error {
 	if err := s.getBothVFOFreq(); err != nil {
 		return err
 	}
-	if err := s.getMode(); err != nil {
-		return err
-	}
-	if err := s.getDataMode(); err != nil {
+	if err := s.getBothVFOMode(); err != nil {
 		return err
 	}
 	if err := s.getPwr(); err != nil {
@@ -1321,9 +1378,6 @@ func (s *civControlStruct) init(st *serialStream) error {
 	if err := s.getSplit(); err != nil {
 		return err
 	}
-	if err := s.getBothVFOFreq(); err != nil {
-		return err
-	}
 
 	s.deinitNeeded = make(chan bool)
 	s.deinitFinished = make(chan bool)
@@ -1334,10 +1388,12 @@ func (s *civControlStruct) init(st *serialStream) error {
 }
 
 func (s *civControlStruct) deinit() {
-	if s.deinitNeeded != nil {
-		s.deinitNeeded <- true
-		<-s.deinitFinished
+	if s.deinitNeeded == nil {
+		return
 	}
+
+	s.deinitNeeded <- true
+	<-s.deinitFinished
 	s.deinitNeeded = nil
 	s.st = nil
 }

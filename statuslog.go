@@ -22,6 +22,9 @@ type statusLogData struct {
 	mode         string
 	dataMode     string
 	filter       string
+	subMode      string
+	subDataMode  string
+	subFilter    string
 	preamp       string
 	agc          string
 	vd           string
@@ -137,7 +140,7 @@ func (s *statusLogStruct) reportSubFrequency(f uint) {
 	s.data.subFrequency = f
 }
 
-func (s *statusLogStruct) reportMode(mode, filter string) {
+func (s *statusLogStruct) reportMode(mode string, dataMode bool, filter string) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -145,20 +148,28 @@ func (s *statusLogStruct) reportMode(mode, filter string) {
 		return
 	}
 	s.data.mode = mode
+	if dataMode {
+		s.data.dataMode = "-D"
+	} else {
+		s.data.dataMode = ""
+	}
 	s.data.filter = filter
 }
 
-func (s *statusLogStruct) reportDataMode(dataMode, filter string) {
+func (s *statusLogStruct) reportSubMode(mode string, dataMode bool, filter string) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
 	if s.data == nil {
 		return
 	}
-	s.data.dataMode = dataMode
-	if dataMode != "" {
-		s.data.filter = filter
+	s.data.subMode = mode
+	if dataMode {
+		s.data.subDataMode = "-D"
+	} else {
+		s.data.subDataMode = ""
 	}
+	s.data.subFilter = filter
 }
 
 func (s *statusLogStruct) reportPreamp(preamp int) {
@@ -431,17 +442,17 @@ func (s *statusLogStruct) update() {
 	var splitStr string
 	if s.data.split != "" {
 		splitStr = " " + s.data.split
-	}
-	var subFreqStr string
-	if s.data.splitMode == splitModeOn {
-		subFreqStr = fmt.Sprintf("/%.6f", float64(s.data.subFrequency)/1000000)
+		if s.data.splitMode == splitModeOn {
+			splitStr += fmt.Sprintf("/%.6f/%s%s/%s", float64(s.data.subFrequency)/1000000,
+				s.data.subMode, s.data.subDataMode, s.data.subFilter)
+		}
 	}
 	var swrStr string
 	if (s.data.tune || s.data.ptt) && s.data.swr != "" {
 		swrStr = " SWR" + s.data.swr
 	}
 	s.data.line2 = fmt.Sprint(stateStr, " ", fmt.Sprintf("%.6f", float64(s.data.frequency)/1000000),
-		tsStr, modeStr, splitStr, subFreqStr, vdStr, txPowerStr, swrStr)
+		tsStr, modeStr, splitStr, vdStr, txPowerStr, swrStr)
 
 	up, down, lost, retransmits := netstat.get()
 	lostStr := "0"
