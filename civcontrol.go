@@ -7,7 +7,6 @@ import (
 	"time"
 )
 
-const civAddress = 0xa4
 const statusPollInterval = time.Second
 const commandRetryTimeout = 500 * time.Millisecond
 const pttTimeout = 3 * time.Minute
