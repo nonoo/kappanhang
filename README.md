@@ -62,7 +62,7 @@ After it is connected and logged in:
   To use this with for example [WSJT-X](https://physics.princeton.edu/pulsar/K1JT/wsjtx.html),
   open WSJT-X settings, go to the *Radio* tab, set the *rig type* to `Hamlib
   NET rigctl`, and the *Network server* to `localhost`.
-- Starts a **TCP server** on port `4533` for exposing the **serial port**.
+- Starts a **TCP server** on port `4531` for exposing the **serial port**.
   This can be used for an externally launched `rigctld` for example.
 
 ### Virtual serial port

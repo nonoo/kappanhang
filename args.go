@@ -27,7 +27,7 @@ func parseArgs() {
 	u := getopt.StringLong("username", 'u', "beer", "Username")
 	p := getopt.StringLong("password", 'p', "beerbeer", "Password")
 	c := getopt.UintLong("civ-address", 'c', 0xa4, "CI-V address")
-	t := getopt.Uint16Long("serial-tcp-port", 't', 4533, "Expose radio's serial port on this TCP port")
+	t := getopt.Uint16Long("serial-tcp-port", 't', 4531, "Expose radio's serial port on this TCP port")
 	s := getopt.BoolLong("enable-serial-device", 's', "Expose radio's serial port as a virtual serial port")
 	r := getopt.Uint16Long("rigctld-port", 'r', 4532, "Use this TCP port for the internal rigctld")
 	e := getopt.StringLong("exec", 'e', "", "Exec cmd when connected")
