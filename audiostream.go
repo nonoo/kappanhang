@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"time"
 )
 
@@ -136,7 +137,8 @@ func (s *audioStream) loop() {
 				reportError(err)
 			}
 		case <-s.timeoutTimer.C:
-			reportError(errors.New("audio stream timeout, try rebooting the radio"))
+			reportError(errors.New(fmt.Sprint("audio stream timeout after ",
+				time.Since(statusLog.data.startTime), ", try rebooting the radio")))
 		case e := <-s.rxSeqBufEntryChan:
 			s.handleRxSeqBufEntry(e)
 		case d := <-audio.rec:
