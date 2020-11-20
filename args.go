@@ -9,6 +9,7 @@ import (
 )
 
 var verboseLog bool
+var quietLog bool
 var connectAddress string
 var username string
 var password string
@@ -23,6 +24,7 @@ var statusLogInterval time.Duration
 func parseArgs() {
 	h := getopt.BoolLong("help", 'h', "display help")
 	v := getopt.BoolLong("verbose", 'v', "Enable verbose (debug) logging")
+	q := getopt.BoolLong("quiet", 'q', "Disable logging")
 	a := getopt.StringLong("address", 'a', "IC-705", "Connect to address")
 	u := getopt.StringLong("username", 'u', "beer", "Username")
 	p := getopt.StringLong("password", 'p', "beerbeer", "Password")
@@ -36,13 +38,14 @@ func parseArgs() {
 
 	getopt.Parse()
 
-	if *h || *a == "" {
+	if *h || *a == "" || (*q && *v) {
 		fmt.Println(getAboutStr())
 		getopt.Usage()
 		os.Exit(1)
 	}
 
 	verboseLog = *v
+	quietLog = *q
 	connectAddress = *a
 	username = *u
 	password = *p

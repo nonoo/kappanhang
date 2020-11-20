@@ -105,10 +105,6 @@ func main() {
 	osSignal := make(chan os.Signal, 1)
 	signal.Notify(osSignal, os.Interrupt, syscall.SIGTERM)
 
-	if statusLog.isRealtimeInternal() {
-		keyboard.init()
-	}
-
 	var retries int
 	var requireWait bool
 	var shouldExit bool

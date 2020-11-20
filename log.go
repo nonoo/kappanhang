@@ -88,6 +88,8 @@ func (l *logger) Init() {
 	var level zapcore.Level
 	if verboseLog {
 		level = zap.DebugLevel
+	} else if quietLog {
+		level = zap.FatalLevel
 	} else {
 		level = zap.InfoLevel
 	}

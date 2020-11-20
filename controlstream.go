@@ -12,6 +12,9 @@ const controlStreamPort = 50001
 const serialStreamPort = 50002
 const audioStreamPort = 50003
 
+const reauthInterval = time.Minute
+const reauthTimeout = 3 * time.Second
+
 type controlStream struct {
 	common streamCommon
 	serial serialStream
@@ -285,7 +288,7 @@ func (s *controlStream) loop() {
 	s.reauthTimeoutTimer = time.NewTimer(0)
 	<-s.reauthTimeoutTimer.C
 
-	reauthTicker := time.NewTicker(25 * time.Second)
+	reauthTicker := time.NewTicker(reauthInterval)
 
 	for {
 		select {
@@ -297,7 +300,7 @@ func (s *controlStream) loop() {
 			}
 		case <-reauthTicker.C:
 			log.Debug("sending auth")
-			s.reauthTimeoutTimer.Reset(3 * time.Second)
+			s.reauthTimeoutTimer.Reset(reauthTimeout)
 			if err := s.sendPktAuth(0x05); err != nil {
 				reportError(err)
 			}

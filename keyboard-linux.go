@@ -8,6 +8,7 @@ import (
 )
 
 type keyboardStruct struct {
+	initialized bool
 }
 
 var keyboard keyboardStruct
@@ -23,12 +24,18 @@ func (s *keyboardStruct) loop() {
 }
 
 func (s *keyboardStruct) init() {
+	if s.initialized {
+		return
+	}
+
 	if err := exec.Command("stty", "-F", "/dev/tty", "cbreak", "min", "1").Run(); err != nil {
 		log.Error("can't disable input buffering")
 	}
 	if err := exec.Command("stty", "-F", "/dev/tty", "-echo").Run(); err != nil {
 		log.Error("can't disable displaying entered characters")
 	}
+
+	s.initialized = true
 
 	go s.loop()
 }

@@ -491,7 +491,7 @@ func (s *statusLogStruct) loop() {
 }
 
 func (s *statusLogStruct) isRealtimeInternal() bool {
-	return statusLogInterval < time.Second
+	return keyboard.initialized
 }
 
 func (s *statusLogStruct) isRealtime() bool {
@@ -552,8 +552,10 @@ func (s *statusLogStruct) initIfNeeded() {
 		return
 	}
 
-	if !isatty.IsTerminal(os.Stdout.Fd()) && statusLogInterval < time.Second {
+	if quietLog || (!isatty.IsTerminal(os.Stdout.Fd()) && statusLogInterval < time.Second) {
 		statusLogInterval = time.Second
+	} else {
+		keyboard.init()
 	}
 
 	c := color.New(color.FgHiWhite)
