@@ -7,12 +7,18 @@ import "time"
 // won't work (small radio memory?)
 const txSeqBufLength = 300 * time.Millisecond
 
+type txSeqBufEntry struct {
+	seq     seqNum
+	data    []byte
+	addedAt time.Time
+}
+
 type txSeqBufStruct struct {
-	entries []seqBufEntry
+	entries []txSeqBufEntry
 }
 
 func (s *txSeqBufStruct) add(seq seqNum, p []byte) {
-	s.entries = append(s.entries, seqBufEntry{
+	s.entries = append(s.entries, txSeqBufEntry{
 		seq:     seq,
 		data:    p,
 		addedAt: time.Now(),
