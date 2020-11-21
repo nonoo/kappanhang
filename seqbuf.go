@@ -306,9 +306,9 @@ func (s *seqBuf) get() (e seqBufEntry, shouldRetryIn time.Duration, err error) {
 				if s.compareSeq(e.seq, s.ignoreMissingPktsUntilSeq) == larger {
 					// log.Debug("ignore over ", e.seq, " ", s.ignoreMissingPktsUntilSeq)
 					s.ignoreMissingPktsUntilEnabled = false
-				} else {
-					// log.Debug("ignoring missing pkt, seq #", e.seq, " until ", s.ignoreMissingPktsUntilSeq)
-				}
+				} //else {
+				// log.Debug("ignoring missing pkt, seq #", e.seq, " until ", s.ignoreMissingPktsUntilSeq)
+				//}
 			} else {
 				expectedNextSeq := s.lastReturnedSeq.inc(s.maxSeqNum)
 
