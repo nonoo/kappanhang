@@ -61,7 +61,7 @@ func (s *audioStream) handleRxSeqBufEntry(e seqBufEntry) {
 	gotSeq := uint16(e.seq)
 	if s.receivedAudio {
 		// Out of order packets can happen if we receive a retransmitted packet, but too late.
-		if s.rxSeqBuf.leftOrRightCloserToSeq(e.seq, seqNum(s.lastReceivedSeq)) != left {
+		if s.rxSeqBuf.compareSeq(e.seq, seqNum(s.lastReceivedSeq)) != larger {
 			log.Debug("got out of order pkt seq #", e.seq)
 			return
 		}
