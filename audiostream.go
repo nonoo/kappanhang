@@ -60,6 +60,12 @@ func (s *audioStream) sendPart2(pcmData []byte) error {
 func (s *audioStream) handleRxSeqBufEntry(e seqBufEntry) {
 	gotSeq := uint16(e.seq)
 	if s.receivedAudio {
+		// Out of order packets can happen if we receive a retransmitted packet, but too late.
+		if s.rxSeqBuf.leftOrRightCloserToSeq(e.seq, seqNum(s.lastReceivedSeq)) != left {
+			log.Debug("got out of order pkt seq #", e.seq)
+			return
+		}
+
 		expectedSeq := s.lastReceivedSeq + 1
 		if expectedSeq != gotSeq {
 			var missingPkts int
