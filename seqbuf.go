@@ -139,29 +139,28 @@ func (s *seqBuf) insert(seq seqNum, data []byte, toPos int) {
 }
 
 func (s *seqBuf) getDiff(seq1, seq2 seqNum) seqNum {
-	if seq1 > seq2 {
+	if seq1 >= seq2 {
 		return seq1 - seq2
 	}
 	seq2Overflowed := s.maxSeqNum + 1 - seq2
 	return seq2Overflowed + seq1
 }
 
+type seqBufCompareResult int
+
 const (
-	left = iota
-	right
+	larger = seqBufCompareResult(iota)
+	smaller
 	equal
 )
 
-type direction int
-
-// Decides the direction of which seq is closer to whichSeq, considering the seq turnover at maxSeqNum.
-// Basically left means seq is larger than whichSeq, and right means seq is smaller than whichSeq.
-// Example: returns left for seq=2 whichSeq=1
-//          returns right for seq=0 whichSeq=1
-//          returns right for seq=39 whichSeq=1 if maxSeqNum is 40
-func (s *seqBuf) leftOrRightCloserToSeq(seq, whichSeq seqNum) direction {
-	diff1 := s.getDiff(seq, whichSeq)
-	diff2 := s.getDiff(whichSeq, seq)
+// Compares seq to toSeq, considering the seq turnover at maxSeqNum.
+// Example: returns larger for seq=2 toSeq=1
+//          returns smaller for seq=0 toSeq=1
+//          returns smaller for seq=39 toSeq=1 if maxSeqNum is 40
+func (s *seqBuf) compareSeq(seq, toSeq seqNum) seqBufCompareResult {
+	diff1 := s.getDiff(seq, toSeq)
+	diff2 := s.getDiff(toSeq, seq)
 
 	if diff1 == diff2 {
 		return equal
@@ -170,13 +169,13 @@ func (s *seqBuf) leftOrRightCloserToSeq(seq, whichSeq seqNum) direction {
 	if diff1 > diff2 {
 		// This will cause an insert at the current position.
 		if s.maxSeqNumDiff > 0 && diff2 > s.maxSeqNumDiff {
-			return left
+			return larger
 		}
 
-		return right
+		return smaller
 	}
 
-	return left
+	return larger
 }
 
 func (s *seqBuf) add(seq seqNum, data []byte) error {
@@ -202,7 +201,7 @@ func (s *seqBuf) add(seq seqNum, data []byte) error {
 	}
 
 	// Checking the first entry.
-	if s.leftOrRightCloserToSeq(seq, s.entries[0].seq) == left {
+	if s.compareSeq(seq, s.entries[0].seq) == larger {
 		s.addToFront(seq, data)
 		return nil
 	}
@@ -214,7 +213,7 @@ func (s *seqBuf) add(seq seqNum, data []byte) error {
 			return nil
 		}
 
-		if s.leftOrRightCloserToSeq(seq, s.entries[i].seq) == left {
+		if s.compareSeq(seq, s.entries[i].seq) == larger {
 			// log.Debug("left for ", s.entries[i].seq)
 			s.insert(seq, data, i)
 			return nil
@@ -296,7 +295,7 @@ func (s *seqBuf) get() (e seqBufEntry, shouldRetryIn time.Duration, err error) {
 				}
 			}
 		} else {
-			if s.leftOrRightCloserToSeq(e.seq, seqNum(s.lastReturnedSeq)) != left {
+			if s.compareSeq(e.seq, seqNum(s.lastReturnedSeq)) != larger {
 				// log.Debug("ignoring out of order seq ", e.seq)
 				s.entries = s.entries[:lastEntryIdx]
 				err = s.errOutOfOrder
@@ -304,7 +303,7 @@ func (s *seqBuf) get() (e seqBufEntry, shouldRetryIn time.Duration, err error) {
 			}
 
 			if s.ignoreMissingPktsUntilEnabled {
-				if s.leftOrRightCloserToSeq(e.seq, s.ignoreMissingPktsUntilSeq) == left {
+				if s.compareSeq(e.seq, s.ignoreMissingPktsUntilSeq) == larger {
 					// log.Debug("ignore over ", e.seq, " ", s.ignoreMissingPktsUntilSeq)
 					s.ignoreMissingPktsUntilEnabled = false
 				} else {
