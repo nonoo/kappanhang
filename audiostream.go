@@ -112,14 +112,7 @@ func (s *audioStream) handleAudioPacket(r []byte) error {
 		s.timeoutTimer.Reset(audioTimeoutDuration)
 	}
 
-	addedToFront, _ := s.rxSeqBuf.add(seqNum(gotSeq), r[24:])
-	if !addedToFront {
-		// If the packet is not added to the front of the seqbuf, then it means that it was an answer for a
-		// retransmit request (or it was an out of order packet which we don't want start a retransmit request).
-		return nil
-	}
-
-	return s.common.requestRetransmitIfNeeded(gotSeq)
+	return s.rxSeqBuf.add(seqNum(gotSeq), r[24:])
 }
 
 func (s *audioStream) handleRead(r []byte) error {
@@ -175,7 +168,7 @@ func (s *audioStream) init(devName string) error {
 	log.Print("stream started")
 
 	s.rxSeqBufEntryChan = make(chan seqBufEntry)
-	s.rxSeqBuf.init(audioRxSeqBufLength, 0xffff, 0, s.rxSeqBufEntryChan)
+	s.rxSeqBuf.init(audioRxSeqBufLength, 0xffff, 0, s.rxSeqBufEntryChan, s.common.requestRetransmit)
 
 	s.timeoutTimer = time.NewTimer(audioTimeoutDuration)
 

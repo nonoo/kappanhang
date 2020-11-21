@@ -17,8 +17,9 @@ import (
 const audioSampleRate = 48000
 const audioSampleBytes = 2
 const pulseAudioBufferLength = 100 * time.Millisecond
-const audioFrameSize = 1920 // 20ms
-const maxPlayBufferSize = audioFrameSize * 5
+const audioFrameLength = 20 * time.Millisecond
+const audioFrameSize = int((audioSampleRate * audioSampleBytes * audioFrameLength) / time.Second)
+const maxPlayBufferSize = audioFrameSize*5 + int((audioSampleRate*audioSampleBytes*audioRxSeqBufLength)/time.Second)
 
 type audioStruct struct {
 	devName string
@@ -88,7 +89,7 @@ func (a *audioStruct) toggleRecFromDefaultSoundcard() {
 	if a.defaultSoundcardStream.recStream == nil {
 		ss := pulse.SampleSpec{Format: pulse.SAMPLE_S16LE, Rate: audioSampleRate, Channels: 1}
 		battr := pulse.NewBufferAttr()
-		battr.Fragsize = audioFrameSize
+		battr.Fragsize = uint32(audioFrameSize)
 		var err error
 		a.defaultSoundcardStream.recStream, err = pulse.NewStream("", "kappanhang", pulse.STREAM_RECORD, "", a.devName,
 			&ss, nil, battr)

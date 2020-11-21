@@ -106,15 +106,7 @@ func (s *serialStream) handleRxSeqBufEntry(e seqBufEntry) {
 
 func (s *serialStream) handleSerialPacket(r []byte) error {
 	gotSeq := binary.LittleEndian.Uint16(r[6:8])
-	addedToFront, _ := s.rxSeqBuf.add(seqNum(gotSeq), r)
-
-	// If the packet is not added to the front of the seqbuf, then it means that it was an answer for a
-	// retransmit request (or it was an out of order packet which we don't want start a retransmit).
-	if !addedToFront {
-		return nil
-	}
-
-	return s.common.requestRetransmitIfNeeded(gotSeq)
+	return s.rxSeqBuf.add(seqNum(gotSeq), r)
 }
 
 func (s *serialStream) handleRead(r []byte) error {
@@ -246,7 +238,7 @@ func (s *serialStream) init(devName string) error {
 	log.Print("stream started")
 
 	s.rxSeqBufEntryChan = make(chan seqBufEntry)
-	s.rxSeqBuf.init(serialRxSeqBufLength, 0xffff, 0, s.rxSeqBufEntryChan)
+	s.rxSeqBuf.init(serialRxSeqBufLength, 0xffff, 0, s.rxSeqBufEntryChan, s.common.requestRetransmit)
 
 	s.deinitNeededChan = make(chan bool)
 	s.deinitFinishedChan = make(chan bool)

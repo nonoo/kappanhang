@@ -24,8 +24,6 @@ type streamCommon struct {
 
 	pkt0 pkt0Type
 	pkt7 pkt7Type
-
-	lastSeqBufFrontRxSeq uint16
 }
 
 func (s *streamCommon) send(d []byte) error {
@@ -154,8 +152,6 @@ func (s *streamCommon) sendRetransmitRequest(seqNum uint16) error {
 	return nil
 }
 
-type seqNumRange [2]uint16
-
 func (s *streamCommon) sendRetransmitRequestForRanges(seqNumRanges []seqNumRange) error {
 	seqNumBytes := make([]byte, len(seqNumRanges)*4)
 	for i := 0; i < len(seqNumRanges); i++ {
@@ -177,35 +173,26 @@ func (s *streamCommon) sendRetransmitRequestForRanges(seqNumRanges []seqNumRange
 	return nil
 }
 
-func (s *streamCommon) requestRetransmitIfNeeded(gotSeq uint16) error {
-	prevExpectedSeq := gotSeq - 1
-	if s.lastSeqBufFrontRxSeq != prevExpectedSeq {
-		var missingPkts int
-		var sr seqNumRange
-		if prevExpectedSeq > s.lastSeqBufFrontRxSeq {
-			sr[0] = s.lastSeqBufFrontRxSeq
-			sr[1] = prevExpectedSeq
-			missingPkts = int(prevExpectedSeq) - int(s.lastSeqBufFrontRxSeq)
-		} else {
-			sr[0] = prevExpectedSeq
-			sr[1] = s.lastSeqBufFrontRxSeq
-			missingPkts = int(prevExpectedSeq) + 65536 - int(s.lastSeqBufFrontRxSeq)
+func (s *streamCommon) requestRetransmit(r seqNumRange) error {
+	diff := r.getDiff(0xffff)
+
+	if diff > maxRetransmitRequestPacketCount {
+		return errors.New("retransmit range too large")
+	}
+
+	if diff == 0 {
+		log.Debug(s.name+"/requesting pkt #", r[0], " retransmit")
+		netstat.reportRetransmit(diff)
+		if err := s.sendRetransmitRequest(uint16(r[0])); err != nil {
+			return err
 		}
-		if missingPkts == 1 {
-			log.Debug(s.name+"/requesting pkt #", sr[1], " retransmit")
-			netstat.reportRetransmit(missingPkts)
-			if err := s.sendRetransmitRequest(sr[1]); err != nil {
-				return err
-			}
-		} else if missingPkts <= maxRetransmitRequestPacketCount {
-			log.Debug(s.name+"/requesting pkt #", sr[0], "-#", sr[1], " retransmit")
-			netstat.reportRetransmit(missingPkts)
-			if err := s.sendRetransmitRequestForRanges([]seqNumRange{sr}); err != nil {
-				return err
-			}
+	} else {
+		log.Debug(s.name+"/requesting pkt #", r[0], "-#", r[1], " retransmit")
+		netstat.reportRetransmit(diff)
+		if err := s.sendRetransmitRequestForRanges([]seqNumRange{r}); err != nil {
+			return err
 		}
 	}
-	s.lastSeqBufFrontRxSeq = gotSeq
 	return nil
 }
 
