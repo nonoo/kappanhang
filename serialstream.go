@@ -65,12 +65,6 @@ func (s *serialStream) sendOpenClose(close bool) error {
 func (s *serialStream) handleRxSeqBufEntry(e seqBufEntry) {
 	gotSeq := uint16(e.seq)
 	if s.receivedSerialData {
-		// Out of order packets can happen if we receive a retransmitted packet, but too late.
-		if s.rxSeqBuf.leftOrRightCloserToSeq(e.seq, seqNum(s.lastReceivedSeq)) != left {
-			log.Debug("got out of order pkt seq #", e.seq)
-			return
-		}
-
 		expectedSeq := s.lastReceivedSeq + 1
 		if expectedSeq != gotSeq {
 			var missingPkts int
