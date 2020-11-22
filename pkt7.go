@@ -27,6 +27,8 @@ type pkt7Type struct {
 	periodicStopFinishedChan chan bool
 }
 
+var controlStreamLatency time.Duration
+
 func (p *pkt7Type) isPkt7(r []byte) bool {
 	return len(r) == 21 && bytes.Equal(r[1:6], []byte{0x00, 0x00, 0x00, 0x07, 0x00}) // Note that the first byte can be 0x15 or 0x00, so we ignore that.
 }
@@ -54,6 +56,8 @@ func (p *pkt7Type) handle(s *streamCommon, r []byte) error {
 				p.latency += time.Since(p.lastSendAt)
 				p.latency /= 2
 				statusLog.reportRTTLatency(p.latency)
+
+				controlStreamLatency = p.latency
 			}
 		}
 

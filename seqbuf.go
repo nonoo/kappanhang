@@ -228,8 +228,12 @@ func (s *seqBuf) add(seq seqNum, data []byte) error {
 
 func (s *seqBuf) checkLockTimeout() (timeout bool, shouldRetryIn time.Duration) {
 	timeSinceLastInvalidSeq := time.Since(s.lockedAt)
-	if s.length > timeSinceLastInvalidSeq {
-		shouldRetryIn = s.length - timeSinceLastInvalidSeq
+	lockDuration := s.length
+	if lockDuration < controlStreamLatency*2 {
+		lockDuration = controlStreamLatency * 2
+	}
+	if lockDuration > timeSinceLastInvalidSeq {
+		shouldRetryIn = lockDuration - timeSinceLastInvalidSeq
 		return
 	}
 
