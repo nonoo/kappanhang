@@ -259,6 +259,8 @@ func (s *controlStream) handleRead(r []byte) error {
 			copy(s.authID[:], r[26:32])
 			s.gotAuthID = true
 
+			statusLog.startPeriodicPrint()
+
 			if err := s.serial.init(devName); err != nil {
 				return errors.New("serial/" + err.Error())
 			}
@@ -268,7 +270,6 @@ func (s *controlStream) handleRead(r []byte) error {
 			}
 
 			s.serialAndAudioStreamOpened = true
-			statusLog.startPeriodicPrint()
 
 			runCmdRunner.startIfNeeded(runCmd)
 			if enableSerialDevice {
