@@ -49,6 +49,10 @@ host **ic-705** (ic-705.local or ic-705.localdomain) with the username `beer`
 and password `beerbeer`. You can set the username with the `-u` and the
 password with the `-p` command line arguments.
 
+Here's a quick video tutorial on how to run kappanhang on a Raspberry Pi:
+
+[![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/93hYhXHCVeU/0.jpg)](https://www.youtube.com/watch?v=93hYhXHCVeU)
+
 After it is connected and logged in:
 
 - Creates a virtual PulseAudio **sound card** (48kHz, s16le, mono). This can be
