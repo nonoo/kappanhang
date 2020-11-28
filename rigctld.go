@@ -169,12 +169,9 @@ func (s *rigctldStruct) processCmd(cmd string) (close bool, err error) {
 		err = s.send(mode, "\n", width, "\n")
 	case cmdSplit[0] == "M":
 		mode := cmdSplit[1]
+		var dataMode bool
 		if mode[:3] == "PKT" {
-			err = civControl.setDataMode(true)
-			if err != nil {
-				_ = s.sendReplyCode(rigctldInvalidParam)
-				return
-			}
+			dataMode = true
 			mode = mode[3:]
 		}
 		var modeCode byte
@@ -207,6 +204,11 @@ func (s *rigctldStruct) processCmd(cmd string) (close bool, err error) {
 		if err != nil {
 			_ = s.sendReplyCode(rigctldInvalidParam)
 		} else {
+			err = civControl.setDataMode(dataMode)
+			if err != nil {
+				_ = s.sendReplyCode(rigctldInvalidParam)
+				return
+			}
 			_ = s.sendReplyCode(rigctldNoError)
 		}
 	case cmd == "t":
