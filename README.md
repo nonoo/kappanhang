@@ -19,8 +19,8 @@ kappanhang.
 You'll need Go installed on your computer.
 
 ```
-go get https://github.com/nonoo/kappanhang
-go install https://github.com/nonoo/kappanhang
+go get github.com/nonoo/kappanhang
+go install github.com/nonoo/kappanhang
 ```
 
 ## Required settings on the RS-BA1 server (the transceiver)
