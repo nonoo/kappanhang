@@ -1055,6 +1055,10 @@ func (s *civControlStruct) toggleDataMode() error {
 	return s.setDataMode(!s.state.dataMode)
 }
 
+func (s *civControlStruct) enableDataMode() error {
+	return s.setDataMode(true)
+}
+
 func (s *civControlStruct) incBand() error {
 	i := s.state.bandIdx + 1
 	if i >= len(civBands) {
