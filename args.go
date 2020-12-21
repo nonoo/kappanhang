@@ -20,6 +20,7 @@ var rigctldPort uint16
 var runCmd string
 var runCmdOnSerialPortCreated string
 var statusLogInterval time.Duration
+var digitalOnTx bool
 
 func parseArgs() {
 	h := getopt.BoolLong("help", 'h', "display help")
@@ -35,6 +36,7 @@ func parseArgs() {
 	e := getopt.StringLong("exec", 'e', "", "Exec cmd when connected")
 	o := getopt.StringLong("exec-serial", 'o', "socat /tmp/kappanhang-IC-705.pty /tmp/vmware.pty", "Exec cmd when virtual serial port is created, set to - to disable")
 	i := getopt.Uint16Long("log-interval", 'i', 100, "Status bar/log interval in milliseconds")
+	d := getopt.BoolLong("digital-on-TX", 'd', "Automatically enable data mode when TX from kappanhang")
 
 	getopt.Parse()
 
@@ -56,4 +58,5 @@ func parseArgs() {
 	runCmd = *e
 	runCmdOnSerialPortCreated = *o
 	statusLogInterval = time.Duration(*i) * time.Millisecond
+	digitalOnTx = *d
 }

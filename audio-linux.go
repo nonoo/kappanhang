@@ -87,6 +87,11 @@ func (a *audioStruct) togglePlaybackToDefaultSoundcard() {
 
 func (a *audioStruct) toggleRecFromDefaultSoundcard() {
 	if a.defaultSoundcardStream.recStream == nil {
+		if digitalOnTx {
+			if err := civControl.enableDataMode(); err != nil {
+				log.Error("can't change datamode: ", err)
+			}
+		}
 		ss := pulse.SampleSpec{Format: pulse.SAMPLE_S16LE, Rate: audioSampleRate, Channels: 1}
 		battr := pulse.NewBufferAttr()
 		battr.Fragsize = uint32(audioFrameSize)
