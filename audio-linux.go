@@ -87,11 +87,6 @@ func (a *audioStruct) togglePlaybackToDefaultSoundcard() {
 
 func (a *audioStruct) toggleRecFromDefaultSoundcard() {
 	if a.defaultSoundcardStream.recStream == nil {
-		if digitalOnTx {
-			if err := civControl.enableDataMode(); err != nil {
-				log.Error("can't change datamode: ", err)
-			}
-		}
 		ss := pulse.SampleSpec{Format: pulse.SAMPLE_S16LE, Rate: audioSampleRate, Channels: 1}
 		battr := pulse.NewBufferAttr()
 		battr.Fragsize = uint32(audioFrameSize)
@@ -105,6 +100,11 @@ func (a *audioStruct) toggleRecFromDefaultSoundcard() {
 			log.Print("turned on audio rec")
 			statusLog.reportAudioRec(true)
 
+			if setDataModeOnTx {
+				if err := civControl.setDataMode(true); err != nil {
+					log.Error("can't enable data mode: ", err)
+				}
+			}
 			if err := civControl.setPTT(true); err != nil {
 				log.Error("can't turn on ptt: ", err)
 			}

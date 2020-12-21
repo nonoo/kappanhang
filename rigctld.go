@@ -222,6 +222,12 @@ func (s *rigctldStruct) processCmd(cmd string) (close bool, err error) {
 		err = s.send(res, "\n")
 	case cmdSplit[0] == "T":
 		if cmdSplit[1] != "0" {
+			if setDataModeOnTx {
+				if err := civControl.setDataMode(true); err != nil {
+					log.Error("can't enable data mode: ", err)
+				}
+			}
+
 			err = civControl.setPTT(true)
 		} else {
 			err = civControl.setPTT(false)
