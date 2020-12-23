@@ -16,12 +16,23 @@ kappanhang.
 
 ## Compiling
 
-You'll need Go installed on your computer.
+You'll need
+
+* Go installed on your computer.  On Debian-like systems, install a
+  recent package `golang-N.NN-go` and add `/usr/lib/go-N.NN/bin` to
+  your path.
+
+* The development package for libpulse installed.  On Debian-like
+  systems, this is package `libpulse-dev`.
+
+Then:
 
 ```
 go get github.com/nonoo/kappanhang
 go install github.com/nonoo/kappanhang
 ```
+
+This will typically install `kappanhang` into `$HOME/go/bin`.
 
 ## Required settings on the RS-BA1 server (the transceiver)
 
