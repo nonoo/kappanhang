@@ -16,14 +16,13 @@ kappanhang.
 
 ## Compiling
 
-You'll need
+You'll need:
 
-* Go installed on your computer.  On Debian-like systems, install a
-  recent package `golang-N.NN-go` and add `/usr/lib/go-N.NN/bin` to
-  your path.
+- Go installed on your computer. On Ubuntu-like systems, install a recent
+  package `golang`.
 
-* The development package for libpulse installed.  On Debian-like
-  systems, this is package `libpulse-dev`.
+- The development package for libpulse installed. On Ubuntu-like systems,
+  this is package `libpulse-dev`.
 
 Then:
 
