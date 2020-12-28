@@ -14,6 +14,15 @@ needed, as I'm only developing the Linux version).
 You can find pre-built versions for Linux/x64 on the GitHub project page of
 kappanhang.
 
+## Compatible hardware/software
+
+- Icom RS-BA1 server software
+- Icom IC-705
+- Icom IC-9700
+
+Send me an [email](mailto:nonoo@nonoo.hu) if you've tested a new hardware or
+software and it is working with kappanhang.
+
 ## Compiling
 
 You'll need:
