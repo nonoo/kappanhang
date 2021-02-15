@@ -11,6 +11,9 @@ kappanhang currently only supports Linux, but support for other platforms can
 be easily added if anyone is interested and has the skills (volunteers
 needed, as I'm only developing the Linux version).
 
+Please note that the Icom IC-705 (and also the RS-BA1 protocol) does not
+provide GPS data over IP so it's not possible to get the GPS data stream.
+
 ## Compatible hardware/software
 
 - Icom RS-BA1 server software
