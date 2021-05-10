@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/pborman/getopt"
@@ -29,7 +31,7 @@ func parseArgs() {
 	a := getopt.StringLong("address", 'a', "IC-705", "Connect to address")
 	u := getopt.StringLong("username", 'u', "beer", "Username")
 	p := getopt.StringLong("password", 'p', "beerbeer", "Password")
-	c := getopt.UintLong("civ-address", 'c', 0xa4, "CI-V address")
+	c := getopt.StringLong("civ-address", 'c', "0xa4", "CI-V address")
 	t := getopt.Uint16Long("serial-tcp-port", 't', 4531, "Expose radio's serial port on this TCP port")
 	s := getopt.BoolLong("enable-serial-device", 's', "Expose radio's serial port as a virtual serial port")
 	r := getopt.Uint16Long("rigctld-port", 'r', 4532, "Use this TCP port for the internal rigctld")
@@ -51,7 +53,16 @@ func parseArgs() {
 	connectAddress = *a
 	username = *u
 	password = *p
-	civAddress = byte(*c)
+
+	*c = strings.Replace(*c, "0x", "", -1)
+	*c = strings.Replace(*c, "0X", "", -1)
+	civAddressInt, err := strconv.ParseInt(*c, 16, 64)
+	if err != nil {
+		fmt.Println("invalid CI-V address: can't parse", *c)
+		os.Exit(1)
+	}
+	civAddress = byte(civAddressInt)
+
 	serialTCPPort = *t
 	enableSerialDevice = *s
 	rigctldPort = *r
