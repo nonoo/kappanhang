@@ -532,7 +532,10 @@ func (s *civControlStruct) decodeTransmitStatus(d []byte) bool {
 		} else {
 			if s.state.tune { // Tune finished?
 				s.state.tune = false
-				s.state.tuneTimeoutTimer.Stop()
+				if s.state.tuneTimeoutTimer != nil {
+					s.state.tuneTimeoutTimer.Stop()
+					s.state.tuneTimeoutTimer = nil
+				}
 				_ = s.getVd()
 			}
 		}
@@ -1024,6 +1027,7 @@ func (s *civControlStruct) setTune(enable bool) error {
 	if enable {
 		b = 2
 		s.state.tuneTimeoutTimer = time.AfterFunc(tuneTimeout, func() {
+			s.state.tuneTimeoutTimer = nil
 			_ = s.setTune(false)
 		})
 	} else {
