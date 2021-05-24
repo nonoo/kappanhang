@@ -20,6 +20,7 @@ provide GPS data over IP so it's not possible to get the GPS data stream.
 - Icom IC-705
 - Icom IC-9700
 - Icom IC-7610
+- Icom IC-785x
 
 Send me an [email](mailto:nonoo@nonoo.hu) if you've tested a new hardware or
 software and it is working with kappanhang.
