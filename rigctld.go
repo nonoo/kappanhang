@@ -130,12 +130,12 @@ func (s *rigctldStruct) processCmd(cmd string) (close bool, err error) {
 	case cmd == "q":
 		err = s.sendReplyCode(rigctldNoError)
 		close = true
-	case cmd == "f":
+	case cmd == "f", cmd == "\\get_freq":
 		civControl.state.mutex.Lock()
 		defer civControl.state.mutex.Unlock()
 
 		err = s.send(civControl.state.freq, "\n")
-	case cmdSplit[0] == "F":
+	case cmdSplit[0] == "F", cmdSplit[0] == "\\set_freq":
 		var f float64
 		f, err = strconv.ParseFloat(cmdSplit[1], 0)
 		if err != nil {
@@ -148,7 +148,7 @@ func (s *rigctldStruct) processCmd(cmd string) (close bool, err error) {
 			return
 		}
 		err = s.sendReplyCode(rigctldNoError)
-	case cmd == "m":
+	case cmd == "m", cmd == "\\get_mode":
 		civControl.state.mutex.Lock()
 		defer civControl.state.mutex.Unlock()
 
@@ -167,7 +167,7 @@ func (s *rigctldStruct) processCmd(cmd string) (close bool, err error) {
 			width = "1800"
 		}
 		err = s.send(mode, "\n", width, "\n")
-	case cmdSplit[0] == "M":
+	case cmdSplit[0] == "M", cmdSplit[0] == "\\set_mode":
 		mode := cmdSplit[1]
 		var dataMode bool
 		if mode[:3] == "PKT" {
@@ -211,7 +211,7 @@ func (s *rigctldStruct) processCmd(cmd string) (close bool, err error) {
 			}
 			_ = s.sendReplyCode(rigctldNoError)
 		}
-	case cmd == "t":
+	case cmd == "t", cmd == "\\get_ptt":
 		civControl.state.mutex.Lock()
 		defer civControl.state.mutex.Unlock()
 
@@ -220,7 +220,7 @@ func (s *rigctldStruct) processCmd(cmd string) (close bool, err error) {
 			res = "1"
 		}
 		err = s.send(res, "\n")
-	case cmdSplit[0] == "T":
+	case cmdSplit[0] == "T", cmdSplit[0] == "\\set_ptt":
 		if cmdSplit[1] != "0" {
 			if setDataModeOnTx {
 				if err := civControl.setDataMode(true); err != nil {
@@ -237,7 +237,7 @@ func (s *rigctldStruct) processCmd(cmd string) (close bool, err error) {
 		} else {
 			_ = s.sendReplyCode(rigctldNoError)
 		}
-	case cmdSplit[0] == "V":
+	case cmdSplit[0] == "V", cmdSplit[0] == "\\set_vfo":
 		if cmdSplit[1] == "VFOB" {
 			err = civControl.setVFO(1)
 		} else {
@@ -248,7 +248,7 @@ func (s *rigctldStruct) processCmd(cmd string) (close bool, err error) {
 		} else {
 			_ = s.sendReplyCode(rigctldNoError)
 		}
-	case cmd == "s":
+	case cmd == "s", cmd == "\\get_split_vfo":
 		civControl.state.mutex.Lock()
 		defer civControl.state.mutex.Unlock()
 
@@ -267,7 +267,7 @@ func (s *rigctldStruct) processCmd(cmd string) (close bool, err error) {
 			res = "VFOB"
 		}
 		err = s.send(res, "\n")
-	case cmdSplit[0] == "S":
+	case cmdSplit[0] == "S", cmdSplit[0] == "\\set_split_vfo":
 		if cmdSplit[1] == "1" {
 			err = civControl.setSplit(splitModeOn)
 		} else {
@@ -278,12 +278,12 @@ func (s *rigctldStruct) processCmd(cmd string) (close bool, err error) {
 		} else {
 			_ = s.sendReplyCode(rigctldNoError)
 		}
-	case cmd == "i":
+	case cmd == "i", cmd == "\\get_split_freq":
 		civControl.state.mutex.Lock()
 		defer civControl.state.mutex.Unlock()
 
 		err = s.send(civControl.state.subFreq, "\n")
-	case cmdSplit[0] == "I":
+	case cmdSplit[0] == "I", cmdSplit[0] == "\\set_split_freq":
 		var f float64
 		f, err = strconv.ParseFloat(cmdSplit[1], 0)
 		if err != nil {
@@ -296,7 +296,7 @@ func (s *rigctldStruct) processCmd(cmd string) (close bool, err error) {
 			return
 		}
 		err = s.sendReplyCode(rigctldNoError)
-	case cmd == "x":
+	case cmd == "x", cmd == "\\get_split_mode":
 		civControl.state.mutex.Lock()
 		defer civControl.state.mutex.Unlock()
 
@@ -315,7 +315,7 @@ func (s *rigctldStruct) processCmd(cmd string) (close bool, err error) {
 			width = "1800"
 		}
 		err = s.send(mode, "\n", width, "\n")
-	case cmdSplit[0] == "X":
+	case cmdSplit[0] == "X", cmdSplit[0] == "\\set_split_mode":
 		mode := cmdSplit[1]
 		var dataMode byte
 		if mode[:3] == "PKT" {
